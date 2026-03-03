@@ -312,11 +312,18 @@ class AdminRoleCRUDTests(BaseTestCase):
         # 8 roles were created in setUpTestData
         self.assertEqual(response.data["count"], 8)
 
-    def test_create_role(self):
-        # Note: role_name must be unique, so creating a new one
-        # This tests that the admin can create roles dynamically
-        # We delete one first to avoid unique constraint
-        pass  # All 8 roles already exist as TextChoices
+    def test_create_role_after_delete(self):
+        """Delete a role then re-create it to verify full create flow."""
+        role = self.roles["procurement"]
+        self.client.delete(reverse("role-detail", args=[role.id]))
+        self.assertFalse(Role.objects.filter(id=role.id).exists())
+        response = self.client.post(
+            reverse("role-list"),
+            {"role_name": "procurement", "contact_alias": "Procurement Office (Recreated)"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertTrue(Role.objects.filter(role_name="procurement").exists())
 
     def test_retrieve_role(self):
         role = self.roles["analyst"]
@@ -677,3 +684,128 @@ class PermissionClassUnitTests(BaseTestCase):
         self.assertEqual(self.coordinator_user.role_name, "ministry_coordinator")
         self.assertEqual(self.auditor_user.role_name, "auditor")
         self.assertIsNone(self.client_user.role_name)
+
+
+# ===========================================================================
+# EDGE CASE / REGRESSION TESTS
+# ===========================================================================
+class EdgeCaseTests(BaseTestCase):
+    """Tests for boundary conditions and edge cases not covered above."""
+
+    def setUp(self):
+        self.admin_client = self.get_authenticated_client(
+            "admin@ministry.gov", "AdminPass123!"
+        )
+
+    # --- Deactivated user cannot obtain token ---
+    def test_deactivated_user_cannot_login(self):
+        """A soft-deleted (is_active=False) user should be denied a JWT token."""
+        # Deactivate the client user via admin endpoint
+        self.admin_client.delete(
+            reverse("user-detail", args=[self.client_user.id])
+        )
+        self.client_user.refresh_from_db()
+        self.assertFalse(self.client_user.is_active)
+
+        # Attempt login with the deactivated account
+        anon = APIClient()
+        response = anon.post(
+            reverse("token_obtain_pair"),
+            {"email": "client@company.com", "password": "ClientPass123!"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    # --- Short password rejected on change-password ---
+    def test_change_password_too_short(self):
+        """Admin-initiated password change should reject passwords < 8 chars."""
+        response = self.admin_client.post(
+            reverse("user-change-password", args=[self.analyst_user.id]),
+            {"new_password": "short"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    # --- Switching external user to internal without role ---
+    def test_update_external_to_internal_without_role_rejected(self):
+        """Changing user_type to internal without assigning a role must fail."""
+        response = self.admin_client.patch(
+            reverse("user-detail", args=[self.client_user.id]),
+            {"user_type": "internal"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("role", response.data)
+
+    # --- Removing role from internal user ---
+    def test_update_internal_user_remove_role_rejected(self):
+        """Setting role=null on an internal user must fail validation."""
+        response = self.admin_client.patch(
+            reverse("user-detail", args=[self.receptionist_user.id]),
+            {"role": None},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("role", response.data)
+
+    # --- Duplicate username ---
+    def test_duplicate_username_rejected(self):
+        """Creating a user with an existing username should fail."""
+        response = self.admin_client.post(
+            reverse("user-list"),
+            {
+                "username": "admin",  # already exists
+                "email": "unique@new.com",
+                "password": "UniquePass123!",
+                "user_type": "external",
+            },
+            format="json",
+        )
+        self.assertIn(
+            response.status_code,
+            [status.HTTP_400_BAD_REQUEST, status.HTTP_409_CONFLICT],
+        )
+
+    # --- Full PUT update ---
+    def test_full_update_user_put(self):
+        """Full PUT update should work with all required fields."""
+        response = self.admin_client.put(
+            reverse("user-detail", args=[self.analyst_user.id]),
+            {
+                "username": "analyst_updated",
+                "email": "analyst_updated@ministry.gov",
+                "first_name": "Updated",
+                "last_name": "Analyst",
+                "phone": "+251900000000",
+                "user_type": "internal",
+                "role": str(self.roles["analyst"].id),
+                "nationality": "",
+                "organization_name": "",
+                "organization_type": "",
+                "is_active": True,
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.analyst_user.refresh_from_db()
+        self.assertEqual(self.analyst_user.first_name, "Updated")
+
+    # --- 404 on nonexistent user ---
+    def test_retrieve_nonexistent_user_returns_404(self):
+        """Fetching a user with a random UUID should return 404."""
+        import uuid
+        fake_id = uuid.uuid4()
+        response = self.admin_client.get(
+            reverse("user-detail", args=[fake_id])
+        )
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    # --- 404 on nonexistent role ---
+    def test_retrieve_nonexistent_role_returns_404(self):
+        """Fetching a role with a random UUID should return 404."""
+        import uuid
+        fake_id = uuid.uuid4()
+        response = self.admin_client.get(
+            reverse("role-detail", args=[fake_id])
+        )
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)

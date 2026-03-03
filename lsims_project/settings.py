@@ -4,16 +4,27 @@ LSIMS - Laboratory Sample Information Management System
 Ministry of Mines
 """
 
+import os
 from pathlib import Path
 from datetime import timedelta
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = "django-insecure-dev-key-change-in-production"
+# ---------------------------------------------------------------------------
+# Security — loaded from environment variables, safe defaults for dev
+# ---------------------------------------------------------------------------
+DEBUG = os.environ.get("DJANGO_DEBUG", "True").lower() in ("true", "1", "yes")
 
-DEBUG = True
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY")
+if not SECRET_KEY:
+    if DEBUG:
+        SECRET_KEY = "django-insecure-dev-key-DO-NOT-USE-IN-PRODUCTION"
+    else:
+        raise RuntimeError(
+            "DJANGO_SECRET_KEY environment variable is required in production."
+        )
 
-ALLOWED_HOSTS = ["*"]
+ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS", "").split(",") if not DEBUG else ["*"]
 
 # ---------------------------------------------------------------------------
 # Application definition

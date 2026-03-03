@@ -1,6 +1,7 @@
 # Sprint 1 Report: Foundation (Auth & RBAC)
 
 **Date Completed:** 2026-02-21
+**Last Updated:** 2026-02-24 (post-review hardening)
 **Status:** COMPLETE -- All verifications passed.
 
 ---
@@ -32,7 +33,7 @@ Establish the Django project, database connections, custom user models, JWT auth
 
 | File                              | Purpose                                                    |
 |-----------------------------------|------------------------------------------------------------|
-| `lsims_project/settings.py`      | Django settings with DRF, JWT, Spectacular, custom user    |
+| `lsims_project/settings.py`      | Django settings with DRF, JWT, Spectacular, env-var security |
 | `lsims_project/urls.py`          | Root URL config: JWT endpoints, Swagger docs, accounts API |
 | `manage.py`                       | Django management script (auto-generated)                  |
 
@@ -47,7 +48,13 @@ Establish the Django project, database connections, custom user models, JWT auth
 | `urls.py`           | DRF router registration and profile endpoint                     |
 | `admin.py`          | Django admin registration for Role and User                      |
 | `apps.py`           | App configuration                                                |
-| `tests.py`          | Comprehensive test suite (48 tests)                              |
+| `tests.py`          | Comprehensive test suite (56 tests)                              |
+
+### Environment
+
+| File              | Purpose                                              |
+|-------------------|------------------------------------------------------|
+| `.env.example`    | Reference for required environment variables          |
 
 ### Database
 
@@ -169,11 +176,13 @@ All permissions extend a base `_RolePermission` class that checks `request.user.
 
 6. **SQLite for development.** PostgreSQL configuration is present but commented out in settings. Switching is a single config change.
 
+7. **Environment-driven security settings.** `SECRET_KEY`, `DEBUG`, and `ALLOWED_HOSTS` are loaded from environment variables. In development, safe defaults are used automatically. In production (`DEBUG=False`), a missing `SECRET_KEY` will crash the app at startup rather than silently using an insecure value.
+
 ---
 
 ## 8. Verification Results
 
-### A. Automated Tests (48/48 Passed)
+### A. Automated Tests (56/56 Passed)
 
 | Test Category           | Count | What Was Verified                                           |
 |-------------------------|-------|-------------------------------------------------------------|
@@ -185,6 +194,7 @@ All permissions extend a base `_RolePermission` class that checks `request.user.
 | JWT Auth                | 5     | Token obtain, wrong password, refresh, invalid refresh      |
 | Profile                 | 3     | All 9 user types can view own profile                       |
 | Permission Unit Tests   | 2     | All 8 roles exist, role_name property works correctly       |
+| Edge Cases              | 8     | Deactivated login, short password change, type switching, duplicate username, PUT update, 404s |
 
 Command: `.\venv\Scripts\python manage.py test accounts -v 2`
 
@@ -221,7 +231,6 @@ Virtual environment: `.\venv\`
 
 ## 10. Known Limitations / Future Work
 
-- No git repository initialized yet (deferred to after review).
 - Django deployment warnings (HSTS, SSL, etc.) are present but expected for development.
 - No client self-registration endpoint yet (clients are created by Admin).
 - No email/SMS notification system yet.
@@ -232,10 +241,10 @@ Virtual environment: `.\venv\`
 
 ## 11. What Comes Next
 
-| Sprint | Focus                          | Key Models                                          |
-|--------|--------------------------------|-----------------------------------------------------|
-| 2      | Core Engine (Jobs & Samples)   | JobOrder, BlindCode, Sample                         |
-| 3      | Workflow & Audit Trails        | JobStatusHistory, IncidentLog                       |
-| 4      | Finance & Billing              | FinancialRecord, DisputeRecord                      |
-| 5      | Lab Analysis & QC              | AnalysisResult, QCDecision                          |
-| 6      | Audit, Legal & Compliance      | AuditLog, PaymentVerification, RoleChangeHistory, CertificateHistory |
+| Sprint | Focus                              | Key Models                                          |
+|--------|------------------------------------|-----------------------------------------------------|
+| 2      | Core Engine (Jobs & Samples)       | TestCatalog, JobOrder, BlindCode, Sample             |
+| 3      | Lab Analysis & QC                  | AnalysisResult, QCDecision, DemaskLog                |
+| 4      | Workflow & Audit Trails            | JobStatusHistory, IncidentLog, AuditLog              |
+| 5      | Finance & Billing                  | FinancialRecord, PaymentVerification, DisputeRecord  |
+| 6      | Compliance, Certificates & Notifs  | RoleChangeHistory, CertificateHistory, Notifications |
