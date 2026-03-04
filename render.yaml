@@ -25,12 +25,3 @@ services:
         value: "False"
       - key: PYTHON_VERSION
         value: "3.13.2"
-      # Superuser auto-creation (remove after first deploy)
-      - key: CREATE_SUPERUSER
-        value: "True"
-      - key: DJANGO_SUPERUSER_EMAIL
-        value: "admin@lsims.gov"
-      - key: DJANGO_SUPERUSER_USERNAME
-        value: "admin"
-      - key: DJANGO_SUPERUSER_PASSWORD
-        value: "lsims123!"

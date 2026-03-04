@@ -223,23 +223,43 @@ djangorestframework-simplejwt
 drf-spectacular
 psycopg2-binary
 django-filter
+gunicorn
+whitenoise
+dj-database-url
+django-cors-headers
 ```
 
 Virtual environment: `.\venv\`
+Full pinned versions: `requirements.txt`
 
 ---
 
-## 10. Known Limitations / Future Work
+## 10. Staging Deployment
 
-- Django deployment warnings (HSTS, SSL, etc.) are present but expected for development.
+| Component | Details |
+|---|---|
+| **Platform** | Render.com (Free tier) |
+| **Live URL** | `https://lsims-api-staging.onrender.com` |
+| **Swagger UI** | `https://lsims-api-staging.onrender.com/api/docs/` |
+| **Database** | PostgreSQL (Render managed) |
+| **WSGI Server** | Gunicorn |
+| **Static Files** | WhiteNoise (compressed + cached) |
+| **CORS** | `CORS_ALLOW_ALL_ORIGINS = True` (temporary for frontend testing) |
+| **Build Script** | `build.sh` — installs deps, collectstatic, migrate |
+| **Blueprint** | `render.yaml` — Infrastructure-as-Code for one-click deploy |
+
+---
+
+## 11. Known Limitations / Future Work
+
+- CORS is set to allow all origins (temporary for frontend testing, must be restricted before production).
 - No client self-registration endpoint yet (clients are created by Admin).
 - No email/SMS notification system yet.
-- Database is SQLite; PostgreSQL switch needed before production.
 - No rate limiting or throttling on auth endpoints.
 
 ---
 
-## 11. What Comes Next
+## 12. What Comes Next
 
 | Sprint | Focus                              | Key Models                                          |
 |--------|------------------------------------|-----------------------------------------------------|

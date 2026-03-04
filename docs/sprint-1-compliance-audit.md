@@ -113,26 +113,29 @@
 
 ## Phase 3: Deployment & Handoff (Developer Manual Action)
 
-### 9. Version Control (Sec 13)
+### ✅ 9. Version Control (Sec 13)
 
-| Check | Status | Action |
-|-------|--------|--------|
-| Code committed to Git | ✅ | Committed as part of this audit |
-| Pushed to GitHub | ⬜ | Developer must create repo and push |
+| Check | Status | Evidence |
+|-------|--------|----------|
+| Code committed to Git | ✅ | All code committed to `main` branch |
+| Pushed to GitHub | ✅ | `https://github.com/cookiemp/lsims-backend` |
 
-### 10. Staging Environment (Sec 7)
+### ✅ 10. Staging Environment (Sec 7)
 
-| Check | Status | Action |
-|-------|--------|--------|
-| Deployed to staging | ⬜ | Developer must deploy `main` branch to staging server |
+| Check | Status | Evidence |
+|-------|--------|----------|
+| Deployed to staging | ✅ | `https://lsims-api-staging.onrender.com` |
+| Swagger UI accessible | ✅ | `https://lsims-api-staging.onrender.com/api/docs/` |
+| JWT auth working | ✅ | `/api/auth/token/` returns 200 with access + refresh tokens |
+| PostgreSQL connected | ✅ | Render managed PostgreSQL via `DATABASE_URL` |
 
-### 11. Delivery Email (Sec 9)
+### ⬜ 11. Delivery Email (Sec 9)
 
 | Check | Status | Action |
 |-------|--------|--------|
 | Sprint Report PDF | ⬜ | Convert `docs/sprint-1-report.md` to PDF |
-| Staging Swagger link | ⬜ | Include after deployment |
-| GitHub commit link | ⬜ | Include after push |
+| Staging Swagger link | ✅ | `https://lsims-api-staging.onrender.com/api/docs/` |
+| GitHub commit link | ✅ | `https://github.com/cookiemp/lsims-backend` |
 | Invoice (20,000 ETB) | ⬜ | Prepare and attach |
 
 ---
@@ -143,8 +146,8 @@
 |-------|-------|--------|-------|
 | **Phase 1:** Codebase & Testing | 5 | ✅ 5/5 | All code, tests, and security checks pass |
 | **Phase 2:** Documentation | 3 | ✅ 3/3 | `requirements.txt` was generated during audit |
-| **Phase 3:** Deployment & Handoff | 3 | ⬜ 0/3 | Developer manual actions remaining |
+| **Phase 3:** Deployment & Handoff | 3 | ✅ 2/3 | GitHub + Staging complete. Delivery email remaining |
 
 ### ✅ Verdict: Codebase is CONTRACT-COMPLIANT
 
-The code, tests, and documentation all meet the requirements of Sections 5, 7, 8, and 13 of the Professional Service Contract Agreement. The remaining actions are developer manual steps (GitHub push, staging deployment, delivery email).
+The code, tests, and documentation all meet the requirements of Sections 5, 7, 8, and 13 of the Professional Service Contract Agreement. Staging is live on Render.com with PostgreSQL. The only remaining action is sending the delivery email.
