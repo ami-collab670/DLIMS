@@ -16,7 +16,7 @@ db.sqlite3-journal
 local_settings.py
 media/
 
-# Static files (collected)
+# Static files (collected by collectstatic / WhiteNoise)
 staticfiles/
 static_collected/
 

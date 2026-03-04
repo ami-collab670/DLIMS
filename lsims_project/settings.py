@@ -2,11 +2,16 @@
 Django settings for lsims_project.
 LSIMS - Laboratory Sample Information Management System
 Ministry of Mines
+
+Production-ready: supports Render.com deployment with PostgreSQL,
+WhiteNoise static file serving, and CORS headers.
 """
 
 import os
 from pathlib import Path
 from datetime import timedelta
+
+import dj_database_url
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -24,7 +29,19 @@ if not SECRET_KEY:
             "DJANGO_SECRET_KEY environment variable is required in production."
         )
 
-ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS", "").split(",") if not DEBUG else ["*"]
+# ALLOWED_HOSTS: In production, reads from env var. Render's hostname is
+# auto-added via RENDER_EXTERNAL_HOSTNAME. In dev, allows everything.
+ALLOWED_HOSTS = []
+if DEBUG:
+    ALLOWED_HOSTS = ["*"]
+else:
+    hosts = os.environ.get("DJANGO_ALLOWED_HOSTS", "")
+    if hosts:
+        ALLOWED_HOSTS = [h.strip() for h in hosts.split(",") if h.strip()]
+    # Render.com auto-injects this env var with the service hostname
+    render_hostname = os.environ.get("RENDER_EXTERNAL_HOSTNAME")
+    if render_hostname:
+        ALLOWED_HOSTS.append(render_hostname)
 
 # ---------------------------------------------------------------------------
 # Application definition
@@ -41,12 +58,17 @@ INSTALLED_APPS = [
     "rest_framework_simplejwt",
     "drf_spectacular",
     "django_filters",
+    "corsheaders",
     # Local
     "accounts",
 ]
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    # WhiteNoise — serves static files in production (must be right after SecurityMiddleware)
+    "whitenoise.middleware.WhiteNoiseMiddleware",
+    # CORS — must be before CommonMiddleware
+    "corsheaders.middleware.CorsMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -76,22 +98,15 @@ TEMPLATES = [
 WSGI_APPLICATION = "lsims_project.wsgi.application"
 
 # ---------------------------------------------------------------------------
-# Database — SQLite for dev, PostgreSQL for production
+# Database — SQLite for dev, PostgreSQL via DATABASE_URL for production
 # ---------------------------------------------------------------------------
 DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
-    }
-    # Production PostgreSQL config:
-    # "default": {
-    #     "ENGINE": "django.db.backends.postgresql",
-    #     "NAME": "lsims_db",
-    #     "USER": "lsims_user",
-    #     "PASSWORD": "your_password",
-    #     "HOST": "localhost",
-    #     "PORT": "5432",
-    # }
+    "default": dj_database_url.config(
+        # Falls back to SQLite when DATABASE_URL is not set (local dev)
+        default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
+        conn_max_age=600,
+        conn_health_checks=True,
+    )
 }
 
 # ---------------------------------------------------------------------------
@@ -118,14 +133,25 @@ USE_I18N = True
 USE_TZ = True
 
 # ---------------------------------------------------------------------------
-# Static files
+# Static files — WhiteNoise serves them in production
 # ---------------------------------------------------------------------------
 STATIC_URL = "static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
+STORAGES = {
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
 
 # ---------------------------------------------------------------------------
 # Default primary key field type
 # ---------------------------------------------------------------------------
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# ---------------------------------------------------------------------------
+# CORS — Allow all origins during staging/frontend testing
+# ---------------------------------------------------------------------------
+CORS_ALLOW_ALL_ORIGINS = True
 
 # ---------------------------------------------------------------------------
 # Django REST Framework
