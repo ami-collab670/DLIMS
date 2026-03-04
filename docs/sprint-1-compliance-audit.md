@@ -2,7 +2,7 @@
 
 **Audit Date:** 2026-03-03  
 **Sprint:** Sprint 1 — Foundation (Auth & RBAC)  
-**Status:** ✅ **PASS** (1 gap fixed during audit)
+**Status:** ✅ **PASS** (1 gap fixed during audit, all 9 staging tests passed)
 
 ---
 
@@ -98,14 +98,14 @@
 | Sprint report exists | ✅ | `docs/sprint-1-report.md` (251 lines, comprehensive) |
 | Completed tasks & features | ✅ | Sections 3-7 detail all files, models, permissions, endpoints, and design decisions |
 | Test coverage results | ✅ | Section 8 provides full test breakdown table (56/56 passed) |
-| Known limitations | ✅ | Section 10 lists 5 known limitations |
+| Known limitations | ✅ | Section 11 lists 4 known limitations |
 
 ### ✅ 8. Open-Source Disclosure (Sec 13)
 
 | Check | Status | Evidence |
 |-------|--------|----------|
-| `requirements.txt` exists | ✅ | Generated during audit — contains all 18 pinned packages |
-| All packages listed | ✅ | Django 6.0.2, DRF 3.16.1, simplejwt 5.5.1, drf-spectacular 0.29.0, django-filter 25.2, psycopg2-binary 2.9.11 |
+| `requirements.txt` exists | ✅ | Generated during audit — contains all 24 pinned packages |
+| All packages listed | ✅ | Django 6.0.2, DRF 3.16.1, simplejwt 5.5.1, drf-spectacular 0.29.0, django-filter 25.2, psycopg2-binary 2.9.11, gunicorn 25.1.0, whitenoise 6.12.0, dj-database-url 3.1.2, django-cors-headers 4.9.0 |
 
 > **Note:** The `requirements.txt` file was missing prior to this audit and was generated via `pip freeze`.
 
@@ -128,6 +128,7 @@
 | Swagger UI accessible | ✅ | `https://lsims-api-staging.onrender.com/api/docs/` |
 | JWT auth working | ✅ | `/api/auth/token/` returns 200 with access + refresh tokens |
 | PostgreSQL connected | ✅ | Render managed PostgreSQL via `DATABASE_URL` |
+| 9/9 Manual Swagger tests | ✅ | Auth, CRUD, validation, permissions, soft-delete all verified on staging |
 
 ### ⬜ 11. Delivery Email (Sec 9)
 

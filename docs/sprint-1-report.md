@@ -1,7 +1,7 @@
 # Sprint 1 Report: Foundation (Auth & RBAC)
 
 **Date Completed:** 2026-03-03
-**Last Updated:** 2026-03-04 (post-review hardening)
+**Last Updated:** 2026-03-04 (deployment + staging verification)
 **Status:** COMPLETE -- All verifications passed.
 
 ---
@@ -49,6 +49,8 @@ Establish the Django project, database connections, custom user models, JWT auth
 | `admin.py`          | Django admin registration for Role and User                      |
 | `apps.py`           | App configuration                                                |
 | `tests.py`          | Comprehensive test suite (56 tests)                              |
+| `migrations/0002_seed_roles.py` | Data migration: auto-seeds the 8 system roles     |
+| `management/commands/seed_roles.py` | Management command: `python manage.py seed_roles` |
 
 ### Environment
 
@@ -61,7 +63,16 @@ Establish the Django project, database connections, custom user models, JWT auth
 | File                                  | Purpose              |
 |---------------------------------------|-----------------------|
 | `accounts/migrations/0001_initial.py` | Initial migration     |
+| `accounts/migrations/0002_seed_roles.py` | Seeds the 8 system roles |
 | `db.sqlite3`                          | Development database  |
+
+### Deployment
+
+| File              | Purpose                                              |
+|-------------------|------------------------------------------------------|
+| `render.yaml`     | Render.com Blueprint (IaC) for one-click deploy       |
+| `build.sh`        | Build script: pip install, collectstatic, migrate     |
+| `requirements.txt`| Pinned dependencies (24 packages)                    |
 
 ---
 
@@ -198,15 +209,19 @@ All permissions extend a base `_RolePermission` class that checks `request.user.
 
 Command: `.\venv\Scripts\python manage.py test accounts -v 2`
 
-### B. Swagger UI Manual Testing (Passed)
+### B. Swagger UI Manual Testing — 9/9 Passed (Staging)
 
-Manually verified in the browser:
-- JWT token obtain and Swagger authorization
-- Role creation (all 8 roles)
-- User creation (internal with role, external without role)
-- Permission blocking (analyst cannot access admin endpoints)
-- Profile view (analyst can view own profile)
-- Validation (internal user without role returns 400)
+Manually verified on live staging (`lsims-api-staging.onrender.com/api/docs/`):
+1. Swagger UI loads with correct styling and endpoint groups
+2. JWT token obtain — 200 OK with access + refresh tokens
+3. Roles list — 200 OK, count = 8
+4. Create internal user (analyst with role) — 201 Created
+5. Create external user (no role) — 201 Created
+6. Soft-delete user — 200 OK, `is_active = false`
+7. Profile endpoint — 200 OK, returns own data
+8. Validation: internal without role (400), short password (400), duplicate email (400)
+9. Permission blocking: analyst gets 403 on admin endpoints, 200 on profile
+10. Deactivated user cannot log in — 401 Unauthorized
 
 ### C. Schema Validation (Passed)
 
