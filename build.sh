@@ -14,4 +14,11 @@ python manage.py collectstatic --no-input
 echo ">>> Running database migrations..."
 python manage.py migrate --no-input
 
+# Create admin superuser automatically if env vars are set
+# Requires: CREATE_SUPERUSER=1, DJANGO_SUPERUSER_EMAIL, DJANGO_SUPERUSER_USERNAME, DJANGO_SUPERUSER_PASSWORD
+if [ "$CREATE_SUPERUSER" ]; then
+  echo ">>> Creating superuser..."
+  python manage.py createsuperuser --no-input || true
+fi
+
 echo ">>> Build complete!"
