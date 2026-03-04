@@ -23,7 +23,7 @@ class BaseTestCase(TestCase):
 
     @classmethod
     def setUpTestData(cls):
-        # Create all 8 roles
+        # Get or create all 8 roles (data migration 0002 may have seeded them)
         cls.roles = {}
         role_data = [
             ("admin", "System Administration"),
@@ -36,8 +36,8 @@ class BaseTestCase(TestCase):
             ("auditor", "Audit & Compliance"),
         ]
         for role_name, alias in role_data:
-            cls.roles[role_name] = Role.objects.create(
-                role_name=role_name, contact_alias=alias
+            cls.roles[role_name], _ = Role.objects.get_or_create(
+                role_name=role_name, defaults={"contact_alias": alias}
             )
 
         # Admin user
@@ -144,12 +144,18 @@ class RoleModelTests(TestCase):
     """Tests for the Role model."""
 
     def test_role_creation(self):
-        role = Role.objects.create(role_name="admin", contact_alias="Admin Dept")
+        """Verify a role can be retrieved/created and has correct __str__."""
+        role, _ = Role.objects.get_or_create(
+            role_name="admin", defaults={"contact_alias": "Admin Dept"}
+        )
         self.assertEqual(str(role), "Admin")
         self.assertIsNotNone(role.id)
 
     def test_role_name_uniqueness(self):
-        Role.objects.create(role_name="admin", contact_alias="Admin 1")
+        """Duplicate role_name must raise an exception."""
+        Role.objects.get_or_create(
+            role_name="admin", defaults={"contact_alias": "Admin 1"}
+        )
         with self.assertRaises(Exception):
             Role.objects.create(role_name="admin", contact_alias="Admin 2")
 
@@ -158,7 +164,9 @@ class UserModelTests(TestCase):
     """Tests for the custom User model."""
 
     def test_user_creation_with_role(self):
-        role = Role.objects.create(role_name="analyst", contact_alias="Lab")
+        role, _ = Role.objects.get_or_create(
+            role_name="analyst", defaults={"contact_alias": "Lab"}
+        )
         user = User.objects.create_user(
             username="testanalyst",
             email="test@lab.gov",
@@ -330,7 +338,7 @@ class AdminRoleCRUDTests(BaseTestCase):
         response = self.client.get(reverse("role-detail", args=[role.id]))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["role_name"], "analyst")
-        self.assertEqual(response.data["contact_alias"], "Laboratory Analysis Dept")
+        self.assertEqual(response.data["contact_alias"], role.contact_alias)
 
     def test_update_role_contact_alias(self):
         role = self.roles["finance"]
