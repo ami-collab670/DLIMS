@@ -29,18 +29,21 @@ if not SECRET_KEY:
             "DJANGO_SECRET_KEY environment variable is required in production."
         )
 
-# ALLOWED_HOSTS: In production, reads from env var. Render's hostname is
-# auto-added via RENDER_EXTERNAL_HOSTNAME. In dev, allows everything.
-ALLOWED_HOSTS = []
+# ALLOWED_HOSTS: In production, includes the Render hostname plus any extras.
+# In dev, allows everything.
 if DEBUG:
     ALLOWED_HOSTS = ["*"]
 else:
-    hosts = os.environ.get("DJANGO_ALLOWED_HOSTS", "")
-    if hosts:
-        ALLOWED_HOSTS = [h.strip() for h in hosts.split(",") if h.strip()]
-    # Render.com auto-injects this env var with the service hostname
+    ALLOWED_HOSTS = [
+        "lsims-api-staging.onrender.com",  # Render staging (always allowed)
+    ]
+    # Add any extra hosts from env var (e.g. custom domain)
+    extra_hosts = os.environ.get("DJANGO_ALLOWED_HOSTS", "")
+    if extra_hosts:
+        ALLOWED_HOSTS += [h.strip() for h in extra_hosts.split(",") if h.strip()]
+    # Render also auto-injects this (belt and suspenders)
     render_hostname = os.environ.get("RENDER_EXTERNAL_HOSTNAME")
-    if render_hostname:
+    if render_hostname and render_hostname not in ALLOWED_HOSTS:
         ALLOWED_HOSTS.append(render_hostname)
 
 # ---------------------------------------------------------------------------
