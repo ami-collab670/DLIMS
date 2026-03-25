@@ -23,6 +23,8 @@ urlpatterns = [
     path("api/auth/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
     # Accounts API (Roles, Users, Profile)
     path("api/accounts/", include("accounts.urls")),
+    # Laboratory API (Tests, Jobs, Samples, Sample Tests)
+    path("api/laboratory/", include("laboratory.urls")),
     # API Documentation (Swagger / ReDoc)
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path("api/docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="swagger-ui"),
