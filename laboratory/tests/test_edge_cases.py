@@ -111,7 +111,10 @@ class EdgeCaseTests(BaseTestCase):
     def test_filter_jobs_by_status(self):
         self._create_job_order()
         client = self.get_authenticated_client("admin_lab@ministry.gov", "AdminPass123!")
-        response = client.get(reverse("joborder-list"), {"current_status": "received"})
+        response = client.get(
+            reverse("joborder-list"),
+            {"current_status": JobOrder.Status.PAYMENT_PENDING},
+        )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertGreaterEqual(response.data["count"], 1)
 

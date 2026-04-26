@@ -57,6 +57,14 @@ class TestCatalog(models.Model):
         default=Decimal("0.00"),
         help_text="Price per test in ETB.",
     )
+    department = models.ForeignKey(
+        "accounts.Department",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="tests",
+        help_text="Department responsible for this test.",
+    )
     is_active = models.BooleanField(
         default=True,
         help_text="Inactive tests are hidden from selection but preserved for history.",
@@ -88,6 +96,7 @@ class JobOrder(models.Model):
     class Status(models.TextChoices):
         DRAFT = "draft", "Draft"
         SUBMITTED = "submitted", "Submitted"
+        PAYMENT_PENDING = "payment_pending", "Payment Pending"
         RECEIVED = "received", "Received"
         IN_PREP = "in_prep", "In Preparation"
         IN_ANALYSIS = "in_analysis", "In Analysis"
@@ -120,7 +129,7 @@ class JobOrder(models.Model):
     current_status = models.CharField(
         max_length=20,
         choices=Status.choices,
-        default=Status.RECEIVED,
+        default=Status.PAYMENT_PENDING,
         help_text="Current workflow stage of the job.",
     )
     status_reason = models.TextField(
@@ -167,6 +176,11 @@ class JobOrder(models.Model):
 
     def __str__(self):
         return f"JOB-{str(self.id)[:8]} ({self.get_current_status_display()})"
+
+
+def generate_invoice_no():
+    """Generate a readable invoice number for finance records."""
+    return f"INV-{timezone.now():%Y%m%d}-{uuid.uuid4().hex[:8].upper()}"
 
 
 # ---------------------------------------------------------------------------
@@ -321,11 +335,15 @@ class Sample(models.Model):
         BlindCode,
         on_delete=models.PROTECT,
         related_name="sample",
+        null=True,
+        blank=True,
         help_text="Auto-assigned anonymous code for blind analysis.",
     )
     sample_code = models.CharField(
         max_length=20,
         unique=True,
+        null=True,
+        blank=True,
         help_text="Human-readable sequential code (e.g., 'SMP-2026-0001').",
     )
     sample_name = models.CharField(
@@ -399,7 +417,7 @@ class Sample(models.Model):
         ordering = ["-created_at"]
 
     def __str__(self):
-        return f"{self.sample_code} — {self.sample_name}"
+        return f"{self.sample_code or 'PENDING-CODE'} — {self.sample_name}"
 
     @staticmethod
     def generate_sample_code():
@@ -411,23 +429,133 @@ class Sample(models.Model):
 
     def save(self, *args, **kwargs):
         """
-        Override save to auto-generate BlindCode and sample_code on creation.
-        - BlindCode: collision-safe BC-XXXXXX format.
-        - sample_code: sequential SMP-YYYY-NNNN format allocated atomically.
+        Save without assigning permanent identity.
+
+        FR9 requires permanent sample IDs and blind/barcode identity to be
+        payment-gated, so coding happens only after finance confirmation.
         """
-        if not self.pk or self._state.adding:
-            with transaction.atomic():
-                if not self.blind_alias_id:
-                    code_str = BlindCode.generate_unique_code()
-                    blind_code = BlindCode.objects.create(code=code_str)
-                    self.blind_alias = blind_code
+        was_adding = self._state.adding
+        result = super().save(*args, **kwargs)
 
-                if not self.sample_code:
-                    self.sample_code = Sample.generate_sample_code()
+        if was_adding:
+            try:
+                financial_record = self.job.financial_record
+            except FinancialRecord.DoesNotExist:
+                financial_record = None
+            if (
+                financial_record
+                and financial_record.payment_status == FinancialRecord.PaymentStatus.PAID
+            ):
+                self.assign_permanent_identity()
 
-                return super().save(*args, **kwargs)
+        return result
 
-        return super().save(*args, **kwargs)
+    def assign_permanent_identity(self):
+        """
+        Assign missing permanent codes idempotently after payment confirmation.
+        Existing codes are never overwritten.
+        """
+        update_fields = []
+        if not self.blind_alias_id:
+            self.blind_alias = BlindCode.objects.create(
+                code=BlindCode.generate_unique_code()
+            )
+            update_fields.append("blind_alias")
+        if not self.sample_code:
+            self.sample_code = Sample.generate_sample_code()
+            update_fields.append("sample_code")
+
+        if update_fields:
+            update_fields.append("updated_at")
+            self.save(update_fields=update_fields)
+
+
+def code_paid_job_samples(job):
+    """
+    Generate missing sample identities for a paid job.
+    Safe to call repeatedly: already-coded samples are left unchanged.
+    """
+    with transaction.atomic():
+        job = JobOrder.objects.select_for_update().get(pk=job.pk)
+        samples = job.samples.select_for_update().order_by("created_at", "id")
+        for sample in samples:
+            sample.assign_permanent_identity()
+
+        if job.current_status == JobOrder.Status.PAYMENT_PENDING:
+            job.current_status = JobOrder.Status.RECEIVED
+            job.save(update_fields=["current_status", "updated_at"])
+
+
+class FinancialRecord(models.Model):
+    """Finance record that gates permanent sample coding for a job."""
+
+    class PaymentStatus(models.TextChoices):
+        PENDING = "pending", "Pending"
+        PARTIAL = "partial", "Partial"
+        PAID = "paid", "Paid"
+
+    invoice_no = models.CharField(
+        max_length=32,
+        primary_key=True,
+        default=generate_invoice_no,
+        help_text="Unique invoice number for this job.",
+    )
+    job = models.OneToOneField(
+        JobOrder,
+        on_delete=models.CASCADE,
+        related_name="financial_record",
+        help_text="Job order covered by this financial record.",
+    )
+    amount_expected = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00"),
+    )
+    amount_paid = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00"),
+    )
+    payment_status = models.CharField(
+        max_length=10,
+        choices=PaymentStatus.choices,
+        default=PaymentStatus.PENDING,
+    )
+    paid_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "financial_records"
+        ordering = ["-created_at"]
+        verbose_name = "Financial Record"
+        verbose_name_plural = "Financial Records"
+
+    def __str__(self):
+        return f"{self.invoice_no} ({self.get_payment_status_display()})"
+
+    def save(self, *args, **kwargs):
+        previous_status = None
+        if self.pk:
+            previous_status = (
+                FinancialRecord.objects.filter(pk=self.pk)
+                .values_list("payment_status", flat=True)
+                .first()
+            )
+
+        if self.payment_status == self.PaymentStatus.PAID and self.paid_at is None:
+            self.paid_at = timezone.now()
+        if self.payment_status != self.PaymentStatus.PAID:
+            self.paid_at = None
+
+        with transaction.atomic():
+            super().save(*args, **kwargs)
+
+            if (
+                self.payment_status == self.PaymentStatus.PAID
+                and previous_status != self.PaymentStatus.PAID
+            ):
+                code_paid_job_samples(self.job)
 
 
 # ---------------------------------------------------------------------------
@@ -467,4 +595,4 @@ class SampleTest(models.Model):
         verbose_name_plural = "Sample Test Assignments"
 
     def __str__(self):
-        return f"{self.sample.sample_code} → {self.test.test_code}"
+        return f"{self.sample.sample_code or 'PENDING-CODE'} → {self.test.test_code}"

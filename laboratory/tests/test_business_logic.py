@@ -43,7 +43,7 @@ class BusinessLogicTests(BaseTestCase):
         self.client_user_2.is_active = True
         self.client_user_2.save()
 
-    def test_job_order_rejects_non_received_initial_status(self):
+    def test_job_order_rejects_non_payment_pending_initial_status(self):
         client = self.get_authenticated_client(
             "receptionist_lab@ministry.gov", "ReceptionistPass123!"
         )

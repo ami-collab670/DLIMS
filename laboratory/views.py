@@ -14,8 +14,9 @@ from rest_framework.permissions import IsAuthenticated
 from drf_spectacular.utils import extend_schema, extend_schema_view
 
 from accounts.permissions import IsAdminOrReadOnly, IsAdminOrReceptionist, IsReceptionist
-from .models import TestCatalog, JobOrder, Sample, SampleTest
+from .models import FinancialRecord, TestCatalog, JobOrder, Sample, SampleTest
 from .serializers import (
+    FinancialRecordSerializer,
     TestCatalogSerializer,
     JobOrderSerializer,
     JobOrderCreateSerializer,
@@ -45,11 +46,82 @@ class TestCatalogViewSet(viewsets.ModelViewSet):
     Admin has full access. All authenticated users can read (list/retrieve).
     """
 
-    queryset = TestCatalog.objects.all()
     serializer_class = TestCatalogSerializer
     permission_classes = [IsAuthenticated, IsAdminOrReadOnly]
-    filterset_fields = ["is_active"]
-    search_fields = ["test_name", "test_code"]
+    filterset_fields = ["is_active", "department"]
+    search_fields = ["test_name", "test_code", "department__name"]
+
+    def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return TestCatalog.objects.none()
+
+        user = self.request.user
+        base_qs = TestCatalog.objects.select_related("department")
+
+        if user.is_superuser:
+            return base_qs
+
+        role_name = getattr(user, "role_name", None)
+        if role_name in {"analyst", "qc_manager"}:
+            department_id = getattr(user, "department_id", None)
+            if department_id is None:
+                return base_qs.none()
+            return base_qs.filter(department_id=department_id)
+
+        return base_qs
+
+
+# ---------------------------------------------------------------------------
+# FinancialRecord ViewSet — Finance/Admin manage payment gate
+# ---------------------------------------------------------------------------
+@extend_schema_view(
+    list=extend_schema(summary="List financial records", tags=["Financial Records"]),
+    retrieve=extend_schema(summary="Get financial record details", tags=["Financial Records"]),
+    create=extend_schema(summary="Create a financial record", tags=["Financial Records"]),
+    update=extend_schema(summary="Update a financial record", tags=["Financial Records"]),
+    partial_update=extend_schema(summary="Partially update a financial record", tags=["Financial Records"]),
+    destroy=extend_schema(summary="Delete a financial record", tags=["Financial Records"]),
+)
+class FinancialRecordViewSet(viewsets.ModelViewSet):
+    """
+    Payment records for job orders.
+
+    Finance/Admin can create and update payment records. Clients can read only
+    their own records. Payment changing to paid triggers permanent sample coding.
+    """
+
+    serializer_class = FinancialRecordSerializer
+    permission_classes = [IsAuthenticated]
+    lookup_field = "invoice_no"
+    filterset_fields = ["payment_status", "job"]
+    search_fields = ["invoice_no", "job__description", "job__client__email"]
+
+    def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return FinancialRecord.objects.none()
+
+        user = self.request.user
+        base_qs = FinancialRecord.objects.select_related("job", "job__client")
+
+        if user.is_superuser:
+            return base_qs
+        if user.user_type == "external":
+            return base_qs.filter(job__client=user)
+
+        role_name = getattr(user, "role_name", None)
+        if role_name in {"admin", "finance", "receptionist"}:
+            return base_qs
+        return base_qs.none()
+
+    def check_permissions(self, request):
+        super().check_permissions(request)
+        if request.method not in ("GET", "HEAD", "OPTIONS"):
+            role_name = getattr(request.user, "role_name", None)
+            if not request.user.is_superuser and role_name not in {"admin", "finance"}:
+                self.permission_denied(
+                    request,
+                    message="Only Admin or Finance can manage financial records.",
+                )
 
 
 # ---------------------------------------------------------------------------
@@ -93,7 +165,7 @@ class JobOrderViewSet(viewsets.ModelViewSet):
         user = self.request.user
         base_qs = JobOrder.objects.select_related(
             "client", "submitted_by", "blocked_by_role"
-        ).prefetch_related("samples")
+        ).prefetch_related("samples", "samples__sample_tests__test")
 
         # Superusers should always see the full queryset, even if their
         # LSIMS profile fields were misconfigured.
@@ -104,7 +176,25 @@ class JobOrderViewSet(viewsets.ModelViewSet):
         if user.user_type == "external":
             return base_qs.filter(client=user)
 
-        # All internal roles see all jobs
+        role_name = getattr(user, "role_name", None)
+        department_id = getattr(user, "department_id", None)
+
+        if role_name == "analyst":
+            if department_id is None:
+                return base_qs.none()
+            return base_qs.filter(
+                samples__assigned_analyst=user,
+                samples__sample_tests__test__department_id=department_id,
+            ).distinct()
+
+        if role_name == "qc_manager":
+            if department_id is None:
+                return base_qs.none()
+            return base_qs.filter(
+                samples__sample_tests__test__department_id=department_id,
+            ).distinct()
+
+        # Other internal roles retain broad downstream workflow visibility.
         return base_qs
 
     def get_serializer_class(self):
@@ -180,7 +270,12 @@ class SampleViewSet(viewsets.ModelViewSet):
 
         user = self.request.user
         base_qs = Sample.objects.select_related(
-            "job", "blind_alias", "received_by", "submitted_by", "assigned_analyst"
+            "job",
+            "job__client",
+            "blind_alias",
+            "received_by",
+            "submitted_by",
+            "assigned_analyst",
         ).prefetch_related("sample_tests__test")
 
         # Superusers should always see the full queryset, even if their
@@ -190,15 +285,29 @@ class SampleViewSet(viewsets.ModelViewSet):
 
         role_name = getattr(user, "role_name", None)
 
-        # Analyst: only samples assigned to them
+        department_id = getattr(user, "department_id", None)
+
+        # Analyst: only assigned samples with at least one test in their department
         if role_name == "analyst":
-            return base_qs.filter(assigned_analyst=user)
+            if department_id is None:
+                return base_qs.none()
+            return base_qs.filter(
+                assigned_analyst=user,
+                sample_tests__test__department_id=department_id,
+            ).distinct()
+
+        if role_name == "qc_manager":
+            if department_id is None:
+                return base_qs.none()
+            return base_qs.filter(
+                sample_tests__test__department_id=department_id,
+            ).distinct()
 
         # External client: only samples from their own jobs
         if user.user_type == "external":
             return base_qs.filter(job__client=user)
 
-        # Admin, Receptionist, QC, Finance, etc.: all samples
+        # Admin, Receptionist, Finance, Auditor, etc.: all samples
         return base_qs
 
     def get_serializer_class(self):
@@ -267,7 +376,42 @@ class SampleTestViewSet(viewsets.ModelViewSet):
     http_method_names = ["get", "post", "delete", "head", "options"]
 
     def get_queryset(self):
-        return SampleTest.objects.select_related("sample", "test").all()
+        if getattr(self, "swagger_fake_view", False):
+            return SampleTest.objects.none()
+
+        user = self.request.user
+        base_qs = SampleTest.objects.select_related(
+            "sample",
+            "sample__job",
+            "sample__job__client",
+            "sample__assigned_analyst",
+            "test",
+            "test__department",
+        )
+
+        if user.is_superuser:
+            return base_qs
+
+        if user.user_type == "external":
+            return base_qs.filter(sample__job__client=user)
+
+        role_name = getattr(user, "role_name", None)
+        department_id = getattr(user, "department_id", None)
+
+        if role_name == "analyst":
+            if department_id is None:
+                return base_qs.none()
+            return base_qs.filter(
+                sample__assigned_analyst=user,
+                test__department_id=department_id,
+            )
+
+        if role_name == "qc_manager":
+            if department_id is None:
+                return base_qs.none()
+            return base_qs.filter(test__department_id=department_id)
+
+        return base_qs
 
     def get_serializer_class(self):
         if self.action == "create":

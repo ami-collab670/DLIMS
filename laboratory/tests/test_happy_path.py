@@ -5,7 +5,7 @@ from decimal import Decimal
 from django.urls import reverse
 from rest_framework import status
 
-from laboratory.models import JobOrder, Sample, SampleTest, TestCatalog
+from laboratory.models import FinancialRecord, JobOrder, Sample, SampleTest, TestCatalog
 
 from .base import BaseTestCase
 
@@ -92,7 +92,7 @@ class JobOrderHappyPathTests(BaseTestCase):
         job = JobOrder.objects.get(id=response.data["id"])
         self.assertEqual(job.client, self.client_user)
         self.assertEqual(job.submitted_by, self.receptionist_user)
-        self.assertEqual(job.current_status, "received")
+        self.assertEqual(job.current_status, JobOrder.Status.PAYMENT_PENDING)
 
     def test_receptionist_can_list_all_jobs(self):
         self._create_job_order(client_user=self.client_user)
@@ -155,12 +155,35 @@ class SampleHappyPathTests(BaseTestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         sample = Sample.objects.get(id=response.data["id"])
-        self.assertTrue(sample.sample_code.startswith("SMP-"))
-        self.assertIsNotNone(sample.blind_alias)
-        self.assertTrue(sample.blind_alias.code.startswith("BC-"))
+        self.assertIsNone(sample.sample_code)
+        self.assertIsNone(sample.blind_alias)
         self.assertEqual(sample.received_by, self.receptionist_user)
         self.assertEqual(sample.submitted_by, self.client_user)
         self.assertEqual(sample.sample_status, "registered")
+
+    def test_payment_confirmation_codes_samples(self):
+        client = self.get_authenticated_client("finance_lab@ministry.gov", "FinancePass123!")
+        job = self._create_job_order()
+        sample = self._create_sample(job=job)
+
+        response = client.post(
+            reverse("financialrecord-list"),
+            {
+                "job": str(job.id),
+                "amount_expected": "500.00",
+                "amount_paid": "500.00",
+                "payment_status": FinancialRecord.PaymentStatus.PAID,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        sample.refresh_from_db()
+        job.refresh_from_db()
+        self.assertTrue(sample.sample_code.startswith("SMP-"))
+        self.assertIsNotNone(sample.blind_alias)
+        self.assertTrue(sample.blind_alias.code.startswith("BC-"))
+        self.assertEqual(job.current_status, JobOrder.Status.RECEIVED)
 
     def test_admin_can_list_all_samples(self):
         self._create_sample()

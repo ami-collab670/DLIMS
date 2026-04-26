@@ -4,14 +4,14 @@ Sprint 2: Core Engine (Jobs, Samples & Blind Aliasing)
 """
 
 from django.contrib import admin
-from .models import TestCatalog, JobOrder, BlindCode, Sample, SampleTest
+from .models import FinancialRecord, TestCatalog, JobOrder, BlindCode, Sample, SampleTest
 
 
 @admin.register(TestCatalog)
 class TestCatalogAdmin(admin.ModelAdmin):
-    list_display = ["test_code", "test_name", "unit", "price", "is_active"]
-    list_filter = ["is_active"]
-    search_fields = ["test_name", "test_code"]
+    list_display = ["test_code", "test_name", "department", "unit", "price", "is_active"]
+    list_filter = ["department", "is_active"]
+    search_fields = ["test_name", "test_code", "department__name"]
     ordering = ["test_code"]
 
 
@@ -28,6 +28,24 @@ class JobOrderAdmin(admin.ModelAdmin):
     list_filter = ["current_status", "priority", "is_cancelled"]
     search_fields = ["description"]
     raw_id_fields = ["client", "submitted_by", "blocked_by_role"]
+    ordering = ["-created_at"]
+
+
+@admin.register(FinancialRecord)
+class FinancialRecordAdmin(admin.ModelAdmin):
+    list_display = [
+        "invoice_no",
+        "job",
+        "amount_expected",
+        "amount_paid",
+        "payment_status",
+        "paid_at",
+        "created_at",
+    ]
+    list_filter = ["payment_status", "created_at", "paid_at"]
+    search_fields = ["invoice_no", "job__description", "job__client__email"]
+    raw_id_fields = ["job"]
+    readonly_fields = ["invoice_no", "paid_at", "created_at", "updated_at"]
     ordering = ["-created_at"]
 
 
@@ -52,11 +70,11 @@ class SampleAdmin(admin.ModelAdmin):
     search_fields = ["sample_code", "sample_name"]
     raw_id_fields = [
         "job",
-        "blind_alias",
         "received_by",
         "submitted_by",
         "assigned_analyst",
     ]
+    readonly_fields = ["blind_alias", "sample_code", "created_at", "updated_at"]
     ordering = ["-created_at"]
 
 

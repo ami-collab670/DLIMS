@@ -15,7 +15,8 @@ class BlindAnalysisTests(BaseTestCase):
     """
 
     def test_analyst_sees_only_blind_alias(self):
-        sample = self._create_sample(analyst=self.analyst_user)
+        sample = self._create_coded_sample(analyst=self.analyst_user)
+        self._assign_test(sample, self.test_silver)
         client = self.get_authenticated_client("analyst_lab@ministry.gov", "AnalystPass123!")
         response = client.get(reverse("sample-detail", args=[sample.id]))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -36,9 +37,12 @@ class BlindAnalysisTests(BaseTestCase):
 
     def test_analyst_sees_only_assigned_samples(self):
         job = self._create_job_order()
-        self._create_sample(job=job, analyst=self.analyst_user)
-        self._create_sample(job=job, analyst=self.analyst_user_2)
-        self._create_sample(job=job, analyst=None)
+        assigned_to_water = self._create_sample(job=job, analyst=self.analyst_user)
+        assigned_to_mineralogy = self._create_sample(job=job, analyst=self.analyst_user_2)
+        unassigned = self._create_sample(job=job, analyst=None)
+        self._assign_test(assigned_to_water, self.test_silver)
+        self._assign_test(assigned_to_mineralogy, self.test_gold)
+        self._assign_test(unassigned, self.test_silver)
 
         client = self.get_authenticated_client("analyst_lab@ministry.gov", "AnalystPass123!")
         response = client.get(reverse("sample-list"))
@@ -46,7 +50,7 @@ class BlindAnalysisTests(BaseTestCase):
         self.assertEqual(response.data["count"], 1)
 
     def test_admin_sees_full_sample_detail(self):
-        sample = self._create_sample(analyst=self.analyst_user)
+        sample = self._create_coded_sample(analyst=self.analyst_user)
         client = self.get_authenticated_client("admin_lab@ministry.gov", "AdminPass123!")
         response = client.get(reverse("sample-detail", args=[sample.id]))
         self.assertEqual(response.status_code, status.HTTP_200_OK)

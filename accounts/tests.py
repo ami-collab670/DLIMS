@@ -8,12 +8,17 @@ Covers the Verification Protocol requirements:
   4. Logic Check           — Business logic (internal users must have roles, etc.)
 """
 
-from django.test import TestCase
+from datetime import timedelta
+from unittest.mock import patch
+
+from django.core import mail
+from django.test import TestCase, override_settings
 from django.urls import reverse
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from .models import Role, User
+from .models import Department, OTPToken, Role, User
 
 
 class BaseTestCase(TestCase):
@@ -118,9 +123,10 @@ class BaseTestCase(TestCase):
             email="client@company.com",
             password="ClientPass123!",
             user_type="external",
+            country="ethiopia",
             nationality="Ethiopian",
             organization_name="Mining Corp",
-            organization_type="Private",
+            organization_type="private",
         )
 
     def get_authenticated_client(self, user_email, password):
@@ -160,6 +166,18 @@ class RoleModelTests(TestCase):
             Role.objects.create(role_name="admin", contact_alias="Admin 2")
 
 
+class DepartmentModelTests(TestCase):
+    """Tests for the Department model."""
+
+    def test_department_creation(self):
+        department = Department.objects.create(
+            name="Water",
+            description="Water and environmental analysis.",
+        )
+        self.assertEqual(str(department), "Water")
+        self.assertIsNotNone(department.id)
+
+
 class UserModelTests(TestCase):
     """Tests for the custom User model."""
 
@@ -184,9 +202,11 @@ class UserModelTests(TestCase):
             email="ext@corp.com",
             password="ExtPass123!",
             user_type="external",
+            country="other",
             nationality="Kenyan",
         )
         self.assertIsNone(user.role_name)
+        self.assertEqual(user.country, "other")
         self.assertEqual(user.nationality, "Kenyan")
 
     def test_email_uniqueness(self):
@@ -358,6 +378,35 @@ class AdminRoleCRUDTests(BaseTestCase):
         self.assertFalse(Role.objects.filter(id=role.id).exists())
 
 
+class AdminDepartmentCRUDTests(BaseTestCase):
+    """Admin can manage laboratory departments."""
+
+    def setUp(self):
+        self.client = self.get_authenticated_client(
+            "admin@ministry.gov", "AdminPass123!"
+        )
+
+    def test_admin_can_create_department(self):
+        response = self.client.post(
+            reverse("department-list"),
+            {"name": "Mineralogy", "description": "Ore and mineral analysis."},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertTrue(Department.objects.filter(name="Mineralogy").exists())
+
+    def test_non_admin_cannot_create_department(self):
+        client = self.get_authenticated_client(
+            "reception@ministry.gov", "RecepPass123!"
+        )
+        response = client.post(
+            reverse("department-list"),
+            {"name": "Water"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+
 class AdminUserCRUDTests(BaseTestCase):
     """Admin can perform full CRUD on Users."""
 
@@ -399,15 +448,18 @@ class AdminUserCRUDTests(BaseTestCase):
                 "email": "new.client@corp.com",
                 "password": "NewClient123!",
                 "user_type": "external",
+                "country": "ethiopia",
                 "nationality": "Ethiopian",
                 "organization_name": "Gold Corp",
-                "organization_type": "Private",
+                "organization_type": "private",
             },
             format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         new_user = User.objects.get(email="new.client@corp.com")
         self.assertIsNone(new_user.role)
+        self.assertEqual(new_user.country, "ethiopia")
+        self.assertEqual(new_user.organization_type, "private")
 
     def test_retrieve_user(self):
         response = self.client.get(
@@ -617,6 +669,125 @@ class JWTAuthTests(BaseTestCase):
 
 
 # ===========================================================================
+# PASSWORD RESET OTP TESTS
+# ===========================================================================
+@override_settings(
+    EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
+    DEFAULT_FROM_EMAIL="noreply@lsims.test",
+)
+class PasswordResetOTPTests(BaseTestCase):
+    """Tests for public email OTP password recovery endpoints."""
+
+    def setUp(self):
+        self.client = APIClient()
+        mail.outbox = []
+
+    def request_otp(self, email="client@company.com", code="123456"):
+        with patch("accounts.models.OTPToken.generate_code", return_value=code):
+            return self.client.post(
+                reverse("password-reset-request"),
+                {"email": email},
+                format="json",
+            )
+
+    def test_password_reset_request_sends_otp_for_existing_user(self):
+        response = self.request_otp()
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(OTPToken.objects.filter(user=self.client_user).count(), 1)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn("123456", mail.outbox[0].body)
+        self.assertEqual(mail.outbox[0].to, ["client@company.com"])
+
+    def test_password_reset_confirm_success_resets_password(self):
+        self.request_otp(code="654321")
+
+        response = self.client.post(
+            reverse("password-reset-confirm"),
+            {
+                "email": "client@company.com",
+                "otp": "654321",
+                "new_password": "NewResetPass123!",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.client_user.refresh_from_db()
+        self.assertTrue(self.client_user.check_password("NewResetPass123!"))
+        self.assertTrue(OTPToken.objects.get(user=self.client_user).is_used)
+
+    def test_password_reset_confirm_rejects_expired_otp(self):
+        self.request_otp(code="222222")
+        token = OTPToken.objects.get(user=self.client_user)
+        token.expires_at = timezone.now() - timedelta(minutes=1)
+        token.save(update_fields=["expires_at"])
+
+        response = self.client.post(
+            reverse("password-reset-confirm"),
+            {
+                "email": "client@company.com",
+                "otp": "222222",
+                "new_password": "NewResetPass123!",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.client_user.refresh_from_db()
+        self.assertTrue(self.client_user.check_password("ClientPass123!"))
+
+    def test_password_reset_confirm_rejects_invalid_otp(self):
+        self.request_otp(code="333333")
+
+        response = self.client.post(
+            reverse("password-reset-confirm"),
+            {
+                "email": "client@company.com",
+                "otp": "999999",
+                "new_password": "NewResetPass123!",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.client_user.refresh_from_db()
+        self.assertTrue(self.client_user.check_password("ClientPass123!"))
+
+    def test_password_reset_request_nonexistent_email_is_generic(self):
+        response = self.request_otp(email="missing@example.com")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(OTPToken.objects.count(), 0)
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_password_reset_confirm_rejects_reused_otp(self):
+        self.request_otp(code="444444")
+        confirm_payload = {
+            "email": "client@company.com",
+            "otp": "444444",
+            "new_password": "NewResetPass123!",
+        }
+
+        first_response = self.client.post(
+            reverse("password-reset-confirm"),
+            confirm_payload,
+            format="json",
+        )
+        second_response = self.client.post(
+            reverse("password-reset-confirm"),
+            {
+                **confirm_payload,
+                "new_password": "AnotherResetPass123!",
+            },
+            format="json",
+        )
+
+        self.assertEqual(first_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(second_response.status_code, status.HTTP_400_BAD_REQUEST)
+
+
+# ===========================================================================
 # PROFILE ENDPOINT TESTS
 # ===========================================================================
 class ProfileTests(BaseTestCase):
@@ -787,9 +958,10 @@ class EdgeCaseTests(BaseTestCase):
                 "phone": "+251900000000",
                 "user_type": "internal",
                 "role": str(self.roles["analyst"].id),
+                "country": "ethiopia",
                 "nationality": "",
                 "organization_name": "",
-                "organization_type": "",
+                "organization_type": "other",
                 "is_active": True,
             },
             format="json",

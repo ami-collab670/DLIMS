@@ -6,6 +6,7 @@ from django.db import IntegrityError
 
 from laboratory.models import (
     BlindCode,
+    FinancialRecord,
     JobOrder,
     Sample,
     SampleCodeSequence,
@@ -51,14 +52,14 @@ class JobOrderModelTests(BaseTestCase):
     def test_create_job_order(self):
         job = self._create_job_order()
         self.assertIsNotNone(job.id)
-        self.assertEqual(job.current_status, "received")
+        self.assertEqual(job.current_status, JobOrder.Status.PAYMENT_PENDING)
         self.assertEqual(job.priority, "normal")
         self.assertFalse(job.is_cancelled)
 
     def test_job_order_str_representation(self):
         job = self._create_job_order()
         self.assertIn("JOB-", str(job))
-        self.assertIn("Received", str(job))
+        self.assertIn("Payment Pending", str(job))
 
 
 class BlindCodeModelTests(BaseTestCase):
@@ -85,52 +86,88 @@ class BlindCodeModelTests(BaseTestCase):
 class SampleModelTests(BaseTestCase):
     """Tests for the Sample model — auto-generation and relationships."""
 
-    def test_sample_auto_generates_blind_code(self):
+    def test_sample_does_not_auto_generate_blind_code_before_payment(self):
         sample = self._create_sample()
-        self.assertIsNotNone(sample.blind_alias)
-        self.assertTrue(sample.blind_alias.code.startswith("BC-"))
+        self.assertIsNone(sample.blind_alias)
 
-    def test_sample_auto_generates_sample_code(self):
+    def test_sample_does_not_auto_generate_sample_code_before_payment(self):
         sample = self._create_sample()
+        self.assertIsNone(sample.sample_code)
+
+    def test_payment_generates_blind_code_and_sample_code(self):
+        job = self._create_job_order()
+        sample = self._create_sample(job=job)
+
+        self._mark_job_paid(job)
+
+        sample.refresh_from_db()
+        job.refresh_from_db()
         self.assertTrue(sample.sample_code.startswith("SMP-"))
         self.assertIn("2026", sample.sample_code)
+        self.assertIsNotNone(sample.blind_alias)
+        self.assertTrue(sample.blind_alias.code.startswith("BC-"))
+        self.assertEqual(job.current_status, JobOrder.Status.RECEIVED)
 
     def test_sample_code_is_sequential(self):
         job = self._create_job_order()
         s1 = self._create_sample(job=job)
         s2 = self._create_sample(job=job)
+        self._mark_job_paid(job)
+        s1.refresh_from_db()
+        s2.refresh_from_db()
         num1 = int(s1.sample_code.split("-")[-1])
         num2 = int(s2.sample_code.split("-")[-1])
         self.assertEqual(num2, num1 + 1)
 
     def test_sample_code_sequence_tracks_allocated_number(self):
-        self._create_sample()
+        job = self._create_job_order()
+        self._create_sample(job=job)
+        self._mark_job_paid(job)
         sequence = SampleCodeSequence.objects.get(year=2026)
         self.assertEqual(sequence.last_number, 1)
 
     def test_sample_code_not_reused_after_latest_sample_deleted(self):
-        sample = self._create_sample()
+        job = self._create_job_order()
+        sample = self._create_sample(job=job)
+        self._mark_job_paid(job)
+        sample.refresh_from_db()
         sample.delete()
-        replacement = self._create_sample()
+
+        replacement_job = self._create_job_order()
+        replacement = self._create_sample(job=replacement_job)
+        self._mark_job_paid(replacement_job)
+        replacement.refresh_from_db()
+
         self.assertTrue(replacement.sample_code.endswith("0002"))
 
     def test_sample_code_sequence_bootstraps_from_existing_samples(self):
-        self._create_sample()
+        job = self._create_job_order()
+        self._create_sample(job=job)
+        self._mark_job_paid(job)
         SampleCodeSequence.objects.all().delete()
 
-        replacement = self._create_sample()
+        replacement_job = self._create_job_order()
+        replacement = self._create_sample(job=replacement_job)
+        self._mark_job_paid(replacement_job)
+        replacement.refresh_from_db()
 
         self.assertTrue(replacement.sample_code.endswith("0002"))
         sequence = SampleCodeSequence.objects.get(year=2026)
         self.assertEqual(sequence.last_number, 2)
 
     def test_sample_code_sequence_bootstraps_numeric_max_suffix(self):
-        sample = self._create_sample()
+        job = self._create_job_order()
+        sample = self._create_sample(job=job)
+        self._mark_job_paid(job)
+        sample.refresh_from_db()
         sample.sample_code = "SMP-2026-10000"
         sample.save(update_fields=["sample_code"])
         SampleCodeSequence.objects.all().delete()
 
-        replacement = self._create_sample()
+        replacement_job = self._create_job_order()
+        replacement = self._create_sample(job=replacement_job)
+        self._mark_job_paid(replacement_job)
+        replacement.refresh_from_db()
 
         self.assertEqual(replacement.sample_code, "SMP-2026-10001")
         sequence = SampleCodeSequence.objects.get(year=2026)
@@ -138,14 +175,77 @@ class SampleModelTests(BaseTestCase):
 
     def test_sample_str_representation(self):
         sample = self._create_sample()
-        self.assertIn("SMP-", str(sample))
+        self.assertIn("PENDING-CODE", str(sample))
         self.assertIn("Test Quartz Sample", str(sample))
 
     def test_sample_blind_alias_is_unique(self):
         job = self._create_job_order()
         s1 = self._create_sample(job=job)
         s2 = self._create_sample(job=job)
+        self._mark_job_paid(job)
+        s1.refresh_from_db()
+        s2.refresh_from_db()
         self.assertNotEqual(s1.blind_alias.code, s2.blind_alias.code)
+
+    def test_payment_coding_is_idempotent(self):
+        job = self._create_job_order()
+        sample = self._create_sample(job=job)
+        record = self._mark_job_paid(job)
+        sample.refresh_from_db()
+        original_sample_code = sample.sample_code
+        original_blind_alias_id = sample.blind_alias_id
+
+        record.save()
+        sample.refresh_from_db()
+
+        self.assertEqual(sample.sample_code, original_sample_code)
+        self.assertEqual(sample.blind_alias_id, original_blind_alias_id)
+
+    def test_existing_coded_sample_is_not_overwritten(self):
+        job = self._create_job_order()
+        sample = self._create_sample(job=job)
+        existing_alias = BlindCode.objects.create(code="BC-LEGACY")
+        sample.blind_alias = existing_alias
+        sample.sample_code = "SMP-2026-0099"
+        sample.save(update_fields=["blind_alias", "sample_code"])
+
+        self._mark_job_paid(job)
+        sample.refresh_from_db()
+
+        self.assertEqual(sample.blind_alias, existing_alias)
+        self.assertEqual(sample.sample_code, "SMP-2026-0099")
+
+    def test_sample_added_after_paid_job_is_coded(self):
+        job = self._create_job_order()
+        self._mark_job_paid(job)
+
+        sample = self._create_sample(job=job)
+        sample.refresh_from_db()
+
+        self.assertIsNotNone(sample.blind_alias)
+        self.assertTrue(sample.sample_code.startswith("SMP-"))
+
+
+class FinancialRecordModelTests(BaseTestCase):
+    """Tests for FinancialRecord payment-gate behavior."""
+
+    def test_create_financial_record_pending(self):
+        job = self._create_job_order()
+        record = self._create_financial_record(job=job)
+
+        self.assertTrue(record.invoice_no.startswith("INV-"))
+        self.assertEqual(record.payment_status, FinancialRecord.PaymentStatus.PENDING)
+        self.assertIsNone(record.paid_at)
+
+    def test_paid_financial_record_sets_paid_at(self):
+        job = self._create_job_order()
+        record = self._create_financial_record(
+            job=job,
+            payment_status=FinancialRecord.PaymentStatus.PAID,
+            amount_paid=Decimal("500.00"),
+        )
+
+        self.assertIsNotNone(record.paid_at)
 
 
 class SampleTestModelTests(BaseTestCase):

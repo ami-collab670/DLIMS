@@ -9,7 +9,7 @@ Two Sample serializer variants enforce the blind analysis protocol:
 
 from rest_framework import serializers
 from drf_spectacular.utils import extend_schema_field
-from .models import TestCatalog, JobOrder, BlindCode, Sample, SampleTest
+from .models import FinancialRecord, TestCatalog, JobOrder, BlindCode, Sample, SampleTest
 
 
 # ---------------------------------------------------------------------------
@@ -27,6 +27,7 @@ class TestCatalogSerializer(serializers.ModelSerializer):
             "description",
             "unit",
             "price",
+            "department",
             "is_active",
             "created_at",
             "updated_at",
@@ -80,6 +81,52 @@ class SampleTestCreateSerializer(serializers.ModelSerializer):
         if not test.is_active:
             raise serializers.ValidationError(
                 {"test": "Cannot assign an inactive test."}
+            )
+        return attrs
+
+
+# ---------------------------------------------------------------------------
+# FinancialRecord Serializers
+# ---------------------------------------------------------------------------
+class FinancialRecordSerializer(serializers.ModelSerializer):
+    """Serializer for job-level payment records that gate permanent coding."""
+
+    job_client_email = serializers.EmailField(source="job.client.email", read_only=True)
+    job_status = serializers.CharField(source="job.current_status", read_only=True)
+
+    class Meta:
+        model = FinancialRecord
+        fields = [
+            "invoice_no",
+            "job",
+            "job_client_email",
+            "job_status",
+            "amount_expected",
+            "amount_paid",
+            "payment_status",
+            "paid_at",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["invoice_no", "paid_at", "created_at", "updated_at"]
+
+    def validate(self, attrs):
+        amount_expected = attrs.get(
+            "amount_expected",
+            self.instance.amount_expected if self.instance else None,
+        )
+        amount_paid = attrs.get(
+            "amount_paid",
+            self.instance.amount_paid if self.instance else None,
+        )
+
+        if amount_expected is not None and amount_expected < 0:
+            raise serializers.ValidationError(
+                {"amount_expected": "Amount expected cannot be negative."}
+            )
+        if amount_paid is not None and amount_paid < 0:
+            raise serializers.ValidationError(
+                {"amount_paid": "Amount paid cannot be negative."}
             )
         return attrs
 
@@ -164,12 +211,12 @@ class JobOrderCreateSerializer(serializers.ModelSerializer):
 
     def validate_current_status(self, value):
         """
-        Sprint 2 job intake starts in the received state.
+        Sprint 3 intake starts in the payment-pending state.
         Reject attempts to create jobs directly in downstream workflow states.
         """
-        if value != JobOrder.Status.RECEIVED:
+        if value != JobOrder.Status.PAYMENT_PENDING:
             raise serializers.ValidationError(
-                "New job orders must start in the 'received' state."
+                "New job orders must start in the 'payment_pending' state."
             )
         return value
 
@@ -188,9 +235,7 @@ class SampleSerializer(serializers.ModelSerializer):
     Exposes ALL fields including client identity, sample name, and job details.
     """
 
-    blind_alias_code = serializers.CharField(
-        source="blind_alias.code", read_only=True
-    )
+    blind_alias_code = serializers.SerializerMethodField(read_only=True)
     job_status = serializers.CharField(
         source="job.current_status", read_only=True
     )
@@ -203,7 +248,7 @@ class SampleSerializer(serializers.ModelSerializer):
     assigned_analyst_email = serializers.EmailField(
         source="assigned_analyst.email", read_only=True, default=None
     )
-    sample_tests = SampleTestSerializer(many=True, read_only=True)
+    sample_tests = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = Sample
@@ -240,17 +285,28 @@ class SampleSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
 
+    @extend_schema_field(serializers.CharField(allow_null=True))
+    def get_blind_alias_code(self, obj):
+        return obj.blind_alias.code if obj.blind_alias_id else None
+
+    @extend_schema_field(SampleTestSerializer(many=True))
+    def get_sample_tests(self, obj):
+        sample_tests = _visible_sample_tests_for_request(obj, self.context.get("request"))
+        return SampleTestSerializer(
+            sample_tests,
+            many=True,
+            context=self.context,
+        ).data
+
 
 class SampleCreateSerializer(serializers.ModelSerializer):
     """
     Serializer for creating new samples (Receptionist only).
-    blind_alias and sample_code are auto-generated in model.save().
-    Returns auto-generated fields in the response for confirmation.
+    blind_alias and sample_code are payment-gated and remain empty until
+    finance confirms payment for the parent job.
     """
 
-    blind_alias_code = serializers.CharField(
-        source="blind_alias.code", read_only=True
-    )
+    blind_alias_code = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = Sample
@@ -306,6 +362,10 @@ class SampleCreateSerializer(serializers.ModelSerializer):
         validated_data["received_by"] = self.context["request"].user
         return super().create(validated_data)
 
+    @extend_schema_field(serializers.CharField(allow_null=True))
+    def get_blind_alias_code(self, obj):
+        return obj.blind_alias.code if obj.blind_alias_id else None
+
 
 class SampleUpdateSerializer(serializers.ModelSerializer):
     """
@@ -357,10 +417,8 @@ class SampleAnalystSerializer(serializers.ModelSerializer):
     """
 
     blind_alias_id = serializers.UUIDField(read_only=True)
-    blind_alias_code = serializers.CharField(
-        source="blind_alias.code", read_only=True
-    )
-    sample_tests = SampleTestSerializer(many=True, read_only=True)
+    blind_alias_code = serializers.SerializerMethodField(read_only=True)
+    sample_tests = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = Sample
@@ -379,3 +437,33 @@ class SampleAnalystSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
         read_only_fields = fields
+
+    @extend_schema_field(serializers.CharField(allow_null=True))
+    def get_blind_alias_code(self, obj):
+        return obj.blind_alias.code if obj.blind_alias_id else None
+
+    @extend_schema_field(SampleTestSerializer(many=True))
+    def get_sample_tests(self, obj):
+        sample_tests = _visible_sample_tests_for_request(obj, self.context.get("request"))
+        return SampleTestSerializer(
+            sample_tests,
+            many=True,
+            context=self.context,
+        ).data
+
+
+def _visible_sample_tests_for_request(sample, request):
+    """Prevent department-scoped staff from seeing other departments' tests."""
+    sample_tests = sample.sample_tests.select_related("test", "test__department")
+    if request is None or not request.user.is_authenticated:
+        return sample_tests.all()
+
+    user = request.user
+    role_name = getattr(user, "role_name", None)
+    if role_name not in {"analyst", "qc_manager"}:
+        return sample_tests.all()
+
+    department_id = getattr(user, "department_id", None)
+    if department_id is None:
+        return sample_tests.none()
+    return sample_tests.filter(test__department_id=department_id)

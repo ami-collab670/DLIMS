@@ -4,10 +4,23 @@ Handles Role CRUD, User CRUD (Admin), and User Registration.
 """
 
 from django.contrib.auth import get_user_model
+from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
-from .models import Role
+from .models import Department, OTPToken, Role
 
 User = get_user_model()
+
+
+# ---------------------------------------------------------------------------
+# Department Serializers
+# ---------------------------------------------------------------------------
+class DepartmentSerializer(serializers.ModelSerializer):
+    """Laboratory department/section used for access isolation."""
+
+    class Meta:
+        model = Department
+        fields = ["id", "name", "description", "created_at", "updated_at"]
+        read_only_fields = ["id", "created_at", "updated_at"]
 
 
 # ---------------------------------------------------------------------------
@@ -54,6 +67,8 @@ class UserSerializer(serializers.ModelSerializer):
             "user_type",
             "role",
             "role_detail",
+            "department",
+            "country",
             "nationality",
             "organization_name",
             "organization_type",
@@ -82,6 +97,8 @@ class UserCreateSerializer(serializers.ModelSerializer):
             "phone",
             "user_type",
             "role",
+            "department",
+            "country",
             "nationality",
             "organization_name",
             "organization_type",
@@ -122,6 +139,8 @@ class UserUpdateSerializer(serializers.ModelSerializer):
             "phone",
             "user_type",
             "role",
+            "department",
+            "country",
             "nationality",
             "organization_name",
             "organization_type",
@@ -147,3 +166,53 @@ class ChangePasswordSerializer(serializers.Serializer):
         instance.set_password(validated_data["new_password"])
         instance.save()
         return instance
+
+
+class PasswordResetRequestSerializer(serializers.Serializer):
+    """Request an email OTP for password reset."""
+
+    email = serializers.EmailField()
+
+
+class PasswordResetConfirmSerializer(serializers.Serializer):
+    """Confirm an email OTP and set a new password."""
+
+    default_error = "Invalid or expired OTP."
+
+    email = serializers.EmailField()
+    otp = serializers.CharField(min_length=6, max_length=6)
+    new_password = serializers.CharField(write_only=True, min_length=8)
+
+    def validate_otp(self, value):
+        if not value.isdigit():
+            raise serializers.ValidationError("OTP must be a 6-digit code.")
+        return value
+
+    def validate_new_password(self, value):
+        validate_password(value)
+        return value
+
+    def validate(self, attrs):
+        user = User.objects.filter(email=attrs["email"], is_active=True).first()
+        if user is None:
+            raise serializers.ValidationError({"otp": self.default_error})
+
+        token = (
+            OTPToken.objects.filter(user=user, is_used=False)
+            .order_by("-created_at")
+            .first()
+        )
+        if token is None or token.is_expired() or not token.matches(attrs["otp"]):
+            raise serializers.ValidationError({"otp": self.default_error})
+
+        attrs["user"] = user
+        attrs["token"] = token
+        return attrs
+
+    def save(self, **kwargs):
+        user = self.validated_data["user"]
+        token = self.validated_data["token"]
+        user.set_password(self.validated_data["new_password"])
+        user.save(update_fields=["password"])
+        token.mark_used()
+        return user
