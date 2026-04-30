@@ -1,0 +1,27 @@
+# render.yaml — Render.com Blueprint for LSIMS Staging
+# Deploy via: https://render.com/deploy → connect your GitHub repo
+
+databases:
+  - name: lsims-db
+    databaseName: lsims
+    user: lsims_user
+    plan: free
+
+services:
+  - type: web
+    name: lsims-api-staging
+    env: python
+    plan: free
+    buildCommand: "./build.sh"
+    startCommand: "gunicorn lsims_project.wsgi:application --bind 0.0.0.0:$PORT"
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: lsims-db
+          property: connectionString
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: DJANGO_DEBUG
+        value: "False"
+      - key: PYTHON_VERSION
+        value: "3.13.2"
