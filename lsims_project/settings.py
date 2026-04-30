@@ -2,18 +2,49 @@
 Django settings for lsims_project.
 LSIMS - Laboratory Sample Information Management System
 Ministry of Mines
+
+Production-ready: supports Render.com deployment with PostgreSQL,
+WhiteNoise static file serving, and CORS headers.
 """
 
+import os
 from pathlib import Path
 from datetime import timedelta
 
+import dj_database_url
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = "django-insecure-dev-key-change-in-production"
+# ---------------------------------------------------------------------------
+# Security — loaded from environment variables, safe defaults for dev
+# ---------------------------------------------------------------------------
+DEBUG = os.environ.get("DJANGO_DEBUG", "True").lower() in ("true", "1", "yes")
 
-DEBUG = True
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY")
+if not SECRET_KEY:
+    if DEBUG:
+        SECRET_KEY = "django-insecure-dev-key-DO-NOT-USE-IN-PRODUCTION"
+    else:
+        raise RuntimeError(
+            "DJANGO_SECRET_KEY environment variable is required in production."
+        )
 
-ALLOWED_HOSTS = ["*"]
+# ALLOWED_HOSTS: In production, includes the Render hostname plus any extras.
+# In dev, allows everything.
+if DEBUG:
+    ALLOWED_HOSTS = ["*"]
+else:
+    ALLOWED_HOSTS = [
+        "lsims-api-staging.onrender.com",  # Render staging (always allowed)
+    ]
+    # Add any extra hosts from env var (e.g. custom domain)
+    extra_hosts = os.environ.get("DJANGO_ALLOWED_HOSTS", "")
+    if extra_hosts:
+        ALLOWED_HOSTS += [h.strip() for h in extra_hosts.split(",") if h.strip()]
+    # Render also auto-injects this (belt and suspenders)
+    render_hostname = os.environ.get("RENDER_EXTERNAL_HOSTNAME")
+    if render_hostname and render_hostname not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(render_hostname)
 
 # ---------------------------------------------------------------------------
 # Application definition
@@ -30,12 +61,18 @@ INSTALLED_APPS = [
     "rest_framework_simplejwt",
     "drf_spectacular",
     "django_filters",
+    "corsheaders",
     # Local
     "accounts",
+    "laboratory",
 ]
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    # WhiteNoise — serves static files in production (must be right after SecurityMiddleware)
+    "whitenoise.middleware.WhiteNoiseMiddleware",
+    # CORS — must be before CommonMiddleware
+    "corsheaders.middleware.CorsMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -65,22 +102,15 @@ TEMPLATES = [
 WSGI_APPLICATION = "lsims_project.wsgi.application"
 
 # ---------------------------------------------------------------------------
-# Database — SQLite for dev, PostgreSQL for production
+# Database — SQLite for dev, PostgreSQL via DATABASE_URL for production
 # ---------------------------------------------------------------------------
 DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
-    }
-    # Production PostgreSQL config:
-    # "default": {
-    #     "ENGINE": "django.db.backends.postgresql",
-    #     "NAME": "lsims_db",
-    #     "USER": "lsims_user",
-    #     "PASSWORD": "your_password",
-    #     "HOST": "localhost",
-    #     "PORT": "5432",
-    # }
+    "default": dj_database_url.config(
+        # Falls back to SQLite when DATABASE_URL is not set (local dev)
+        default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
+        conn_max_age=600,
+        conn_health_checks=True,
+    )
 }
 
 # ---------------------------------------------------------------------------
@@ -107,14 +137,43 @@ USE_I18N = True
 USE_TZ = True
 
 # ---------------------------------------------------------------------------
-# Static files
+# Static files — WhiteNoise serves them in production
 # ---------------------------------------------------------------------------
 STATIC_URL = "static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
+STORAGES = {
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
 
 # ---------------------------------------------------------------------------
 # Default primary key field type
 # ---------------------------------------------------------------------------
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# ---------------------------------------------------------------------------
+# CORS — Allow all origins during staging/frontend testing
+# ---------------------------------------------------------------------------
+CORS_ALLOW_ALL_ORIGINS = True
+
+# ---------------------------------------------------------------------------
+# Email — console backend by default, SMTP when configured via env vars
+# ---------------------------------------------------------------------------
+EMAIL_BACKEND = os.environ.get(
+    "DJANGO_EMAIL_BACKEND",
+    "django.core.mail.backends.console.EmailBackend",
+)
+EMAIL_HOST = os.environ.get("DJANGO_EMAIL_HOST", "localhost")
+EMAIL_PORT = int(os.environ.get("DJANGO_EMAIL_PORT", "25"))
+EMAIL_HOST_USER = os.environ.get("DJANGO_EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = os.environ.get("DJANGO_EMAIL_HOST_PASSWORD", "")
+EMAIL_USE_TLS = os.environ.get("DJANGO_EMAIL_USE_TLS", "False").lower() in (
+    "true",
+    "1",
+    "yes",
+)
+DEFAULT_FROM_EMAIL = os.environ.get("DJANGO_DEFAULT_FROM_EMAIL", "noreply@lsims.local")
 
 # ---------------------------------------------------------------------------
 # Django REST Framework
@@ -128,6 +187,7 @@ REST_FRAMEWORK = {
     ),
     "DEFAULT_FILTER_BACKENDS": (
         "django_filters.rest_framework.DjangoFilterBackend",
+        "rest_framework.filters.SearchFilter",
     ),
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
