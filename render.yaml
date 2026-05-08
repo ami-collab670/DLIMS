@@ -1,11 +1,10 @@
 # render.yaml — Render.com Blueprint for LSIMS Staging
 # Deploy via: https://render.com/deploy → connect your GitHub repo
-
-databases:
-  - name: lsims-db
-    databaseName: lsims
-    user: lsims_user
-    plan: free
+#
+# Database note:
+# LSIMS uses an externally managed PostgreSQL database on Supabase.
+# Set DATABASE_URL manually in the Render dashboard; do not bind it to a
+# Render-managed database resource.
 
 services:
   - type: web
@@ -16,9 +15,7 @@ services:
     startCommand: "gunicorn lsims_project.wsgi:application --bind 0.0.0.0:$PORT"
     envVars:
       - key: DATABASE_URL
-        fromDatabase:
-          name: lsims-db
-          property: connectionString
+        sync: false
       - key: DJANGO_SECRET_KEY
         generateValue: true
       - key: DJANGO_DEBUG
