@@ -23,6 +23,10 @@ services:
     build:
       context: ./LSIMS-Backend/LSIMS-main
       dockerfile: Dockerfile
+    # Create dev users (stack must be up):
+    #   .\scripts\create-user.ps1 --email admin@ministry.gov --password AdminPass123! --role admin
+    #   docker compose exec backend python manage.py seed_roles
+    #   docker compose exec backend python manage.py create_user --email analyst@ministry.gov --password AnalystPass123! --role analyst
     volumes:
       - ./LSIMS-Backend/LSIMS-main:/app
     ports:

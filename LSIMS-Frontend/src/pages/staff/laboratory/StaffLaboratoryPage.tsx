@@ -11,15 +11,15 @@ import { useAuthStore } from "@/stores/auth-store";
 
 import { StaffAssignmentsSection } from "./assignments/staff-assignments-section";
 import type { LaboratoryTabId } from "./constants";
-import { StaffCatalogSection } from "./catalog/staff-catalog-section";
 import { StaffJobsSection } from "./jobs/staff-jobs-section";
 import { LaboratoryTabBar } from "./laboratory-tab-bar";
 
 export default function StaffLaboratoryPage() {
   const user = useAuthStore((s) => s.user);
+
   const intake = canIntakeSamples(user);
   const manageJobs = canManageJobsAndSamples(user);
-  const manageCatalog = canManageTestCatalog(user);
+
   const showAssignmentsTab = manageJobs;
   const [tab, setTab] = useState<LaboratoryTabId>("jobs");
 

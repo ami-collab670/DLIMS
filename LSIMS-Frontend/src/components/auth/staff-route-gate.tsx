@@ -14,10 +14,11 @@ type Props = {
  */
 export function StaffRouteGate({ routeKey, children }: Props) {
   const user = useAuthStore((s) => s.user);
+  const allowed = user ? canAccessStaffRoute(routeKey, user) : false;
 
   if (!user) return null;
 
-  if (!canAccessStaffRoute(routeKey, user)) {
+  if (!allowed) {
     return <Navigate to="/staff" replace />;
   }
 
