@@ -56,13 +56,8 @@ export default function StaffResultsPage() {
             {" "}
             Updating status uses{" "}
             <code className="rounded bg-muted px-1">PATCH …/samples/:id/</code> from the{" "}
-<<<<<<< HEAD
             <Link to="/staff/analyst" className="text-primary underline-offset-4 hover:underline">
               Analyst
-=======
-            <Link to="/staff/samples" className="text-primary underline-offset-4 hover:underline">
-              Samples
->>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
             </Link>{" "}
             workspace.
           </>
@@ -70,13 +65,8 @@ export default function StaffResultsPage() {
           <>
             {" "}
             Your role can use the{" "}
-<<<<<<< HEAD
             <Link to="/staff/analyst" className="text-primary underline-offset-4 hover:underline">
               Analyst
-=======
-            <Link to="/staff/samples" className="text-primary underline-offset-4 hover:underline">
-              Samples
->>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
             </Link>{" "}
             workspace for allowed views; sample PATCH is limited to administrators and
             receptionists in this deployment.

@@ -29,11 +29,7 @@ export function StaffAssignmentsSection({ manage }: { manage: boolean }) {
   });
 
   const { data: samplesPage } = useQuery({
-<<<<<<< HEAD
     queryKey: ["staff-analyst-assign-picker"],
-=======
-    queryKey: ["staff-samples-assign-picker"],
->>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
     queryFn: () => fetchSamples({ page: 1 }),
   });
 
@@ -48,11 +44,7 @@ export function StaffAssignmentsSection({ manage }: { manage: boolean }) {
       toast.success("Test assigned.");
       setTestId("");
       queryClient.invalidateQueries({ queryKey: ["sample-tests"] });
-<<<<<<< HEAD
       queryClient.invalidateQueries({ queryKey: ["staff-analyst"] });
-=======
-      queryClient.invalidateQueries({ queryKey: ["staff-samples"] });
->>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
     },
     onError: (e) => toast.error(getApiErrorMessage(e)),
   });
@@ -62,11 +54,7 @@ export function StaffAssignmentsSection({ manage }: { manage: boolean }) {
     onSuccess: () => {
       toast.success("Assignment removed.");
       queryClient.invalidateQueries({ queryKey: ["sample-tests"] });
-<<<<<<< HEAD
       queryClient.invalidateQueries({ queryKey: ["staff-analyst"] });
-=======
-      queryClient.invalidateQueries({ queryKey: ["staff-samples"] });
->>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
     },
     onError: (e) => toast.error(getApiErrorMessage(e)),
   });

@@ -3,10 +3,7 @@ attrs==25.4.0
 dj-database-url==3.1.2
 Django==6.0.2
 django-cors-headers==4.9.0
-<<<<<<< HEAD
-=======
 django-extensions==4.1
->>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
 django-filter==25.2
 djangorestframework==3.16.1
 djangorestframework_simplejwt==5.5.1
@@ -16,10 +13,7 @@ inflection==0.5.1
 jsonschema==4.26.0
 jsonschema-specifications==2025.9.1
 packaging==26.0
-<<<<<<< HEAD
-=======
 pydot==4.0.1
->>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
 psycopg2-binary==2.9.11
 python-dotenv==1.2.1
 PyJWT==2.11.0

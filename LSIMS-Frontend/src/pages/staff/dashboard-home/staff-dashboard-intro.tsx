@@ -32,23 +32,14 @@ export function StaffDashboardIntro() {
     roleHint += " You can update jobs, samples, and test assignments from the Laboratory hub.";
   } else if (user && !manageOps) {
     roleHint +=
-<<<<<<< HEAD
       " Your assigned analyst work and blind identifiers are available under Laboratory and Analyst.";
-=======
-      " Your assigned samples and blind identifiers are available under Laboratory and Samples.";
->>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
   }
 
   return (
     <div>
       <h2 className="text-2xl font-semibold tracking-tight">Dashboard</h2>
       <p className="mt-1 text-sm text-muted-foreground">
-<<<<<<< HEAD
         Laboratory information snapshot — job pipeline, analyst workspaces, and quick access to LSIMS areas.
-=======
-        Laboratory information snapshot — job pipeline, samples, and quick access to LSIMS
-        workspaces.
->>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
       </p>
       <p className="mt-3 text-sm">
         <span className="font-medium text-foreground">Welcome back, {displayName}.</span>

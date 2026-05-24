@@ -1,39 +1,23 @@
-<<<<<<< HEAD
 import { useMutation, useQuery } from "@tanstack/react-query";
-=======
-import { useMutation } from "@tanstack/react-query";
->>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-<<<<<<< HEAD
 import { fetchRoles } from "@/features/accounts/roles-api";
 import { cancelJobOrder, patchJobOrder } from "@/features/jobs/api";
-=======
-import {
-  patchJobOrder,
-  softCancelJobOrder,
-} from "@/features/jobs/api";
->>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
 import { getApiErrorMessage } from "@/lib/api-error";
 import {
   JOB_PRIORITY_OPTIONS,
   JOB_STATUS_OPTIONS,
   shortJobId,
 } from "@/lib/job-order-labels";
-<<<<<<< HEAD
 import { resolveRoleLabel } from "@/lib/resolve-role-label";
 import type { JobOrder } from "@/types/laboratory";
 
 import { roleOptionLabel } from "@/pages/staff/user-management/role-display";
 
-=======
-import type { JobOrder } from "@/types/laboratory";
-
->>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
 export function StaffJobDetailPanel({
   job,
   onClose,
@@ -49,7 +33,6 @@ export function StaffJobDetailPanel({
   const [priority, setPriority] = useState(job.priority);
   const [desc, setDesc] = useState(job.description);
   const [reason, setReason] = useState(job.status_reason);
-<<<<<<< HEAD
   const [blockedByRole, setBlockedByRole] = useState(job.blocked_by_role ?? "");
   const [showCancelForm, setShowCancelForm] = useState(false);
   const [cancellationReason, setCancellationReason] = useState("");
@@ -61,20 +44,15 @@ export function StaffJobDetailPanel({
     staleTime: 60_000,
   });
   const roles = rolesQuery.data ?? [];
-=======
->>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
 
   useEffect(() => {
     setStatus(job.current_status);
     setPriority(job.priority);
     setDesc(job.description);
     setReason(job.status_reason);
-<<<<<<< HEAD
     setBlockedByRole(job.blocked_by_role ?? "");
     setShowCancelForm(false);
     setCancellationReason("");
-=======
->>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
   }, [job]);
 
   const patchMut = useMutation({
@@ -84,10 +62,7 @@ export function StaffJobDetailPanel({
         priority,
         description: desc,
         status_reason: reason,
-<<<<<<< HEAD
         blocked_by_role: blockedByRole || null,
-=======
->>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
       }),
     onSuccess: () => {
       toast.success("Job updated.");
@@ -97,7 +72,6 @@ export function StaffJobDetailPanel({
   });
 
   const cancelMut = useMutation({
-<<<<<<< HEAD
     mutationFn: () =>
       cancelJobOrder(job.id, {
         cancellation_reason: cancellationReason.trim() || undefined,
@@ -105,21 +79,13 @@ export function StaffJobDetailPanel({
     onSuccess: () => {
       toast.success("Job cancelled.");
       setShowCancelForm(false);
-=======
-    mutationFn: () => softCancelJobOrder(job.id),
-    onSuccess: () => {
-      toast.success("Job cancelled.");
->>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
       onUpdated();
     },
     onError: (e) => toast.error(getApiErrorMessage(e)),
   });
 
-<<<<<<< HEAD
   const blockedLabel = resolveRoleLabel(job.blocked_by_role, roles);
 
-=======
->>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
   return (
     <div className="flex flex-col p-4">
       <div className="mb-4 flex items-start justify-between gap-2">
@@ -143,7 +109,6 @@ export function StaffJobDetailPanel({
           <dt className="text-xs text-muted-foreground">Samples</dt>
           <dd>{job.sample_count}</dd>
         </div>
-<<<<<<< HEAD
         {blockedLabel ? (
           <div>
             <dt className="text-xs text-muted-foreground">Blocked by role</dt>
@@ -156,8 +121,6 @@ export function StaffJobDetailPanel({
             <dd className="text-destructive">{job.cancellation_reason}</dd>
           </div>
         ) : null}
-=======
->>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
       </dl>
 
       {manageJobs && !job.is_cancelled ? (
@@ -195,7 +158,6 @@ export function StaffJobDetailPanel({
             </select>
           </div>
           <div className="space-y-1">
-<<<<<<< HEAD
             <Label>Role hold (optional)</Label>
             <select
               className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
@@ -212,8 +174,6 @@ export function StaffJobDetailPanel({
             </select>
           </div>
           <div className="space-y-1">
-=======
->>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
             <Label>Description</Label>
             <Textarea
               rows={4}
@@ -237,7 +197,6 @@ export function StaffJobDetailPanel({
             >
               Save changes
             </Button>
-<<<<<<< HEAD
             {!showCancelForm ? (
               <Button
                 type="button"
@@ -279,19 +238,6 @@ export function StaffJobDetailPanel({
               </div>
             </div>
           ) : null}
-=======
-            <Button
-              type="button"
-              variant="destructive"
-              disabled={cancelMut.isPending}
-              onClick={() => {
-                if (confirm("Soft-cancel this job?")) cancelMut.mutate();
-              }}
-            >
-              Cancel job
-            </Button>
-          </div>
->>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
         </div>
       ) : null}
 

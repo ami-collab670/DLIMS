@@ -36,11 +36,7 @@ export type JobOrderStatus =
   | "finance_hold"
   | "completed";
 
-<<<<<<< HEAD
 export type JobPriority = "normal" | "urgent" ;
-=======
-export type JobPriority = "normal" | "urgent" | "critical";
->>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
 
 export type TestCatalogItem = {
   id: string;
@@ -72,11 +68,8 @@ export type SampleRecord = {
   job?: string;
   job_status?: string;
   blind_alias?: string;
-<<<<<<< HEAD
   /** Analyst serializer uses blind_alias_id instead of blind_alias UUID. */
   blind_alias_id?: string;
-=======
->>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
   blind_alias_code: string;
   sample_code?: string;
   sample_name?: string;

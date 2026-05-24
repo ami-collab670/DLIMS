@@ -16,7 +16,6 @@ import {
   fetchJobOrder,
   fetchJobOrders,
 } from "@/features/jobs/api";
-<<<<<<< HEAD
 import {
   DEFAULT_JOB_ORDER_SORT,
   toOrderingParam,
@@ -25,8 +24,6 @@ import {
   type JobOrderSortState,
 } from "@/features/jobs/job-order-list-sort";
 import { SortableJobTableHead } from "@/features/jobs/sortable-job-table-head";
-=======
->>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
 import { getApiErrorMessage } from "@/lib/api-error";
 import {
   JOB_PRIORITY_OPTIONS,
@@ -58,17 +55,13 @@ export function StaffJobsSection({
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [priorityFilter, setPriorityFilter] = useState("");
-<<<<<<< HEAD
   const [sort, setSort] = useState<JobOrderSortState>(DEFAULT_JOB_ORDER_SORT);
-=======
->>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
 
   useEffect(() => {
     const t = window.setTimeout(() => setDebouncedSearch(searchInput), 400);
     return () => window.clearTimeout(t);
   }, [searchInput]);
 
-<<<<<<< HEAD
   useEffect(() => setPage(1), [debouncedSearch, statusFilter, priorityFilter, sort]);
 
   const listParams = useMemo(() => {
@@ -76,25 +69,15 @@ export function StaffJobsSection({
       page,
       ordering: toOrderingParam(sort),
     };
-=======
-  useEffect(() => setPage(1), [debouncedSearch, statusFilter, priorityFilter]);
-
-  const listParams = useMemo(() => {
-    const p: Parameters<typeof fetchJobOrders>[0] = { page };
->>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
     if (debouncedSearch) p.search = debouncedSearch;
     if (statusFilter) p.current_status = statusFilter;
     if (priorityFilter) p.priority = priorityFilter;
     return p;
-<<<<<<< HEAD
   }, [page, debouncedSearch, statusFilter, priorityFilter, sort]);
 
   const handleSort = useCallback((key: JobOrderSortKey) => {
     setSort((prev) => toggleSortState(prev, key));
   }, []);
-=======
-  }, [page, debouncedSearch, statusFilter, priorityFilter]);
->>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
 
   const { data: listData, isLoading, isError, error, isFetching } = useQuery({
     queryKey: ["staff-job-orders", listParams],
@@ -220,7 +203,6 @@ export function StaffJobsSection({
               <table className="w-full min-w-[700px] text-left text-sm">
                 <thead>
                   <tr className="border-b bg-muted/40">
-<<<<<<< HEAD
                     <SortableJobTableHead
                       label="Job"
                       sortKey="id"
@@ -257,14 +239,6 @@ export function StaffJobsSection({
                       sort={sort}
                       onSort={handleSort}
                     />
-=======
-                    <th className="px-4 py-3 font-medium">Job</th>
-                    <th className="px-4 py-3 font-medium">Client</th>
-                    <th className="px-4 py-3 font-medium">Status</th>
-                    <th className="px-4 py-3 font-medium">Priority</th>
-                    <th className="px-4 py-3 font-medium">Samples</th>
-                    <th className="px-4 py-3 font-medium">Created</th>
->>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
                   </tr>
                 </thead>
                 <tbody>

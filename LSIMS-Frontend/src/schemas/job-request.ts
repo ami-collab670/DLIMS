@@ -17,11 +17,7 @@ export const clientJobRequestSchema = z.object({
     .trim()
     .min(10, "Please add a short description (at least 10 characters).")
     .max(16000),
-<<<<<<< HEAD
   priority: z.enum(["normal", "urgent", ]),
-=======
-  priority: z.enum(["normal", "urgent", "critical"]),
->>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
   samples: z.array(clientJobSampleSchema).max(50).optional(),
 });
 

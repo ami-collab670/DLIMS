@@ -7,15 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-<<<<<<< HEAD
   type CreateAdminUserBody,
 } from "@/features/accounts/admin-api";
 import { fetchRoles } from "@/features/accounts/roles-api";
-=======
-  fetchRoles,
-  type CreateAdminUserBody,
-} from "@/features/accounts/admin-api";
->>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
 import { cn } from "@/lib/utils";
 
 import { roleOptionLabel } from "./role-display";
@@ -28,11 +22,7 @@ type Props = {
 export function UserCreateForm({ onSubmit, isPending }: Props) {
   const { data: roles = [], isLoading: rolesLoading } = useQuery({
     queryKey: ["admin-roles"],
-<<<<<<< HEAD
     queryFn: () => fetchRoles(),
-=======
-    queryFn: fetchRoles,
->>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
   });
 
   const [form, setForm] = useState({

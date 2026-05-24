@@ -66,10 +66,7 @@ INSTALLED_APPS = [
     "drf_spectacular",
     "django_filters",
     "corsheaders",
-<<<<<<< HEAD
-=======
     "django_extensions",
->>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
     # Local
     "accounts",
     "laboratory",

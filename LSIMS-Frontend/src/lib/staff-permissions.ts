@@ -9,15 +9,12 @@ function roleName(user: AuthUser | null): string | undefined {
   return staffRoleName(user);
 }
 
-<<<<<<< HEAD
 /** Lab analyst role — blind read scope & assigned samples bench. */
 export function isStaffAnalyst(user: AuthUser | null): boolean {
   if (!user?.is_active) return false;
   return roleName(user) === "analyst";
 }
 
-=======
->>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
 /** LSIMS admin role or Django superuser — user management, test catalog writes. */
 export function isStaffAdmin(user: AuthUser | null): boolean {
   if (!user?.is_active) return false;

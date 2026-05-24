@@ -6,10 +6,7 @@ import {
   canAccessStaffRoute,
   type StaffRouteKey,
 } from "@/lib/staff-route-access";
-<<<<<<< HEAD
 import { isStaffAnalyst } from "@/lib/staff-permissions";
-=======
->>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
 import { useAuthStore } from "@/stores/auth-store";
 
 const linkClass =
@@ -28,7 +25,6 @@ const ITEMS: QuickItem[] = [
     routeKey: "laboratory",
     to: "/staff/laboratory",
     title: "Laboratory",
-<<<<<<< HEAD
     subtitle: "Jobs, assignments, analyst tab",
     icon: FlaskConical,
   },
@@ -37,28 +33,13 @@ const ITEMS: QuickItem[] = [
     to: "/staff/analyst",
     title: "Analyst",
     subtitle: "Analyst workspace & assignments",
-=======
-    subtitle: "Jobs, catalog, assignments",
-    icon: FlaskConical,
-  },
-  {
-    routeKey: "samples",
-    to: "/staff/samples",
-    title: "Samples",
-    subtitle: "Register and track samples",
->>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
     icon: TestTube,
   },
   {
     routeKey: "profile",
     to: "/staff/profile",
-<<<<<<< HEAD
     title: "Profile & settings",
     subtitle: "Contact, security, preferences",
-=======
-    title: "Profile",
-    subtitle: "Contact details",
->>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
     icon: User,
   },
   {
@@ -72,7 +53,6 @@ const ITEMS: QuickItem[] = [
 
 export function StaffDashboardQuickLinks() {
   const user = useAuthStore((s) => s.user);
-<<<<<<< HEAD
   const items = ITEMS.filter((item) => canAccessStaffRoute(item.routeKey, user)).map(
     (item) => {
       if (item.routeKey === "analyst" && isStaffAnalyst(user)) {
@@ -85,9 +65,6 @@ export function StaffDashboardQuickLinks() {
       return item;
     },
   );
-=======
-  const items = ITEMS.filter((item) => canAccessStaffRoute(item.routeKey, user));
->>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
 
   return (
     <section aria-labelledby="quick-links-heading">

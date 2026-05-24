@@ -71,11 +71,7 @@ export default function StaffSchedulingPage() {
           ? "As intake staff, monitor submitted jobs on the main dashboard and advance client requests."
           : null}
         {manage && !intake
-<<<<<<< HEAD
           ? "You can move jobs and samples through workflow statuses from Laboratory and Analyst."
-=======
-          ? "You can move jobs and samples through workflow statuses from Laboratory and Samples."
->>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
           : null}
         {!manage && user?.user_type === "internal"
           ? "Use this snapshot to see pipeline depth; detailed actions follow your role permissions."

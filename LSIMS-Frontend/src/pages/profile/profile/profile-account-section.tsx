@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 import { shortId } from "@/lib/short-id";
 import { cn } from "@/lib/utils";
 import type { AuthUser } from "@/types/auth";
@@ -25,17 +24,11 @@ function StatusBadge({ active }: { active: boolean }) {
 }
 
 export function ProfileAccountSection({ profile, extended = false }: Props) {
-=======
-import type { AuthUser } from "@/types/auth";
-
-export function ProfileAccountSection({ profile }: { profile: AuthUser }) {
->>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
   return (
     <section
       className="rounded-xl border border-border bg-card p-4 shadow-sm"
       aria-labelledby="account-heading"
     >
-<<<<<<< HEAD
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 id="account-heading" className="text-sm font-medium">
           Account
@@ -46,30 +39,21 @@ export function ProfileAccountSection({ profile }: { profile: AuthUser }) {
           </span>
         ) : null}
       </div>
-=======
-      <h3 id="account-heading" className="text-sm font-medium">
-        Account
-      </h3>
->>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
       <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-2">
         <div>
           <dt className="text-muted-foreground">Email</dt>
           <dd className="font-medium">{profile.email}</dd>
         </div>
-<<<<<<< HEAD
         {extended ? (
           <div>
             <dt className="text-muted-foreground">Username</dt>
             <dd className="font-medium">{profile.username || "—"}</dd>
           </div>
         ) : null}
-=======
->>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
         <div>
           <dt className="text-muted-foreground">Account type</dt>
           <dd className="capitalize">{profile.user_type}</dd>
         </div>
-<<<<<<< HEAD
         {extended ? (
           <div>
             <dt className="text-muted-foreground">User ID</dt>
@@ -94,15 +78,11 @@ export function ProfileAccountSection({ profile }: { profile: AuthUser }) {
             </div>
           </>
         ) : !extended && profile.role_detail ? (
-=======
-        {profile.role_detail ? (
->>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
           <div className="sm:col-span-2">
             <dt className="text-muted-foreground">Role</dt>
             <dd>{profile.role_detail.display_name}</dd>
           </div>
         ) : null}
-<<<<<<< HEAD
         {extended ? (
           <div>
             <dt className="text-muted-foreground">Account status</dt>
@@ -111,8 +91,6 @@ export function ProfileAccountSection({ profile }: { profile: AuthUser }) {
             </dd>
           </div>
         ) : null}
-=======
->>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
         <div>
           <dt className="text-muted-foreground">Member since</dt>
           <dd>

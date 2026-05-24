@@ -15,10 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   createNotification,
   deleteNotification,
-<<<<<<< HEAD
   fetchNotification,
-=======
->>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
   fetchNotifications,
   markAllNotificationsRead,
   markAllNotificationsUnread,
@@ -53,7 +50,6 @@ function formatWhen(iso: string) {
   }
 }
 
-<<<<<<< HEAD
 function hasMetadata(metadata: Record<string, unknown>): boolean {
   return Object.keys(metadata).length > 0;
 }
@@ -164,8 +160,6 @@ function NotificationListItem({
   );
 }
 
-=======
->>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
 export function NotificationsCenter({
   showStaffSendForm = false,
 }: {
@@ -414,7 +408,6 @@ export function NotificationsCenter({
         ) : (
           <ul className="divide-y divide-border">
             {listQuery.data.results.map((n: NotificationRecord) => (
-<<<<<<< HEAD
               <NotificationListItem
                 key={n.id}
                 notification={n}
@@ -432,68 +425,6 @@ export function NotificationsCenter({
                   deleteMut.mutate(n.id);
                 }}
               />
-=======
-              <li
-                key={n.id}
-                className={cn(
-                  "flex flex-col gap-3 p-4 sm:flex-row sm:items-start sm:justify-between",
-                  !n.is_read && "bg-primary/5",
-                )}
-              >
-                <div className="min-w-0 flex-1 space-y-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                      {n.kind}
-                    </span>
-                    {!n.is_read ? (
-                      <span className="rounded-full bg-primary/15 px-2 py-0.5 text-xs text-primary">
-                        Unread
-                      </span>
-                    ) : null}
-                  </div>
-                  <p className="font-medium leading-snug">{n.title}</p>
-                  <p className="whitespace-pre-wrap text-sm text-muted-foreground">
-                    {n.body}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {formatWhen(n.created_at)}
-                  </p>
-                </div>
-                <div className="flex shrink-0 flex-wrap gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    disabled={markReadMut.isPending}
-                    onClick={() =>
-                      markReadMut.mutate({ id: n.id, read: !n.is_read })
-                    }
-                  >
-                    {n.is_read ? "Mark unread" : "Mark read"}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                    disabled={deleteMut.isPending}
-                    onClick={() => {
-                      if (
-                        !window.confirm(
-                          "Remove this notification from your inbox?",
-                        )
-                      ) {
-                        return;
-                      }
-                      deleteMut.mutate(n.id);
-                    }}
-                  >
-                    <Trash2 className="size-4" aria-hidden />
-                    Delete
-                  </Button>
-                </div>
-              </li>
->>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
             ))}
           </ul>
         )}

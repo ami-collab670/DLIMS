@@ -1,8 +1,5 @@
 import { apiClient } from "@/api/client";
-<<<<<<< HEAD
 import type { SampleCreateResponse } from "@/types/api-responses";
-=======
->>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
 import type {
   DrfPaginated,
   SampleRecord,
@@ -61,7 +58,6 @@ export async function patchTestCatalogItem(
   return data;
 }
 
-<<<<<<< HEAD
 export async function fetchTestCatalogItem(id: string): Promise<TestCatalogItem> {
   const { data } = await apiClient.get<TestCatalogItem>(
     `/api/laboratory/tests/${id}/`,
@@ -73,8 +69,6 @@ export async function deleteTestCatalogItem(id: string): Promise<void> {
   await apiClient.delete(`/api/laboratory/tests/${id}/`);
 }
 
-=======
->>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
 export async function fetchSamples(params?: {
   page?: number;
   search?: string;
@@ -118,15 +112,10 @@ export type CreateSampleBody = {
   notes?: string;
 };
 
-<<<<<<< HEAD
 export async function createSample(
   body: CreateSampleBody,
 ): Promise<SampleCreateResponse> {
   const { data } = await apiClient.post<SampleCreateResponse>(
-=======
-export async function createSample(body: CreateSampleBody): Promise<SampleRecord> {
-  const { data } = await apiClient.post<SampleRecord>(
->>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
     "/api/laboratory/samples/",
     body,
   );
@@ -177,7 +166,6 @@ export async function fetchSampleTests(params?: {
   return data;
 }
 
-<<<<<<< HEAD
 export async function fetchSampleTest(id: string): Promise<SampleTestRow> {
   const { data } = await apiClient.get<SampleTestRow>(
     `/api/laboratory/sample-tests/${id}/`,
@@ -185,8 +173,6 @@ export async function fetchSampleTest(id: string): Promise<SampleTestRow> {
   return data;
 }
 
-=======
->>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
 export async function assignTestToSample(body: {
   sample: string;
   test: string;

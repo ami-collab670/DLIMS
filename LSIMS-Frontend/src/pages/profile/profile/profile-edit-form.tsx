@@ -54,11 +54,7 @@ export function ProfileEditForm({
         </div>
       </div>
 
-<<<<<<< HEAD
       {/* <div className="space-y-4 border-t border-border pt-6">
-=======
-      <div className="space-y-4 border-t border-border pt-6">
->>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
         <p className="text-sm text-muted-foreground">
           Organization (especially for external accounts)
         </p>
@@ -74,11 +70,7 @@ export function ProfileEditForm({
           <Label htmlFor="nationality">Nationality</Label>
           <Input id="nationality" {...register("nationality")} />
         </div>
-<<<<<<< HEAD
       </div> */}
-=======
-      </div>
->>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
 
       <div className="flex justify-end gap-2 pt-2">
         <Button

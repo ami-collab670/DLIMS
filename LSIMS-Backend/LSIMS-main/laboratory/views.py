@@ -11,13 +11,9 @@ Implements role-based access control:
 
 from django.db.models import Count
 
-<<<<<<< HEAD
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import viewsets, status
 from rest_framework.filters import OrderingFilter, SearchFilter
-=======
-from rest_framework import viewsets, status
->>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from drf_spectacular.utils import extend_schema, extend_schema_view
@@ -87,7 +83,6 @@ class JobOrderViewSet(viewsets.ModelViewSet):
     """
 
     permission_classes = [IsAuthenticated]
-<<<<<<< HEAD
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ["current_status", "priority", "is_cancelled"]
     search_fields = ["description"]
@@ -102,10 +97,6 @@ class JobOrderViewSet(viewsets.ModelViewSet):
         "client__email",
     ]
     ordering = ["-created_at"]
-=======
-    filterset_fields = ["current_status", "priority", "is_cancelled"]
-    search_fields = ["description"]
->>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
 
     def get_queryset(self):
         """
