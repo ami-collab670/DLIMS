@@ -1,0 +1,1 @@
+export const CLIENT_REQUESTS_PAGE_SIZE = 20;

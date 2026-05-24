@@ -1,0 +1,1 @@
+export const USER_MANAGEMENT_PAGE_SIZE = 20;

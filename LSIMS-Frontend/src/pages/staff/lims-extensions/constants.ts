@@ -1,0 +1,1 @@
+export const LIMS_EXTENSION_PAGE_SIZE = 20;

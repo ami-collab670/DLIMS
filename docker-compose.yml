@@ -1,0 +1,75 @@
+# Full stack: PostgreSQL + Django API + Vite dev server
+# From this directory (v1): docker compose up --build
+#
+# Open: http://localhost:5173  (API proxied to backend; browser calls use same origin + /api)
+# API:  http://localhost:8000
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: lsims
+      POSTGRES_PASSWORD: lsims_dev
+      POSTGRES_DB: lsims
+    volumes:
+      - lsims_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lsims -d lsims"]
+      interval: 3s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./LSIMS-Backend/LSIMS-main
+      dockerfile: Dockerfile
+    volumes:
+      - ./LSIMS-Backend/LSIMS-main:/app
+    ports:
+      - "8000:8000"
+    environment:
+      DJANGO_DEBUG: "True"
+      DATABASE_URL: postgres://lsims:lsims_dev@db:5432/lsims
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    image: node:22-alpine
+    working_dir: /app
+    volumes:
+      - ./LSIMS-Frontend:/app
+      - frontend_node_modules:/app/node_modules
+    command: sh -c "npm ci && npm run dev -- --host 0.0.0.0 --port 5173"
+    ports:
+      - "5173:5173"
+    environment:
+      # Vite dev server proxies /api → Django (see vite.config.ts)
+      VITE_PROXY_API: http://backend:8000
+      CHOKIDAR_USEPOLLING: 'true'
+      WATCHPACK_POLLING: 'true'
+      NODE_OPTIONS: '--max-old-space-size=4096'
+    depends_on:
+      - backend
+      
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: lsims-pgadmin
+    restart: unless-stopped
+    ports:
+      - "5050:80"                  # Access pgAdmin at http://localhost:5050
+    environment:
+      PGADMIN_DEFAULT_EMAIL: "legekiya@gmail.com"
+      PGADMIN_DEFAULT_PASSWORD: "admin123"
+      PGADMIN_CONFIG_SERVER_MODE: 'False'          # Optional: simpler for local dev
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: 'False'
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin   # Persist pgAdmin settings
+
+volumes:
+  lsims_pgdata:
+  frontend_node_modules:
+  pgadmin_data:
