@@ -24,10 +24,17 @@ export default function StaffDashboardHome() {
       {showAdmin ? <StaffAdminPromoCard /> : null}
       <StaffDashboardQuickLinks />
       {!isAnalyst ? <StaffDashboardAttentionQueue /> : null}
+<<<<<<< HEAD
       <StaffDashboardJobPipeline />
       <StaffDashboardSampleSnapshot />
       <StaffDashboardStatsGrid />
       <StaffDashboardRecentJobs />
+=======
+      {/* <StaffDashboardJobPipeline />
+      <StaffDashboardSampleSnapshot />
+      <StaffDashboardStatsGrid />
+      <StaffDashboardRecentJobs /> */}
+>>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
     </div>
   );
 }

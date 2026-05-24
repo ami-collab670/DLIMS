@@ -8,8 +8,11 @@ export type JobOrderListParams = {
   priority?: string;
   /** Pass false to see only active jobs */
   is_cancelled?: boolean;
+<<<<<<< HEAD
   /** DRF ordering, e.g. `-created_at` or `priority` */
   ordering?: string;
+=======
+>>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
 };
 
 function buildListParams(p: JobOrderListParams): Record<string, string | number> {
@@ -21,7 +24,10 @@ function buildListParams(p: JobOrderListParams): Record<string, string | number>
   if (typeof p.is_cancelled === "boolean") {
     out.is_cancelled = p.is_cancelled ? "true" : "false";
   }
+<<<<<<< HEAD
   if (p.ordering?.trim()) out.ordering = p.ordering.trim();
+=======
+>>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
   return out;
 }
 
@@ -82,7 +88,10 @@ export type PatchJobBody = Partial<{
   client: string;
   current_status: string;
   status_reason: string;
+<<<<<<< HEAD
   blocked_by_role: string | null;
+=======
+>>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
   priority: string;
   description: string;
   is_cancelled: boolean;
@@ -103,6 +112,7 @@ export async function patchJobOrder(
 export async function softCancelJobOrder(id: string): Promise<void> {
   await apiClient.delete(`/api/laboratory/jobs/${id}/`);
 }
+<<<<<<< HEAD
 
 export type CancelJobOrderOptions = {
   cancellation_reason?: string;
@@ -123,3 +133,5 @@ export async function cancelJobOrder(
   }
   await softCancelJobOrder(id);
 }
+=======
+>>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9

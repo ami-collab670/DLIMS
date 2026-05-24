@@ -9,6 +9,10 @@ import {
   LayoutDashboard,
   Microscope,
   Package,
+<<<<<<< HEAD
+=======
+  Settings,
+>>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
   Shield,
   TestTube,
   User,
@@ -25,18 +29,26 @@ import {
   canAccessStaffRoute,
   type StaffRouteKey,
 } from "@/lib/staff-route-access";
+<<<<<<< HEAD
 import { getStaffNavItemLabel } from "@/lib/staff-nav-meta";
+=======
+>>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
 import { staffRoleName } from "@/lib/staff-permissions";
 import { useAuthStore } from "@/stores/auth-store";
 
 type NavItem = {
   routeKey: StaffRouteKey;
   to: string;
+<<<<<<< HEAD
+=======
+  label: string;
+>>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
   icon: LucideIcon;
   end?: boolean;
 };
 
 const STAFF_NAV_ITEMS: NavItem[] = [
+<<<<<<< HEAD
   { routeKey: "dashboard", to: "/staff", icon: LayoutDashboard, end: true },
   { routeKey: "laboratory", to: "/staff/laboratory", icon: FlaskConical },
   {
@@ -55,6 +67,28 @@ const STAFF_NAV_ITEMS: NavItem[] = [
   { routeKey: "notifications", to: "/staff/notifications", icon: Bell },
   { routeKey: "users", to: "/staff/users", icon: Users },
   { routeKey: "profile", to: "/staff/profile", icon: User },
+=======
+  { routeKey: "dashboard", to: "/staff", label: "Dashboard", icon: LayoutDashboard, end: true },
+  { routeKey: "laboratory", to: "/staff/laboratory", label: "Laboratory", icon: FlaskConical },
+  { routeKey: "samples", to: "/staff/samples", label: "Samples", icon: TestTube },
+  { routeKey: "results", to: "/staff/results", label: "Results", icon: ClipboardList },
+  { routeKey: "qc", to: "/staff/qc", label: "QC", icon: BadgeCheck },
+  { routeKey: "reports", to: "/staff/reports", label: "Reports", icon: FileText },
+  { routeKey: "finance", to: "/staff/finance", label: "Finance", icon: Landmark },
+  {
+    routeKey: "inventory",
+    to: "/staff/inventory",
+    label: "Catalog / inventory",
+    icon: Package,
+  },
+  // { routeKey: "scheduling", to: "/staff/scheduling", label: "Scheduling", icon: CalendarClock },
+  // { routeKey: "instruments", to: "/staff/instruments", label: "Instruments", icon: Microscope },
+  { routeKey: "compliance", to: "/staff/compliance", label: "Compliance", icon: Shield },
+  { routeKey: "notifications", to: "/staff/notifications", label: "Notifications", icon: Bell },
+  { routeKey: "users", to: "/staff/users", label: "User management", icon: Users },
+  { routeKey: "profile", to: "/staff/profile", label: "Profile", icon: User },
+  { routeKey: "settings", to: "/staff/settings", label: "Settings", icon: Settings },
+>>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
 ];
 
 export function StaffDashboardLayout() {
@@ -83,7 +117,11 @@ export function StaffDashboardLayout() {
         </div>
 
         <nav className="flex flex-1 flex-col gap-0.5 p-3">
+<<<<<<< HEAD
           {navItems.map(({ to, routeKey, icon: Icon, end = false }) => (
+=======
+          {navItems.map(({ to, label, icon: Icon, end = false }) => (
+>>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
             <NavLink
               key={to}
               to={to}
@@ -98,7 +136,11 @@ export function StaffDashboardLayout() {
               }
             >
               <Icon className="size-4 shrink-0 opacity-80" aria-hidden />
+<<<<<<< HEAD
               {getStaffNavItemLabel(routeKey, user)}
+=======
+              {label}
+>>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
             </NavLink>
           ))}
         </nav>

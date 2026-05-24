@@ -15,7 +15,11 @@ export const JOB_STATUS_LABEL: Record<JobOrderStatus, string> = {
 export const JOB_PRIORITY_LABEL: Record<JobPriority, string> = {
   normal: "Normal",
   urgent: "Urgent",
+<<<<<<< HEAD
   // critical: "Critical",
+=======
+  critical: "Critical",
+>>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
 };
 
 export const JOB_STATUS_OPTIONS: { value: JobOrderStatus; label: string }[] = (

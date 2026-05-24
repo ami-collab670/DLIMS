@@ -2,7 +2,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
+<<<<<<< HEAD
 import { Button } from "@/components/ui/button";
+=======
+>>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
 import {
   adminChangeUserPassword,
   createAdminUser,
@@ -15,7 +18,10 @@ import { getApiErrorMessage } from "@/lib/api-error";
 import type { AdminUserRow } from "@/types/account-admin";
 
 import { USER_MANAGEMENT_PAGE_SIZE } from "./constants";
+<<<<<<< HEAD
 import { RolesManagementSection } from "./roles-management-section";
+=======
+>>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
 import { UserCreateForm } from "./user-create-form";
 import { UserEditDialog } from "./user-edit-dialog";
 import { UserManagementHeader } from "./user-management-header";
@@ -29,7 +35,10 @@ export default function StaffUserManagementPage() {
   const [search, setSearch] = useState("");
   const [debounced, setDebounced] = useState("");
   const [showCreate, setShowCreate] = useState(false);
+<<<<<<< HEAD
   const [activeTab, setActiveTab] = useState<"users" | "roles">("users");
+=======
+>>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
   const [createFormKey, setCreateFormKey] = useState(0);
   const [editingUser, setEditingUser] = useState<AdminUserRow | null>(null);
 
@@ -128,6 +137,7 @@ export default function StaffUserManagementPage() {
 
       <StaffRoleBanner />
 
+<<<<<<< HEAD
       <div className="flex gap-2 border-b">
         <Button
           type="button"
@@ -151,6 +161,8 @@ export default function StaffUserManagementPage() {
 
       {activeTab === "users" ? (
         <>
+=======
+>>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
       <UserSearchToolbar
         search={search}
         onSearchChange={(v) => {
@@ -201,8 +213,11 @@ export default function StaffUserManagementPage() {
           updateMut.isPending
         }
       />
+<<<<<<< HEAD
         </>
       ) : null}
+=======
+>>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
     </div>
   );
 }

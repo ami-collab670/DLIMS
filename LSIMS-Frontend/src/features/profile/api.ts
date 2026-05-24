@@ -1,6 +1,9 @@
 import { apiClient } from "@/api/client";
+<<<<<<< HEAD
 import { adminChangeUserPassword } from "@/features/accounts/admin-api";
 import { useAuthStore } from "@/stores/auth-store";
+=======
+>>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
 import type { AuthUser } from "@/types/auth";
 
 export type ProfileUpdatePayload = {
@@ -21,6 +24,7 @@ export async function updateProfile(
   );
   return data;
 }
+<<<<<<< HEAD
 
 export async function replaceProfile(
   payload: ProfileUpdatePayload,
@@ -42,3 +46,5 @@ export async function changeOwnPasswordAsAdmin(
   }
   await adminChangeUserPassword(userId, newPassword);
 }
+=======
+>>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9

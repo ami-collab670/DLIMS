@@ -1,9 +1,13 @@
 import { apiClient } from "@/api/client";
+<<<<<<< HEAD
 import type {
   AdminUserCreateResponse,
   AdminUserRow,
 } from "@/types/account-admin";
 import type { ApiDetailResponse } from "@/types/api-responses";
+=======
+import type { AdminUserRow, RoleRecord } from "@/types/account-admin";
+>>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
 import type { DrfPaginated } from "@/types/laboratory";
 
 export async function fetchAdminUsers(params: {
@@ -29,11 +33,19 @@ export async function fetchAdminUsers(params: {
   return data;
 }
 
+<<<<<<< HEAD
 export async function fetchAdminUser(id: string): Promise<AdminUserRow> {
   const { data } = await apiClient.get<AdminUserRow>(
     `/api/accounts/users/${id}/`,
   );
   return data;
+=======
+export async function fetchRoles(): Promise<RoleRecord[]> {
+  const { data } = await apiClient.get<DrfPaginated<RoleRecord>>(
+    "/api/accounts/roles/",
+  );
+  return data.results;
+>>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
 }
 
 export type CreateAdminUserBody = {
@@ -52,14 +64,20 @@ export type CreateAdminUserBody = {
 
 export async function createAdminUser(
   body: CreateAdminUserBody,
+<<<<<<< HEAD
 ): Promise<AdminUserCreateResponse> {
   const { data } = await apiClient.post<AdminUserCreateResponse>(
+=======
+): Promise<AdminUserRow> {
+  const { data } = await apiClient.post<AdminUserRow>(
+>>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
     "/api/accounts/users/",
     body,
   );
   return data;
 }
 
+<<<<<<< HEAD
 export async function deactivateAdminUser(
   userId: string,
 ): Promise<ApiDetailResponse> {
@@ -67,6 +85,10 @@ export async function deactivateAdminUser(
     `/api/accounts/users/${userId}/`,
   );
   return data;
+=======
+export async function deactivateAdminUser(userId: string): Promise<void> {
+  await apiClient.delete(`/api/accounts/users/${userId}/`);
+>>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
 }
 
 export type UpdateAdminUserBody = Partial<{
@@ -97,12 +119,19 @@ export async function patchAdminUser(
 export async function adminChangeUserPassword(
   userId: string,
   newPassword: string,
+<<<<<<< HEAD
 ): Promise<ApiDetailResponse> {
   const { data } = await apiClient.post<ApiDetailResponse>(
     `/api/accounts/users/${userId}/change-password/`,
     { new_password: newPassword },
   );
   return data;
+=======
+): Promise<void> {
+  await apiClient.post(`/api/accounts/users/${userId}/change-password/`, {
+    new_password: newPassword,
+  });
+>>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
 }
 
 export async function fetchExternalClients(params?: {

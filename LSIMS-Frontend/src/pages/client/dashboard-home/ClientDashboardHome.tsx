@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 
@@ -5,10 +6,13 @@ import { Button } from "@/components/ui/button";
 import { fetchJobOrders } from "@/features/jobs/api";
 import { JOB_STATUS_LABEL } from "@/lib/job-order-labels";
 
+=======
+>>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
 import { ClientGettingStartedCard } from "./client-getting-started-card";
 import { ClientWelcomeHeader } from "./client-welcome-header";
 
 export default function ClientDashboardHome() {
+<<<<<<< HEAD
   const { data: jobs, isLoading } = useQuery({
     queryKey: ["client-dashboard-jobs"],
     queryFn: () => fetchJobOrders({ page: 1, is_cancelled: false }),
@@ -58,6 +62,11 @@ export default function ClientDashboardHome() {
         )}
       </section>
 
+=======
+  return (
+    <div className="space-y-6">
+      <ClientWelcomeHeader />
+>>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
       <ClientGettingStartedCard />
     </div>
   );

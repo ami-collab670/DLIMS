@@ -10,9 +10,15 @@ import { useAuthStore } from "@/stores/auth-store";
 const navItems = [
   { to: "/client", label: "Home", icon: Home, end: true },
   { to: "/client/requests", label: "My requests", icon: FileText, end: false },
+<<<<<<< HEAD
   // { to: "/client/results", label: "My samples", icon: ClipboardList, end: false },
   // { to: "/client/notifications", label: "Notifications", icon: Bell, end: false },
   { to: "/client/profile", label: "Profile & settings", icon: User, end: false },
+=======
+  { to: "/client/results", label: "My samples", icon: ClipboardList, end: false },
+  // { to: "/client/notifications", label: "Notifications", icon: Bell, end: false },
+  { to: "/client/profile", label: "Profile", icon: User, end: false },
+>>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
 ];
 
 export function ClientDashboardLayout() {

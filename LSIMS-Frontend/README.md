@@ -71,6 +71,7 @@ export default defineConfig([
   },
 ])
 ```
+<<<<<<< HEAD
 
 ## Backend API mapping (LSIMS-main)
 
@@ -91,3 +92,5 @@ Run `docker compose up` from repo root, then `npm run dev` in `LSIMS-Frontend`.
 | **Client** | Dashboard shows active job count and recent statuses |
 | **Analyst** | Sample detail shows `blind_alias_id` when API returns analyst payload |
 | **Any user** | Notifications: metadata block when present; “Load full detail” fetches `GET /inbox/:id/` |
+=======
+>>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9

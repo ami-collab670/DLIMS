@@ -6,8 +6,11 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+<<<<<<< HEAD
 import { JobRoleHoldBadge } from "@/components/jobs/job-role-hold-badge";
 import { fetchRoles } from "@/features/accounts/roles-api";
+=======
+>>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
 import {
   fetchJobOrders,
   patchJobOrder,
@@ -35,12 +38,15 @@ export default function StaffQcPage() {
   const user = useAuthStore((s) => s.user);
   const manage = canManageJobsAndSamples(user);
   const [selected, setSelected] = useState<JobOrder | null>(null);
+<<<<<<< HEAD
 
   const { data: roles = [] } = useQuery({
     queryKey: ["admin-roles"],
     queryFn: () => fetchRoles(),
     staleTime: 60_000,
   });
+=======
+>>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
   const [status, setStatus] = useState<string>("qc");
   const [reason, setReason] = useState("");
 
@@ -108,6 +114,7 @@ export default function StaffQcPage() {
               <tbody>
                 {data?.results.map((j) => (
                   <tr key={j.id} className="border-b border-border">
+<<<<<<< HEAD
                     <td className="px-4 py-3 font-mono text-xs">
                       <div className="flex flex-col gap-1">
                         {shortJobId(j.id)}
@@ -117,6 +124,9 @@ export default function StaffQcPage() {
                         />
                       </div>
                     </td>
+=======
+                    <td className="px-4 py-3 font-mono text-xs">{shortJobId(j.id)}</td>
+>>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
                     <td className="max-w-[200px] truncate px-4 py-3 text-muted-foreground">
                       {j.client}
                     </td>

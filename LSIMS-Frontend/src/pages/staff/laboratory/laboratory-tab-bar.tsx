@@ -1,9 +1,17 @@
 import type { LucideIcon } from "lucide-react";
 import {
   ClipboardList,
+<<<<<<< HEAD
   Link2,
   TestTube,
 } from "lucide-react";
+=======
+  FlaskConical,
+  Link2,
+  Package,
+} from "lucide-react";
+
+>>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
 import { cn } from "@/lib/utils";
 
 import type { LaboratoryTabId } from "./constants";
@@ -55,10 +63,23 @@ export function LaboratoryTabBar({
         label="Job orders"
       />
       <TabButton
+<<<<<<< HEAD
         active={tab === "analyst"}
         onClick={() => onTabChange("analyst")}
         icon={TestTube}
         label="Analyst"
+=======
+        active={tab === "samples"}
+        onClick={() => onTabChange("samples")}
+        icon={Package}
+        label="Samples"
+      />
+      <TabButton
+        active={tab === "catalog"}
+        onClick={() => onTabChange("catalog")}
+        icon={FlaskConical}
+        label="Test catalog"
+>>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
       />
       {showAssignmentsTab ? (
         <TabButton

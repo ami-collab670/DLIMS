@@ -7,10 +7,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+<<<<<<< HEAD
   type UpdateAdminUserBody,
   fetchAdminUser,
 } from "@/features/accounts/admin-api";
 import { fetchRoles } from "@/features/accounts/roles-api";
+=======
+  fetchRoles,
+  type UpdateAdminUserBody,
+} from "@/features/accounts/admin-api";
+>>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
 import { cn } from "@/lib/utils";
 import type { AdminUserRow } from "@/types/account-admin";
 
@@ -38,6 +44,7 @@ export function UserEditDialog({ user, onClose, onSave, isPending }: Props) {
 
   const { data: roles = [], isLoading: rolesLoading } = useQuery({
     queryKey: ["admin-roles"],
+<<<<<<< HEAD
     queryFn: () => fetchRoles(),
   });
 
@@ -50,6 +57,11 @@ export function UserEditDialog({ user, onClose, onSave, isPending }: Props) {
 
   const activeUser = freshUser ?? user;
 
+=======
+    queryFn: fetchRoles,
+  });
+
+>>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
   const [username, setUsername] = useState(user.username);
   const [email, setEmail] = useState(user.email);
   const [firstName, setFirstName] = useState(user.first_name ?? "");
@@ -71,6 +83,7 @@ export function UserEditDialog({ user, onClose, onSave, isPending }: Props) {
   const [confirmPassword, setConfirmPassword] = useState("");
 
   useEffect(() => {
+<<<<<<< HEAD
     setUsername(activeUser.username);
     setEmail(activeUser.email);
     setFirstName(activeUser.first_name ?? "");
@@ -85,6 +98,22 @@ export function UserEditDialog({ user, onClose, onSave, isPending }: Props) {
     setNewPassword("");
     setConfirmPassword("");
   }, [activeUser]);
+=======
+    setUsername(user.username);
+    setEmail(user.email);
+    setFirstName(user.first_name ?? "");
+    setLastName(user.last_name ?? "");
+    setPhone(user.phone ?? "");
+    setUserType(user.user_type);
+    setRoleId(user.role ?? "");
+    setNationality(user.nationality ?? "");
+    setOrganizationName(user.organization_name ?? "");
+    setOrganizationType(user.organization_type ?? "");
+    setIsActive(user.is_active);
+    setNewPassword("");
+    setConfirmPassword("");
+  }, [user]);
+>>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
 
   useEffect(() => {
     previouslyFocused.current = document.activeElement as HTMLElement | null;

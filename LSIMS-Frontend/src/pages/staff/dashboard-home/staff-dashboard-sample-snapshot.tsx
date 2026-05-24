@@ -3,8 +3,11 @@ import { Loader2, TestTube } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { fetchSamples } from "@/features/laboratory/staff-api";
+<<<<<<< HEAD
 import { isStaffAnalyst } from "@/lib/staff-permissions";
 import { useAuthStore } from "@/stores/auth-store";
+=======
+>>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
 
 import { dashboardKeys } from "./dashboard-api-keys";
 
@@ -16,9 +19,12 @@ const SNAPSHOT = [
 ] as const;
 
 export function StaffDashboardSampleSnapshot() {
+<<<<<<< HEAD
   const user = useAuthStore((s) => s.user);
   const analyst = isStaffAnalyst(user);
 
+=======
+>>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
   const queries = useQueries({
     queries: SNAPSHOT.map(({ status }) => ({
       queryKey: dashboardKeys.sampleCount(status),
@@ -39,6 +45,7 @@ export function StaffDashboardSampleSnapshot() {
           <TestTube className="size-4 text-muted-foreground" aria-hidden />
           <div>
             <h3 id="sample-snapshot-heading" className="text-sm font-medium">
+<<<<<<< HEAD
               {analyst ? "Analyst snapshot" : "Analyst area snapshot"}
             </h3>
             <p className="text-xs text-muted-foreground">
@@ -53,14 +60,28 @@ export function StaffDashboardSampleSnapshot() {
                   account visibility.
                 </>
               )}
+=======
+              Sample snapshot
+            </h3>
+            <p className="text-xs text-muted-foreground">
+              Counts by <code className="rounded bg-muted px-1">sample_status</code> on your
+              account visibility.
+>>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
             </p>
           </div>
         </div>
         <Link
+<<<<<<< HEAD
           to="/staff/analyst"
           className="text-xs font-medium text-primary hover:underline"
         >
           {analyst ? "Open analyst bench →" : "Analyst workspace →"}
+=======
+          to="/staff/samples"
+          className="text-xs font-medium text-primary hover:underline"
+        >
+          Samples workspace →
+>>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
         </Link>
       </div>
 

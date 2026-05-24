@@ -24,11 +24,14 @@ export async function fetchNotifications(
   return data;
 }
 
+<<<<<<< HEAD
 export async function fetchNotification(id: string): Promise<NotificationRecord> {
   const { data } = await apiClient.get<NotificationRecord>(`${BASE}/${id}/`);
   return data;
 }
 
+=======
+>>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
 export async function fetchUnreadNotificationCount(): Promise<number> {
   const { data } = await apiClient.get<{ count: number }>(
     `${BASE}/unread-count/`,

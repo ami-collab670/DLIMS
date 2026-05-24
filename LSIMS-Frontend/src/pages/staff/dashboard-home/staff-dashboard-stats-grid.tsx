@@ -15,7 +15,11 @@ export function StaffDashboardStatsGrid() {
   });
 
   const { data: samplesData, isLoading: samplesLoading } = useQuery({
+<<<<<<< HEAD
     queryKey: ["staff-dashboard", "analyst", "total-count"],
+=======
+    queryKey: ["staff-dashboard", "samples", "total-count"],
+>>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
     queryFn: () => fetchSamples({ page: 1 }),
     staleTime: 60_000,
   });
@@ -46,7 +50,11 @@ export function StaffDashboardStatsGrid() {
             Laboratory hub
           </div>
           <p className="mt-3 text-sm text-muted-foreground">
+<<<<<<< HEAD
             Jobs, analyst routing, and test assignments — catalog is managed separately.
+=======
+            Full workflows for jobs, catalog, and test assignments.
+>>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
           </p>
         </Link>
 
@@ -65,7 +73,11 @@ export function StaffDashboardStatsGrid() {
         </div>
 
         <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
+<<<<<<< HEAD
           <p className="text-sm font-medium text-muted-foreground">Analyst-visible items</p>
+=======
+          <p className="text-sm font-medium text-muted-foreground">Samples</p>
+>>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
           <p className="mt-2 flex items-center gap-2 text-2xl font-semibold tabular-nums">
             {samplesLoading ? (
               <Loader2 className="size-6 animate-spin text-muted-foreground" />
@@ -91,8 +103,13 @@ export function StaffDashboardStatsGrid() {
             )}
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
+<<<<<<< HEAD
             <Link to="/staff/inventory" className="text-primary hover:underline">
               Open test catalog
+=======
+            <Link to="/staff/laboratory" className="text-primary hover:underline">
+              Manage in Laboratory → Catalog
+>>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
             </Link>
           </p>
         </div>

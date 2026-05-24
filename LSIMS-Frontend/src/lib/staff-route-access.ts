@@ -10,7 +10,11 @@ import {
 export type StaffRouteKey =
   | "dashboard"
   | "laboratory"
+<<<<<<< HEAD
   | "analyst"
+=======
+  | "samples"
+>>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
   | "results"
   | "qc"
   | "reports"
@@ -27,7 +31,11 @@ export type StaffRouteKey =
 const ALL_STAFF_ROUTES: StaffRouteKey[] = [
   "dashboard",
   "laboratory",
+<<<<<<< HEAD
   "analyst",
+=======
+  "samples",
+>>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
   "results",
   "qc",
   "reports",
@@ -46,13 +54,21 @@ const ALL_STAFF_ROUTES: StaffRouteKey[] = [
 const OPS_ALL: StaffRouteKey[] = ALL_STAFF_ROUTES.filter((k) => k !== "users");
 
 /**
+<<<<<<< HEAD
  * Analyst: laboratory visibility, analyst workspace, analysis-oriented pages.
+=======
+ * Analyst: laboratory visibility, assigned samples, analysis-oriented pages.
+>>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
  * Excludes finance/QC hubs (workflow ownership elsewhere) per typical bench separation.
  */
 const ANALYST_ROUTES: StaffRouteKey[] = [
   "dashboard",
   "laboratory",
+<<<<<<< HEAD
   "analyst",
+=======
+  "samples",
+>>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
   "results",
   "scheduling",
   "inventory",

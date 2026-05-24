@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 import { type RouteObject, Navigate } from "react-router-dom";
+=======
+import { type RouteObject } from "react-router-dom";
+>>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
 
 import { AdminOnlyRoute } from "@/components/auth/admin-only-route";
 import { StaffRouteGate } from "@/components/auth/staff-route-gate";
@@ -16,9 +20,13 @@ import SignupPage from "@/pages/auth/SignupPage";
 import ClientDashboardHome from "@/pages/client/ClientDashboardHome";
 import ClientNotificationsPage from "@/pages/client/ClientNotificationsPage";
 import ClientRequestsPage from "@/pages/client/ClientRequestsPage";
+<<<<<<< HEAD
 import ClientNotFoundPage from "@/pages/errors/ClientNotFoundPage";
 import PublicNotFoundPage from "@/pages/errors/PublicNotFoundPage";
 import StaffNotFoundPage from "@/pages/errors/StaffNotFoundPage";
+=======
+import ClientResultsPage from "@/pages/client/ClientResultsPage";
+>>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
 import Home from "@/pages/Home";
 import ProfileManagementPage from "@/pages/profile/ProfileManagementPage";
 import StaffCompliancePage from "@/pages/staff/StaffCompliancePage";
@@ -31,7 +39,11 @@ import StaffNotificationsPage from "@/pages/staff/StaffNotificationsPage";
 import StaffQcPage from "@/pages/staff/StaffQcPage";
 import StaffReportsPage from "@/pages/staff/StaffReportsPage";
 import StaffResultsPage from "@/pages/staff/StaffResultsPage";
+<<<<<<< HEAD
 import StaffAnalystPage from "@/pages/staff/StaffAnalystPage";
+=======
+import StaffSamplesPage from "@/pages/staff/StaffSamplesPage";
+>>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
 import StaffSchedulingPage from "@/pages/staff/StaffSchedulingPage";
 import StaffSettingsPage from "@/pages/staff/StaffSettingsPage";
 import StaffUserManagementPage from "@/pages/staff/StaffUserManagementPage";
@@ -40,6 +52,7 @@ export const appRoutes: RouteObject[] = [
   {
     element: <RootLayout />,
     children: [
+<<<<<<< HEAD
       // ── Public zone ──
       { path: "/", element: <Home /> },
 
@@ -49,6 +62,12 @@ export const appRoutes: RouteObject[] = [
       { path: "/forgot-password", element: <ForgotPasswordPage /> },
 
       // ── Staff zone ──
+=======
+      { path: "/", element: <Home /> },
+      { path: "/login", element: <LoginPage /> },
+      { path: "/forgot-password", element: <ForgotPasswordPage /> },
+      { path: "/signup", element: <SignupPage /> },
+>>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
       {
         path: "/staff",
         element: (
@@ -159,6 +178,7 @@ export const appRoutes: RouteObject[] = [
           },
           {
             path: "samples",
+<<<<<<< HEAD
             element: <Navigate to="/staff/analyst" replace />,
           },
           {
@@ -166,6 +186,11 @@ export const appRoutes: RouteObject[] = [
             element: (
               <StaffRouteGate routeKey="analyst">
                 <StaffAnalystPage />
+=======
+            element: (
+              <StaffRouteGate routeKey="samples">
+                <StaffSamplesPage />
+>>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
               </StaffRouteGate>
             ),
           },
@@ -174,9 +199,14 @@ export const appRoutes: RouteObject[] = [
             element: (
               <StaffRouteGate routeKey="profile">
                 <ProfileManagementPage
+<<<<<<< HEAD
                   staffProfile
                   title="Profile & settings"
                   description="Account identity, role permissions, contact details, and workspace preferences."
+=======
+                  title="Profile"
+                  description="Account details and editable contact fields. Role and account type are assigned by an administrator — workspace and session controls are under Settings."
+>>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
                 />
               </StaffRouteGate>
             ),
@@ -189,11 +219,16 @@ export const appRoutes: RouteObject[] = [
               </StaffRouteGate>
             ),
           },
+<<<<<<< HEAD
           { path: "*", element: <StaffNotFoundPage /> },
         ],
       },
 
       // ── Client zone ──
+=======
+        ],
+      },
+>>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
       {
         path: "/client",
         element: (
@@ -206,12 +241,17 @@ export const appRoutes: RouteObject[] = [
         children: [
           { index: true, element: <ClientDashboardHome /> },
           { path: "requests", element: <ClientRequestsPage /> },
+<<<<<<< HEAD
           // { path: "results", element: <ClientResultsPage /> },
+=======
+          { path: "results", element: <ClientResultsPage /> },
+>>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
           { path: "notifications", element: <ClientNotificationsPage /> },
           {
             path: "profile",
             element: (
               <ProfileManagementPage
+<<<<<<< HEAD
                 title="Profile & settings"
                 description="Keep your organization and contact details up to date, and manage appearance and session preferences."
               />
@@ -223,6 +263,15 @@ export const appRoutes: RouteObject[] = [
 
       // Public catch-all — must remain after all fixed paths
       { path: "*", element: <PublicNotFoundPage /> },
+=======
+                title="Profile"
+                description="Keep your organization and contact details up to date for job orders and reporting."
+              />
+            ),
+          },
+        ],
+      },
+>>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
     ],
   },
 ];

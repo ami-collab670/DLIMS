@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { fetchJobOrder, fetchJobOrders } from "@/features/jobs/api";
 import {
+<<<<<<< HEAD
   DEFAULT_JOB_ORDER_SORT,
   toOrderingParam,
   toggleSortState,
@@ -25,6 +26,8 @@ import {
 } from "@/features/jobs/job-order-list-sort";
 import { SortableJobTableHead } from "@/features/jobs/sortable-job-table-head";
 import {
+=======
+>>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
   JOB_PRIORITY_OPTIONS,
   JOB_STATUS_OPTIONS,
   shortJobId,
@@ -50,7 +53,10 @@ export function ClientRequestsSection() {
   const [cancelledFilter, setCancelledFilter] = useState<
     "all" | "active" | "cancelled"
   >("active");
+<<<<<<< HEAD
   const [sort, setSort] = useState<JobOrderSortState>(DEFAULT_JOB_ORDER_SORT);
+=======
+>>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
 
   useEffect(() => {
     const t = window.setTimeout(() => setDebouncedSearch(searchInput), 400);
@@ -59,6 +65,7 @@ export function ClientRequestsSection() {
 
   useEffect(() => {
     setPage(1);
+<<<<<<< HEAD
   }, [debouncedSearch, statusFilter, priorityFilter, cancelledFilter, sort]);
 
   const listParams = useMemo(() => {
@@ -66,17 +73,27 @@ export function ClientRequestsSection() {
       page,
       ordering: toOrderingParam(sort),
     };
+=======
+  }, [debouncedSearch, statusFilter, priorityFilter, cancelledFilter]);
+
+  const listParams = useMemo(() => {
+    const p: Parameters<typeof fetchJobOrders>[0] = { page };
+>>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
     if (debouncedSearch) p.search = debouncedSearch;
     if (statusFilter) p.current_status = statusFilter;
     if (priorityFilter) p.priority = priorityFilter;
     if (cancelledFilter === "active") p.is_cancelled = false;
     if (cancelledFilter === "cancelled") p.is_cancelled = true;
     return p;
+<<<<<<< HEAD
   }, [page, debouncedSearch, statusFilter, priorityFilter, cancelledFilter, sort]);
 
   const handleSort = useCallback((key: JobOrderSortKey) => {
     setSort((prev) => toggleSortState(prev, key));
   }, []);
+=======
+  }, [page, debouncedSearch, statusFilter, priorityFilter, cancelledFilter]);
+>>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
 
   const {
     data: listData,
@@ -243,6 +260,7 @@ export function ClientRequestsSection() {
               <table className="w-full min-w-[640px] text-left text-sm">
                 <thead>
                   <tr className="border-b border-border bg-muted/40">
+<<<<<<< HEAD
                     <SortableJobTableHead
                       label="Job"
                       sortKey="id"
@@ -284,6 +302,19 @@ export function ClientRequestsSection() {
                       sort={sort}
                       onSort={handleSort}
                     />
+=======
+                    <th className="px-4 py-3 font-medium">Job</th>
+                    <th className="px-4 py-3 font-medium">Status</th>
+                    <th className="px-4 py-3 font-medium">Priority</th>
+                    <th className="px-4 py-3 font-medium">Samples</th>
+                    <th className="px-4 py-3 font-medium">
+                      <span className="inline-flex items-center gap-1">
+                        <Calendar className="size-3.5 opacity-70" aria-hidden />
+                        Created
+                      </span>
+                    </th>
+                    <th className="px-4 py-3 font-medium">Description</th>
+>>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
                   </tr>
                 </thead>
                 <tbody>

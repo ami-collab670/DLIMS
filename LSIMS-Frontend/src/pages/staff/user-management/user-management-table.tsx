@@ -58,6 +58,7 @@ export function UserManagementTable({
               <tbody>
                 {listData?.results.map((u: AdminUserRow) => (
                   <tr key={u.id} className="border-b border-border">
+<<<<<<< HEAD
                     <td className="px-4 py-3">
                       <div className="flex flex-col gap-1">
                         <span>{u.email}</span>
@@ -68,6 +69,9 @@ export function UserManagementTable({
                         ) : null}
                       </div>
                     </td>
+=======
+                    <td className="px-4 py-3">{u.email}</td>
+>>>>>>> ab11eb2ffff845da9c0abb09db22510c1fe75fa9
                     <td className="px-4 py-3">
                       {[u.first_name, u.last_name].filter(Boolean).join(" ") ||
                         "—"}
