@@ -455,19 +455,9 @@ class Sample(models.Model):
         Assign missing permanent codes idempotently after payment confirmation.
         Existing codes are never overwritten.
         """
-        update_fields = []
-        if not self.blind_alias_id:
-            self.blind_alias = BlindCode.objects.create(
-                code=BlindCode.generate_unique_code()
-            )
-            update_fields.append("blind_alias")
-        if not self.sample_code:
-            self.sample_code = Sample.generate_sample_code()
-            update_fields.append("sample_code")
+        from .services.workflow import assign_sample_permanent_identity
 
-        if update_fields:
-            update_fields.append("updated_at")
-            self.save(update_fields=update_fields)
+        return assign_sample_permanent_identity(self)
 
 
 def code_paid_job_samples(job):
@@ -475,15 +465,9 @@ def code_paid_job_samples(job):
     Generate missing sample identities for a paid job.
     Safe to call repeatedly: already-coded samples are left unchanged.
     """
-    with transaction.atomic():
-        job = JobOrder.objects.select_for_update().get(pk=job.pk)
-        samples = job.samples.select_for_update().order_by("created_at", "id")
-        for sample in samples:
-            sample.assign_permanent_identity()
+    from .services.workflow import code_paid_job_samples as service_code_paid_job_samples
 
-        if job.current_status == JobOrder.Status.PAYMENT_PENDING:
-            job.current_status = JobOrder.Status.RECEIVED
-            job.save(update_fields=["current_status", "updated_at"])
+    return service_code_paid_job_samples(job)
 
 
 class FinancialRecord(models.Model):
@@ -550,12 +534,9 @@ class FinancialRecord(models.Model):
 
         with transaction.atomic():
             super().save(*args, **kwargs)
+            from .services.workflow import handle_financial_record_saved
 
-            if (
-                self.payment_status == self.PaymentStatus.PAID
-                and previous_status != self.PaymentStatus.PAID
-            ):
-                code_paid_job_samples(self.job)
+            handle_financial_record_saved(self, previous_status)
 
 
 # ---------------------------------------------------------------------------

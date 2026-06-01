@@ -10,6 +10,7 @@ Two Sample serializer variants enforce the blind analysis protocol:
 from rest_framework import serializers
 from drf_spectacular.utils import extend_schema_field
 from .models import FinancialRecord, TestCatalog, JobOrder, BlindCode, Sample, SampleTest
+from .policies import sample_tests_for_sample_visible_to
 
 
 # ---------------------------------------------------------------------------
@@ -454,16 +455,6 @@ class SampleAnalystSerializer(serializers.ModelSerializer):
 
 def _visible_sample_tests_for_request(sample, request):
     """Prevent department-scoped staff from seeing other departments' tests."""
-    sample_tests = sample.sample_tests.select_related("test", "test__department")
     if request is None or not request.user.is_authenticated:
-        return sample_tests.all()
-
-    user = request.user
-    role_name = getattr(user, "role_name", None)
-    if role_name not in {"analyst", "qc_manager"}:
-        return sample_tests.all()
-
-    department_id = getattr(user, "department_id", None)
-    if department_id is None:
-        return sample_tests.none()
-    return sample_tests.filter(test__department_id=department_id)
+        return sample.sample_tests.select_related("test", "test__department").all()
+    return sample_tests_for_sample_visible_to(sample, request.user)
