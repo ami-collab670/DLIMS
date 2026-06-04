@@ -247,6 +247,26 @@ class FinancialRecordModelTests(BaseTestCase):
 
         self.assertIsNotNone(record.paid_at)
 
+    def test_waived_financial_record_sets_approval_time_and_codes_samples(self):
+        job = self._create_job_order()
+        sample = self._create_sample(job=job)
+        record = FinancialRecord.objects.create(
+            job=job,
+            amount_expected=Decimal("500.00"),
+            amount_paid=Decimal("0.00"),
+            payment_status=FinancialRecord.PaymentStatus.PENDING,
+            payment_required=False,
+            waiver_reason="Director-approved waiver.",
+            waiver_approved_by=self.finance_user,
+        )
+
+        sample.refresh_from_db()
+        job.refresh_from_db()
+        self.assertIsNotNone(record.waiver_approved_at)
+        self.assertTrue(sample.sample_code.startswith("SMP-"))
+        self.assertIsNotNone(sample.blind_alias)
+        self.assertEqual(job.current_status, JobOrder.Status.RECEIVED)
+
 
 class SampleTestModelTests(BaseTestCase):
     """Tests for the SampleTest junction model."""

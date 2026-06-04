@@ -39,13 +39,21 @@ class FinancialRecordAdmin(admin.ModelAdmin):
         "amount_expected",
         "amount_paid",
         "payment_status",
+        "payment_required",
+        "waiver_approved_by",
         "paid_at",
         "created_at",
     ]
-    list_filter = ["payment_status", "created_at", "paid_at"]
+    list_filter = ["payment_status", "payment_required", "created_at", "paid_at"]
     search_fields = ["invoice_no", "job__description", "job__client__email"]
-    raw_id_fields = ["job"]
-    readonly_fields = ["invoice_no", "paid_at", "created_at", "updated_at"]
+    raw_id_fields = ["job", "waiver_approved_by"]
+    readonly_fields = [
+        "invoice_no",
+        "paid_at",
+        "waiver_approved_at",
+        "created_at",
+        "updated_at",
+    ]
     ordering = ["-created_at"]
 
 

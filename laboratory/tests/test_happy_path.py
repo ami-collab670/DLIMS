@@ -117,12 +117,12 @@ class JobOrderHappyPathTests(BaseTestCase):
         job = self._create_job_order()
         response = client.patch(
             reverse("joborder-detail", args=[job.id]),
-            {"priority": "critical"},
+            {"priority": "urgent"},
             format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         job.refresh_from_db()
-        self.assertEqual(job.priority, "critical")
+        self.assertEqual(job.priority, "urgent")
 
     def test_delete_job_order_soft_cancels(self):
         client = self.get_authenticated_client("admin_lab@ministry.gov", "AdminPass123!")
@@ -184,6 +184,34 @@ class SampleHappyPathTests(BaseTestCase):
         self.assertIsNotNone(sample.blind_alias)
         self.assertTrue(sample.blind_alias.code.startswith("BC-"))
         self.assertEqual(job.current_status, JobOrder.Status.RECEIVED)
+
+    def test_payment_waiver_codes_samples(self):
+        client = self.get_authenticated_client("finance_lab@ministry.gov", "FinancePass123!")
+        job = self._create_job_order()
+        sample = self._create_sample(job=job)
+
+        response = client.post(
+            reverse("financialrecord-list"),
+            {
+                "job": str(job.id),
+                "amount_expected": "500.00",
+                "amount_paid": "0.00",
+                "payment_status": FinancialRecord.PaymentStatus.PENDING,
+                "payment_required": False,
+                "waiver_reason": "Director-approved demonstration waiver.",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        record = FinancialRecord.objects.get(invoice_no=response.data["invoice_no"])
+        sample.refresh_from_db()
+        job.refresh_from_db()
+        self.assertTrue(sample.sample_code.startswith("SMP-"))
+        self.assertIsNotNone(sample.blind_alias)
+        self.assertEqual(job.current_status, JobOrder.Status.RECEIVED)
+        self.assertEqual(record.waiver_approved_by, self.finance_user)
+        self.assertIsNotNone(record.waiver_approved_at)
 
     def test_admin_can_list_all_samples(self):
         self._create_sample()

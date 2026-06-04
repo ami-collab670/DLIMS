@@ -10,10 +10,13 @@ Implements role-based access control:
 """
 
 from rest_framework import viewsets, status
+from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
 from drf_spectacular.utils import extend_schema, extend_schema_view
 
-from accounts.permissions import IsAdminOrReadOnly, IsAdminOrReceptionist, IsReceptionist
+from accounts.permissions import IsAdminOrReceptionist, IsReceptionist
 from .models import FinancialRecord, TestCatalog, JobOrder, Sample, SampleTest
 from .policies import (
     financial_records_visible_to,
@@ -30,6 +33,7 @@ from .serializers import (
     SampleSerializer,
     SampleCreateSerializer,
     SampleUpdateSerializer,
+    SampleAssignAnalystSerializer,
     SampleAnalystSerializer,
     SampleTestSerializer,
     SampleTestCreateSerializer,
@@ -50,11 +54,12 @@ from .serializers import (
 class TestCatalogViewSet(viewsets.ModelViewSet):
     """
     CRUD operations for the Test Catalog.
-    Admin has full access. All authenticated users can read (list/retrieve).
+    Admin has full access. Department Managers can manage their own department.
+    All authenticated users can read according to visibility rules.
     """
 
     serializer_class = TestCatalogSerializer
-    permission_classes = [IsAuthenticated, IsAdminOrReadOnly]
+    permission_classes = [IsAuthenticated]
     filterset_fields = ["is_active", "department"]
     search_fields = ["test_name", "test_code", "department__name"]
 
@@ -64,6 +69,49 @@ class TestCatalogViewSet(viewsets.ModelViewSet):
 
         base_qs = TestCatalog.objects.select_related("department")
         return tests_visible_to(self.request.user, base_qs)
+
+    def check_permissions(self, request):
+        super().check_permissions(request)
+        if request.method in ("GET", "HEAD", "OPTIONS"):
+            return
+
+        role_name = getattr(request.user, "role_name", None)
+        if request.user.is_superuser or role_name == "admin":
+            return
+        if role_name == "qc_manager" and request.user.department_id is not None:
+            return
+
+        self.permission_denied(
+            request,
+            message="Only Admin or Department Manager can manage test catalog entries.",
+        )
+
+    def perform_create(self, serializer):
+        user = self.request.user
+        if getattr(user, "role_name", None) == "qc_manager" and not user.is_superuser:
+            department = serializer.validated_data.get("department")
+            if department and department.id != user.department_id:
+                raise ValidationError(
+                    {"department": "Department Managers can only manage their department."}
+                )
+            serializer.save(department=user.department)
+            return
+        serializer.save()
+
+    def perform_update(self, serializer):
+        user = self.request.user
+        if getattr(user, "role_name", None) == "qc_manager" and not user.is_superuser:
+            department = serializer.validated_data.get(
+                "department",
+                serializer.instance.department,
+            )
+            if department and department.id != user.department_id:
+                raise ValidationError(
+                    {"department": "Department Managers can only manage their department."}
+                )
+            serializer.save(department=user.department)
+            return
+        serializer.save()
 
 
 # ---------------------------------------------------------------------------
@@ -243,6 +291,8 @@ class SampleViewSet(viewsets.ModelViewSet):
         """
         if self.action == "create":
             return SampleCreateSerializer
+        if self.action == "assign_analyst":
+            return SampleAssignAnalystSerializer
         if self.action in ("update", "partial_update"):
             return SampleUpdateSerializer
 
@@ -267,6 +317,20 @@ class SampleViewSet(viewsets.ModelViewSet):
                     request,
                     message="Only Receptionists can register samples.",
                 )
+        elif self.action == "assign_analyst":
+            role_name = getattr(request.user, "role_name", None)
+            if not request.user.is_superuser and role_name not in {
+                "admin",
+                "receptionist",
+                "qc_manager",
+            }:
+                self.permission_denied(
+                    request,
+                    message=(
+                        "Only Admin, Receptionist, or Department Manager can "
+                        "assign analysts."
+                    ),
+                )
         elif request.method not in ("GET", "HEAD", "OPTIONS"):
             if not IsAdminOrReceptionist().has_permission(request, self):
                 self.permission_denied(
@@ -275,6 +339,27 @@ class SampleViewSet(viewsets.ModelViewSet):
                         "Only Admin or Receptionist can modify or hard-delete samples."
                     ),
                 )
+
+    @extend_schema(
+        summary="Assign an analyst to a sample",
+        tags=["Samples"],
+        request=SampleAssignAnalystSerializer,
+        responses={200: SampleSerializer},
+    )
+    @action(detail=True, methods=["post"], url_path="assign-analyst")
+    def assign_analyst(self, request, pk=None):
+        sample = self.get_object()
+        serializer = self.get_serializer(
+            sample,
+            data=request.data,
+            context={"request": request},
+        )
+        serializer.is_valid(raise_exception=True)
+        sample = serializer.save()
+        return Response(
+            SampleSerializer(sample, context={"request": request}).data,
+            status=status.HTTP_200_OK,
+        )
 
 
 # ---------------------------------------------------------------------------

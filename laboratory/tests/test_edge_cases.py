@@ -20,12 +20,12 @@ class EdgeCaseTests(BaseTestCase):
         )
         response = client.patch(
             reverse("joborder-detail", args=[job.id]),
-            {"priority": JobOrder.Priority.CRITICAL},
+            {"priority": JobOrder.Priority.URGENT},
             format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         job.refresh_from_db()
-        self.assertEqual(job.priority, JobOrder.Priority.CRITICAL)
+        self.assertEqual(job.priority, JobOrder.Priority.URGENT)
 
     def test_external_superuser_can_update_unowned_sample(self):
         sample = self._create_sample()

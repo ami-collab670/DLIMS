@@ -107,7 +107,6 @@ class JobOrder(models.Model):
     class Priority(models.TextChoices):
         NORMAL = "normal", "Normal"
         URGENT = "urgent", "Urgent"
-        CRITICAL = "critical", "Critical"
 
     id = models.UUIDField(
         primary_key=True,
@@ -442,9 +441,13 @@ class Sample(models.Model):
                 financial_record = self.job.financial_record
             except FinancialRecord.DoesNotExist:
                 financial_record = None
+            from .services.workflow import (
+                financial_record_clears_payment_gate as _financial_record_clears_payment_gate,
+            )
+
             if (
                 financial_record
-                and financial_record.payment_status == FinancialRecord.PaymentStatus.PAID
+                and _financial_record_clears_payment_gate(financial_record)
             ):
                 self.assign_permanent_identity()
 
@@ -506,6 +509,24 @@ class FinancialRecord(models.Model):
         default=PaymentStatus.PENDING,
     )
     paid_at = models.DateTimeField(null=True, blank=True)
+    payment_required = models.BooleanField(
+        default=True,
+        help_text="When false, an approved waiver bypasses the payment gate.",
+    )
+    waiver_reason = models.TextField(
+        blank=True,
+        default="",
+        help_text="Reason payment was waived for this job.",
+    )
+    waiver_approved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="financial_waivers_approved",
+        help_text="User who approved the payment waiver.",
+    )
+    waiver_approved_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -520,23 +541,42 @@ class FinancialRecord(models.Model):
 
     def save(self, *args, **kwargs):
         previous_status = None
+        previous_payment_required = None
+        previous_waiver_approved_at = None
         if self.pk:
-            previous_status = (
+            previous_values = (
                 FinancialRecord.objects.filter(pk=self.pk)
-                .values_list("payment_status", flat=True)
+                .values_list(
+                    "payment_status",
+                    "payment_required",
+                    "waiver_approved_at",
+                )
                 .first()
             )
+            if previous_values:
+                (
+                    previous_status,
+                    previous_payment_required,
+                    previous_waiver_approved_at,
+                ) = previous_values
 
         if self.payment_status == self.PaymentStatus.PAID and self.paid_at is None:
             self.paid_at = timezone.now()
         if self.payment_status != self.PaymentStatus.PAID:
             self.paid_at = None
+        if not self.payment_required and self.waiver_approved_at is None:
+            self.waiver_approved_at = timezone.now()
 
         with transaction.atomic():
             super().save(*args, **kwargs)
             from .services.workflow import handle_financial_record_saved
 
-            handle_financial_record_saved(self, previous_status)
+            handle_financial_record_saved(
+                self,
+                previous_status,
+                previous_payment_required,
+                previous_waiver_approved_at,
+            )
 
 
 # ---------------------------------------------------------------------------

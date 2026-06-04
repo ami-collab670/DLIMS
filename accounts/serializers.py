@@ -9,6 +9,42 @@ from rest_framework import serializers
 from .models import Department, OTPToken, Role
 
 User = get_user_model()
+DEPARTMENT_REQUIRED_ROLE_NAMES = {"analyst", "qc_manager"}
+
+
+def _validate_internal_role_and_department(attrs, instance=None):
+    """Validate internal role and department requirements for user writes."""
+    user_type = attrs.get(
+        "user_type",
+        instance.user_type if instance is not None else User.UserType.EXTERNAL,
+    )
+    role = attrs.get("role", instance.role if instance is not None else None)
+    department = attrs.get(
+        "department",
+        instance.department if instance is not None else None,
+    )
+
+    if user_type == User.UserType.INTERNAL and role is None:
+        raise serializers.ValidationError(
+            {"role": "Internal users must be assigned a role."}
+        )
+
+    role_name = getattr(role, "role_name", None)
+    if (
+        user_type == User.UserType.INTERNAL
+        and role_name in DEPARTMENT_REQUIRED_ROLE_NAMES
+        and department is None
+    ):
+        raise serializers.ValidationError(
+            {
+                "department": (
+                    "Department is required for Lab Analysts and "
+                    "Department Managers."
+                )
+            }
+        )
+
+    return attrs
 
 
 # ---------------------------------------------------------------------------
@@ -106,14 +142,7 @@ class UserCreateSerializer(serializers.ModelSerializer):
         read_only_fields = ["id"]
 
     def validate(self, attrs):
-        """Ensure internal users have a role assigned."""
-        user_type = attrs.get("user_type", "external")
-        role = attrs.get("role")
-        if user_type == "internal" and role is None:
-            raise serializers.ValidationError(
-                {"role": "Internal users must be assigned a role."}
-            )
-        return attrs
+        return _validate_internal_role_and_department(attrs)
 
     def create(self, validated_data):
         password = validated_data.pop("password")
@@ -148,14 +177,7 @@ class UserUpdateSerializer(serializers.ModelSerializer):
         ]
 
     def validate(self, attrs):
-        """Ensure internal users have a role assigned."""
-        user_type = attrs.get("user_type", self.instance.user_type if self.instance else "external")
-        role = attrs.get("role", self.instance.role if self.instance else None)
-        if user_type == "internal" and role is None:
-            raise serializers.ValidationError(
-                {"role": "Internal users must be assigned a role."}
-            )
-        return attrs
+        return _validate_internal_role_and_department(attrs, self.instance)
 
 
 class ChangePasswordSerializer(serializers.Serializer):
@@ -166,6 +188,29 @@ class ChangePasswordSerializer(serializers.Serializer):
         instance.set_password(validated_data["new_password"])
         instance.save()
         return instance
+
+
+class SelfChangePasswordSerializer(serializers.Serializer):
+    """Authenticated self-service password change."""
+
+    current_password = serializers.CharField(write_only=True)
+    new_password = serializers.CharField(write_only=True, min_length=8)
+
+    def validate_current_password(self, value):
+        user = self.context["request"].user
+        if not user.check_password(value):
+            raise serializers.ValidationError("Current password is incorrect.")
+        return value
+
+    def validate_new_password(self, value):
+        validate_password(value, self.context["request"].user)
+        return value
+
+    def save(self, **kwargs):
+        user = self.context["request"].user
+        user.set_password(self.validated_data["new_password"])
+        user.save(update_fields=["password"])
+        return user
 
 
 class PasswordResetRequestSerializer(serializers.Serializer):

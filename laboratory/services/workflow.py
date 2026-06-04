@@ -101,15 +101,46 @@ def code_paid_job_samples(job):
     return job
 
 
-def handle_financial_record_saved(financial_record, previous_status):
+def financial_record_clears_payment_gate(financial_record):
+    """Return whether payment is satisfied or explicitly waived."""
+    return (
+        financial_record.payment_status == FinancialRecord.PaymentStatus.PAID
+        or (
+            financial_record.payment_required is False
+            and financial_record.waiver_approved_at is not None
+        )
+    )
+
+
+def _previous_financial_record_cleared_gate(
+    previous_status,
+    previous_payment_required,
+    previous_waiver_approved_at,
+):
+    return (
+        previous_status == FinancialRecord.PaymentStatus.PAID
+        or (
+            previous_payment_required is False
+            and previous_waiver_approved_at is not None
+        )
+    )
+
+
+def handle_financial_record_saved(
+    financial_record,
+    previous_status,
+    previous_payment_required=None,
+    previous_waiver_approved_at=None,
+):
     """
     Apply workflow side effects after a financial record save.
 
-    A transition into `paid` is the trigger for permanent sample coding.
+    Paid records and approved waivers both release permanent sample coding.
     """
-    if (
-        financial_record.payment_status == FinancialRecord.PaymentStatus.PAID
-        and previous_status != FinancialRecord.PaymentStatus.PAID
-    ):
+    previous_cleared = _previous_financial_record_cleared_gate(
+        previous_status,
+        previous_payment_required,
+        previous_waiver_approved_at,
+    )
+    if financial_record_clears_payment_gate(financial_record) and not previous_cleared:
         code_paid_job_samples(financial_record.job)
-

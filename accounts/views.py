@@ -25,6 +25,7 @@ from .serializers import (
     UserCreateSerializer,
     UserUpdateSerializer,
     ChangePasswordSerializer,
+    SelfChangePasswordSerializer,
 )
 
 User = get_user_model()
@@ -171,6 +172,30 @@ class ProfileView(generics.RetrieveAPIView):
 
     def get_object(self):
         return self.request.user
+
+
+@extend_schema(
+    summary="Change the authenticated user's password",
+    tags=["Profile"],
+    request=SelfChangePasswordSerializer,
+    responses={200: {"description": "Password changed successfully."}},
+)
+class ProfilePasswordChangeView(APIView):
+    """Authenticated endpoint for users changing their own password."""
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = SelfChangePasswordSerializer(
+            data=request.data,
+            context={"request": request},
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(
+            {"detail": "Password changed successfully."},
+            status=status.HTTP_200_OK,
+        )
 
 
 # ---------------------------------------------------------------------------

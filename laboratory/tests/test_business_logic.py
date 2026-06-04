@@ -3,7 +3,7 @@
 from django.urls import reverse
 from rest_framework import status
 
-from laboratory.models import JobOrder
+from laboratory.models import FinancialRecord, JobOrder
 
 from .base import BaseTestCase
 
@@ -58,6 +58,21 @@ class BusinessLogicTests(BaseTestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("current_status", response.data)
+
+    def test_job_order_rejects_removed_critical_priority(self):
+        client = self.get_authenticated_client(
+            "receptionist_lab@ministry.gov", "ReceptionistPass123!"
+        )
+        response = client.post(
+            reverse("joborder-list"),
+            {
+                "client": str(self.client_user.id),
+                "priority": "critical",
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("priority", response.data)
 
     def test_sample_requires_matching_job_client(self):
         client = self.get_authenticated_client(
@@ -123,6 +138,25 @@ class BusinessLogicTests(BaseTestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("assigned_analyst", response.data)
+
+    def test_payment_waiver_requires_reason(self):
+        client = self.get_authenticated_client("finance_lab@ministry.gov", "FinancePass123!")
+        job = self._create_job_order()
+
+        response = client.post(
+            reverse("financialrecord-list"),
+            {
+                "job": str(job.id),
+                "amount_expected": "500.00",
+                "amount_paid": "0.00",
+                "payment_status": FinancialRecord.PaymentStatus.PENDING,
+                "payment_required": False,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("waiver_reason", response.data)
 
     def test_duplicate_sample_test_assignment_rejected(self):
         client = self.get_authenticated_client("admin_lab@ministry.gov", "AdminPass123!")

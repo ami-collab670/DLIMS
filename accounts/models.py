@@ -42,7 +42,7 @@ class Role(models.Model):
         ADMIN = "admin", "Admin"
         RECEPTIONIST = "receptionist", "Receptionist"
         ANALYST = "analyst", "Lab Analyst"
-        QC_MANAGER = "qc_manager", "QC Manager"
+        QC_MANAGER = "qc_manager", "Department Manager"
         FINANCE = "finance", "Finance Officer"
         PROCUREMENT = "procurement", "Procurement Officer"
         MINISTRY_COORDINATOR = "ministry_coordinator", "Ministry Requester/Coordinator"

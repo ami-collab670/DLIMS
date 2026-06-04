@@ -7,10 +7,14 @@ Two Sample serializer variants enforce the blind analysis protocol:
 - SampleAnalystSerializer: blind-only for Analysts (hides all client/sample identity)
 """
 
+from django.contrib.auth import get_user_model
+from django.utils import timezone
 from rest_framework import serializers
 from drf_spectacular.utils import extend_schema_field
 from .models import FinancialRecord, TestCatalog, JobOrder, BlindCode, Sample, SampleTest
 from .policies import sample_tests_for_sample_visible_to
+
+User = get_user_model()
 
 
 # ---------------------------------------------------------------------------
@@ -106,10 +110,21 @@ class FinancialRecordSerializer(serializers.ModelSerializer):
             "amount_paid",
             "payment_status",
             "paid_at",
+            "payment_required",
+            "waiver_reason",
+            "waiver_approved_by",
+            "waiver_approved_at",
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["invoice_no", "paid_at", "created_at", "updated_at"]
+        read_only_fields = [
+            "invoice_no",
+            "paid_at",
+            "waiver_approved_by",
+            "waiver_approved_at",
+            "created_at",
+            "updated_at",
+        ]
 
     def validate(self, attrs):
         amount_expected = attrs.get(
@@ -129,7 +144,42 @@ class FinancialRecordSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 {"amount_paid": "Amount paid cannot be negative."}
             )
+        payment_required = attrs.get(
+            "payment_required",
+            self.instance.payment_required if self.instance else True,
+        )
+        waiver_reason = attrs.get(
+            "waiver_reason",
+            self.instance.waiver_reason if self.instance else "",
+        )
+        if payment_required is False and not waiver_reason.strip():
+            raise serializers.ValidationError(
+                {"waiver_reason": "A waiver reason is required when payment is waived."}
+            )
         return attrs
+
+    def _apply_waiver_audit_fields(self, validated_data):
+        if validated_data.get("payment_required", True) is not False:
+            return validated_data
+
+        request = self.context.get("request")
+        if request and request.user and request.user.is_authenticated:
+            validated_data.setdefault("waiver_approved_by", request.user)
+        validated_data.setdefault("waiver_approved_at", timezone.now())
+        return validated_data
+
+    def create(self, validated_data):
+        validated_data = self._apply_waiver_audit_fields(validated_data)
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        payment_required = validated_data.get(
+            "payment_required",
+            instance.payment_required,
+        )
+        if payment_required is False:
+            validated_data = self._apply_waiver_audit_fields(validated_data)
+        return super().update(instance, validated_data)
 
 
 # ---------------------------------------------------------------------------
@@ -391,6 +441,65 @@ class SampleUpdateSerializer(serializers.ModelSerializer):
 
     def validate_assigned_analyst(self, value):
         return _validate_assigned_analyst(value)
+
+
+class SampleAssignAnalystSerializer(serializers.ModelSerializer):
+    """Department Manager/Admin assignment endpoint for distributing work."""
+
+    assigned_analyst = serializers.PrimaryKeyRelatedField(
+        queryset=User.objects.filter(is_active=True)
+    )
+
+    class Meta:
+        model = Sample
+        fields = ["assigned_analyst", "assigned_at", "reassigned_reason"]
+        read_only_fields = ["assigned_at"]
+
+    def validate_assigned_analyst(self, value):
+        return _validate_assigned_analyst(value)
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        request = self.context.get("request")
+        user = request.user if request else None
+        analyst = attrs["assigned_analyst"]
+
+        if getattr(user, "role_name", None) == "qc_manager":
+            department_id = getattr(user, "department_id", None)
+            if department_id is None:
+                raise serializers.ValidationError(
+                    {"assigned_analyst": "Department Manager must have a department."}
+                )
+            if analyst.department_id != department_id:
+                raise serializers.ValidationError(
+                    {
+                        "assigned_analyst": (
+                            "Assigned analyst must belong to the manager's department."
+                        )
+                    }
+                )
+            if not self.instance.sample_tests.filter(
+                test__department_id=department_id
+            ).exists():
+                raise serializers.ValidationError(
+                    {"assigned_analyst": "Sample is not in the manager's department."}
+                )
+        return attrs
+
+    def update(self, instance, validated_data):
+        instance.assigned_analyst = validated_data["assigned_analyst"]
+        instance.assigned_at = timezone.now()
+        if "reassigned_reason" in validated_data:
+            instance.reassigned_reason = validated_data["reassigned_reason"]
+        instance.save(
+            update_fields=[
+                "assigned_analyst",
+                "assigned_at",
+                "reassigned_reason",
+                "updated_at",
+            ]
+        )
+        return instance
 
 
 def _validate_assigned_analyst(value):

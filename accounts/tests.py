@@ -45,6 +45,11 @@ class BaseTestCase(TestCase):
                 role_name=role_name, defaults={"contact_alias": alias}
             )
 
+        cls.department = Department.objects.create(
+            name="Water",
+            description="Water and environmental analysis.",
+        )
+
         # Admin user
         cls.admin_user = User.objects.create_user(
             username="admin",
@@ -70,6 +75,7 @@ class BaseTestCase(TestCase):
             password="AnalystPass123!",
             user_type="internal",
             role=cls.roles["analyst"],
+            department=cls.department,
         )
 
         # QC Manager user
@@ -79,6 +85,7 @@ class BaseTestCase(TestCase):
             password="QCPass123!",
             user_type="internal",
             role=cls.roles["qc_manager"],
+            department=cls.department,
         )
 
         # Finance user
@@ -156,6 +163,12 @@ class RoleModelTests(TestCase):
         )
         self.assertEqual(str(role), "Admin")
         self.assertIsNotNone(role.id)
+
+    def test_qc_manager_display_label_is_department_manager(self):
+        role, _ = Role.objects.get_or_create(
+            role_name="qc_manager", defaults={"contact_alias": "Department Manager"}
+        )
+        self.assertEqual(str(role), "Department Manager")
 
     def test_role_name_uniqueness(self):
         """Duplicate role_name must raise an exception."""
@@ -431,6 +444,7 @@ class AdminUserCRUDTests(BaseTestCase):
                 "last_name": "Analyst",
                 "user_type": "internal",
                 "role": str(self.roles["analyst"].id),
+                "department": str(self.department.id),
                 "phone": "+251911000000",
             },
             format="json",
@@ -438,6 +452,7 @@ class AdminUserCRUDTests(BaseTestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         new_user = User.objects.get(email="new.analyst@ministry.gov")
         self.assertEqual(new_user.role_name, "analyst")
+        self.assertEqual(new_user.department, self.department)
         self.assertTrue(new_user.check_password("NewAnalyst123!"))
 
     def test_create_external_user(self):
@@ -543,6 +558,22 @@ class BusinessLogicTests(BaseTestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("role", response.data)
+
+    def test_department_scoped_internal_user_requires_department(self):
+        """Lab Analysts and Department Managers must be tied to a department."""
+        response = self.client.post(
+            reverse("user-list"),
+            {
+                "username": "nodeptanalyst",
+                "email": "nodept@ministry.gov",
+                "password": "NoDept123!",
+                "user_type": "internal",
+                "role": str(self.roles["analyst"].id),
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("department", response.data)
 
     def test_external_user_does_not_require_role(self):
         """External (client) users do NOT need a role."""
@@ -833,6 +864,38 @@ class ProfileTests(BaseTestCase):
             )
             self.assertEqual(response.data["email"], email)
 
+    def test_authenticated_user_can_change_own_password(self):
+        client = self.get_authenticated_client(
+            "client@company.com", "ClientPass123!"
+        )
+        response = client.post(
+            reverse("profile-change-password"),
+            {
+                "current_password": "ClientPass123!",
+                "new_password": "ClientNewPass123!",
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.client_user.refresh_from_db()
+        self.assertTrue(self.client_user.check_password("ClientNewPass123!"))
+
+    def test_change_own_password_rejects_wrong_current_password(self):
+        client = self.get_authenticated_client(
+            "client@company.com", "ClientPass123!"
+        )
+        response = client.post(
+            reverse("profile-change-password"),
+            {
+                "current_password": "WrongPass123!",
+                "new_password": "ClientNewPass123!",
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.client_user.refresh_from_db()
+        self.assertTrue(self.client_user.check_password("ClientPass123!"))
+
 
 # ===========================================================================
 # PERMISSION CLASS UNIT TESTS
@@ -958,6 +1021,7 @@ class EdgeCaseTests(BaseTestCase):
                 "phone": "+251900000000",
                 "user_type": "internal",
                 "role": str(self.roles["analyst"].id),
+                "department": str(self.department.id),
                 "country": "ethiopia",
                 "nationality": "",
                 "organization_name": "",
@@ -969,6 +1033,16 @@ class EdgeCaseTests(BaseTestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.analyst_user.refresh_from_db()
         self.assertEqual(self.analyst_user.first_name, "Updated")
+
+    def test_update_department_scoped_user_remove_department_rejected(self):
+        """Department-scoped internal roles cannot be left without a department."""
+        response = self.admin_client.patch(
+            reverse("user-detail", args=[self.analyst_user.id]),
+            {"department": None},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("department", response.data)
 
     # --- 404 on nonexistent user ---
     def test_retrieve_nonexistent_user_returns_404(self):

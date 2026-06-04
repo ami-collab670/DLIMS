@@ -52,10 +52,10 @@ class IsAnalyst(_RolePermission):
 
 
 class IsQCManager(_RolePermission):
-    """Grants access to QC Managers."""
+    """Grants access to Department Managers."""
 
     required_role = "qc_manager"
-    message = "QC Manager access required."
+    message = "Department Manager access required."
 
 
 class IsFinance(_RolePermission):
