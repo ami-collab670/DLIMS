@@ -14,6 +14,7 @@ db.sqlite3
 lsims-render-data.json
 lsims-render-backup.dump
 db.sqlite3-journal
+schema.yaml
 *.log
 local_settings.py
 media/
@@ -59,3 +60,8 @@ coverage.xml
 
 # PDF (not source code)
 *.pdf
+
+# Local delivery / scratch artifacts
+_redate_commits.ps1
+collab-sprint2-code-only.patch
+nul
