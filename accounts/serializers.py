@@ -9,7 +9,7 @@ from rest_framework import serializers
 from .models import Department, OTPToken, Role
 
 User = get_user_model()
-DEPARTMENT_REQUIRED_ROLE_NAMES = {"analyst", "qc_manager"}
+DEPARTMENT_REQUIRED_ROLE_NAMES = {"analyst", "lab_technician", "qc_manager"}
 
 
 def _validate_internal_role_and_department(attrs, instance=None):
@@ -39,7 +39,7 @@ def _validate_internal_role_and_department(attrs, instance=None):
             {
                 "department": (
                     "Department is required for Lab Analysts and "
-                    "Department Managers."
+                    "Lab Technicians and Department Managers."
                 )
             }
         )

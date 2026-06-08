@@ -41,8 +41,10 @@ class Role(models.Model):
     class RoleName(models.TextChoices):
         ADMIN = "admin", "Admin"
         RECEPTIONIST = "receptionist", "Receptionist"
+        LAB_TECHNICIAN = "lab_technician", "Lab Technician"
         ANALYST = "analyst", "Lab Analyst"
         QC_MANAGER = "qc_manager", "Department Manager"
+        LAB_DIRECTOR = "lab_director", "Lab Director"
         FINANCE = "finance", "Finance Officer"
         PROCUREMENT = "procurement", "Procurement Officer"
         MINISTRY_COORDINATOR = "ministry_coordinator", "Ministry Requester/Coordinator"

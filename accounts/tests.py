@@ -23,18 +23,20 @@ from .models import Department, OTPToken, Role, User
 
 class BaseTestCase(TestCase):
     """
-    Shared setup: creates all 8 roles, an admin user, and a non-admin user.
+    Shared setup: creates system roles, an admin user, and a non-admin user.
     """
 
     @classmethod
     def setUpTestData(cls):
-        # Get or create all 8 roles (data migration 0002 may have seeded them)
+        # Get or create all roles (data migrations may have seeded them)
         cls.roles = {}
         role_data = [
             ("admin", "System Administration"),
             ("receptionist", "Reception Desk"),
+            ("lab_technician", "Laboratory Preparation Technician"),
             ("analyst", "Laboratory Analysis Dept"),
             ("qc_manager", "QC-Department-Support"),
+            ("lab_director", "Laboratory Director"),
             ("finance", "Finance Department"),
             ("procurement", "Procurement Office"),
             ("ministry_coordinator", "Ministry Coordination"),
@@ -68,6 +70,16 @@ class BaseTestCase(TestCase):
             role=cls.roles["receptionist"],
         )
 
+        # Lab Technician user
+        cls.lab_technician_user = User.objects.create_user(
+            username="labtech",
+            email="labtech@ministry.gov",
+            password="LabTechPass123!",
+            user_type="internal",
+            role=cls.roles["lab_technician"],
+            department=cls.department,
+        )
+
         # Analyst user
         cls.analyst_user = User.objects.create_user(
             username="analyst",
@@ -86,6 +98,15 @@ class BaseTestCase(TestCase):
             user_type="internal",
             role=cls.roles["qc_manager"],
             department=cls.department,
+        )
+
+        # Lab Director user
+        cls.lab_director_user = User.objects.create_user(
+            username="labdirector",
+            email="director@ministry.gov",
+            password="DirectorPass123!",
+            user_type="internal",
+            role=cls.roles["lab_director"],
         )
 
         # Finance user
@@ -350,8 +371,7 @@ class AdminRoleCRUDTests(BaseTestCase):
     def test_list_roles(self):
         response = self.client.get(reverse("role-list"))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        # 8 roles were created in setUpTestData
-        self.assertEqual(response.data["count"], 8)
+        self.assertEqual(response.data["count"], 10)
 
     def test_create_role_after_delete(self):
         """Delete a role then re-create it to verify full create flow."""
@@ -431,7 +451,7 @@ class AdminUserCRUDTests(BaseTestCase):
     def test_list_users(self):
         response = self.client.get(reverse("user-list"))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertGreaterEqual(response.data["count"], 9)  # 8 internal + 1 external
+        self.assertGreaterEqual(response.data["count"], 11)
 
     def test_create_internal_user(self):
         response = self.client.post(
@@ -560,7 +580,7 @@ class BusinessLogicTests(BaseTestCase):
         self.assertIn("role", response.data)
 
     def test_department_scoped_internal_user_requires_department(self):
-        """Lab Analysts and Department Managers must be tied to a department."""
+        """Department-scoped internal roles must be tied to a department."""
         response = self.client.post(
             reverse("user-list"),
             {
@@ -842,12 +862,14 @@ class ProfileTests(BaseTestCase):
         self.assertEqual(response.data["nationality"], "Ethiopian")
 
     def test_each_role_can_view_own_profile(self):
-        """All 8 internal roles + external client can view their profile."""
+        """All internal roles + external client can view their profile."""
         test_users = [
             ("admin@ministry.gov", "AdminPass123!"),
             ("reception@ministry.gov", "RecepPass123!"),
+            ("labtech@ministry.gov", "LabTechPass123!"),
             ("analyst@ministry.gov", "AnalystPass123!"),
             ("qc@ministry.gov", "QCPass123!"),
+            ("director@ministry.gov", "DirectorPass123!"),
             ("finance@ministry.gov", "FinancePass123!"),
             ("procurement@ministry.gov", "ProcurePass123!"),
             ("coordinator@ministry.gov", "CoordPass123!"),
@@ -904,9 +926,10 @@ class PermissionClassUnitTests(BaseTestCase):
     """Direct unit tests for all 8 permission classes."""
 
     def test_all_roles_exist_in_database(self):
-        """Verify all 8 roles were properly created."""
+        """Verify all system roles were properly created."""
         expected_roles = [
-            "admin", "receptionist", "analyst", "qc_manager",
+            "admin", "receptionist", "lab_technician", "analyst", "qc_manager",
+            "lab_director",
             "finance", "procurement", "ministry_coordinator", "auditor",
         ]
         for role_name in expected_roles:
@@ -919,8 +942,10 @@ class PermissionClassUnitTests(BaseTestCase):
         """Verify the User.role_name shortcut property."""
         self.assertEqual(self.admin_user.role_name, "admin")
         self.assertEqual(self.receptionist_user.role_name, "receptionist")
+        self.assertEqual(self.lab_technician_user.role_name, "lab_technician")
         self.assertEqual(self.analyst_user.role_name, "analyst")
         self.assertEqual(self.qc_user.role_name, "qc_manager")
+        self.assertEqual(self.lab_director_user.role_name, "lab_director")
         self.assertEqual(self.finance_user.role_name, "finance")
         self.assertEqual(self.procurement_user.role_name, "procurement")
         self.assertEqual(self.coordinator_user.role_name, "ministry_coordinator")

@@ -44,6 +44,13 @@ class IsReceptionist(_RolePermission):
     message = "Receptionist access required."
 
 
+class IsLabTechnician(_RolePermission):
+    """Grants access to Lab Technicians."""
+
+    required_role = "lab_technician"
+    message = "Lab Technician access required."
+
+
 class IsAnalyst(_RolePermission):
     """Grants access to Lab Analysts."""
 
@@ -56,6 +63,13 @@ class IsQCManager(_RolePermission):
 
     required_role = "qc_manager"
     message = "Department Manager access required."
+
+
+class IsLabDirector(_RolePermission):
+    """Grants access to Lab Directors."""
+
+    required_role = "lab_director"
+    message = "Lab Director access required."
 
 
 class IsFinance(_RolePermission):

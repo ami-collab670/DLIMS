@@ -16,8 +16,10 @@ class Command(BaseCommand):
         roles_to_create = [
             ("admin", "System Administrator"),
             ("receptionist", "Reception & Sample Intake"),
+            ("lab_technician", "Laboratory Preparation Technician"),
             ("analyst", "Laboratory Analyst"),
-            ("qc_manager", "Quality Control Manager"),
+            ("qc_manager", "Department Manager"),
+            ("lab_director", "Laboratory Director"),
             ("finance", "Finance & Billing Officer"),
             ("procurement", "Procurement Officer"),
             ("ministry_coordinator", "Ministry Requester / Coordinator"),
