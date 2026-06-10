@@ -126,20 +126,20 @@ class BusinessLogicTests(BaseTestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("assigned_analyst", response.data)
 
-    def test_sample_update_rejects_non_analyst_assignment(self):
+    def test_assign_analyst_rejects_non_analyst_assignment(self):
         client = self.get_authenticated_client(
             "receptionist_lab@ministry.gov", "ReceptionistPass123!"
         )
         sample = self._create_sample()
-        response = client.patch(
-            reverse("sample-detail", args=[sample.id]),
+        response = client.post(
+            reverse("sample-assign-analyst", args=[sample.id]),
             {"assigned_analyst": str(self.qc_user.id)},
             format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("assigned_analyst", response.data)
 
-    def test_payment_waiver_requires_reason(self):
+    def test_direct_financial_record_waiver_payload_is_ignored(self):
         client = self.get_authenticated_client("finance_lab@ministry.gov", "FinancePass123!")
         job = self._create_job_order()
 
@@ -155,8 +155,14 @@ class BusinessLogicTests(BaseTestCase):
             format="json",
         )
 
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("waiver_reason", response.data)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        record = FinancialRecord.objects.get(invoice_no=response.data["invoice_no"])
+        self.assertTrue(record.payment_required)
+        self.assertEqual(record.waiver_reason, "")
+        self.assertIsNone(record.waiver_approved_by)
+        self.assertIsNone(record.waiver_approved_at)
+        job.refresh_from_db()
+        self.assertEqual(job.current_status, JobOrder.Status.PAYMENT_PENDING)
 
     def test_duplicate_sample_test_assignment_rejected(self):
         client = self.get_authenticated_client("admin_lab@ministry.gov", "AdminPass123!")

@@ -7,8 +7,19 @@ workflow stages easier to audit and test.
 """
 
 from django.db import transaction
+from django.utils import timezone
 
-from laboratory.models import BlindCode, FinancialRecord, JobOrder, Sample
+from laboratory.models import (
+    AnalysisResult,
+    BlindCode,
+    ComplaintRecord,
+    DiscountApproval,
+    FinancialRecord,
+    JobOrder,
+    PreparationRecord,
+    QCDecision,
+    Sample,
+)
 
 
 class WorkflowTransitionError(ValueError):
@@ -20,6 +31,7 @@ VALID_JOB_TRANSITIONS = {
     (JobOrder.Status.RECEIVED, JobOrder.Status.IN_PREP),
     (JobOrder.Status.IN_PREP, JobOrder.Status.IN_ANALYSIS),
     (JobOrder.Status.IN_ANALYSIS, JobOrder.Status.QC),
+    (JobOrder.Status.QC, JobOrder.Status.IN_ANALYSIS),
     (JobOrder.Status.QC, JobOrder.Status.COMPLETED),
 }
 
@@ -144,3 +156,450 @@ def handle_financial_record_saved(
     )
     if financial_record_clears_payment_gate(financial_record) and not previous_cleared:
         code_paid_job_samples(financial_record.job)
+
+
+def start_preparation(preparation_record, user):
+    """Start preparation and move the sample/job into the preparation stage."""
+    if preparation_record.status != PreparationRecord.Status.PENDING:
+        raise WorkflowTransitionError("Only pending preparation can be started.")
+
+    with transaction.atomic():
+        preparation_record = PreparationRecord.objects.select_for_update().select_related(
+            "sample",
+            "sample__job",
+            "technician",
+        ).get(pk=preparation_record.pk)
+
+        if preparation_record.status != PreparationRecord.Status.PENDING:
+            raise WorkflowTransitionError("Only pending preparation can be started.")
+
+        if preparation_record.technician_id is None and getattr(user, "role_name", None) == "lab_technician":
+            preparation_record.technician = user
+        preparation_record.status = PreparationRecord.Status.IN_PROGRESS
+        preparation_record.started_at = timezone.now()
+        preparation_record.save(
+            update_fields=["technician", "status", "started_at", "updated_at"]
+        )
+
+        sample = preparation_record.sample
+        sample.sample_status = Sample.SampleStatus.IN_PREP
+        sample.save(update_fields=["sample_status", "updated_at"])
+
+        job = sample.job
+        if job.current_status == JobOrder.Status.RECEIVED:
+            transition_job(
+                job,
+                JobOrder.Status.IN_PREP,
+                allowed_from=[JobOrder.Status.RECEIVED],
+            )
+
+    return preparation_record
+
+
+def complete_preparation(
+    preparation_record,
+    *,
+    user=None,
+    preparation_data=None,
+    notes=None,
+):
+    """Complete preparation and move the sample/job into the analysis queue."""
+    if preparation_record.status != PreparationRecord.Status.IN_PROGRESS:
+        raise WorkflowTransitionError("Only in-progress preparation can be completed.")
+
+    with transaction.atomic():
+        preparation_record = PreparationRecord.objects.select_for_update().select_related(
+            "sample",
+            "sample__job",
+        ).get(pk=preparation_record.pk)
+
+        if preparation_record.status != PreparationRecord.Status.IN_PROGRESS:
+            raise WorkflowTransitionError("Only in-progress preparation can be completed.")
+        if (
+            user is not None
+            and getattr(user, "role_name", None) == "lab_technician"
+            and preparation_record.technician_id is not None
+            and preparation_record.technician_id != user.id
+        ):
+            raise WorkflowTransitionError(
+                "Only the assigned Lab Technician can complete this preparation."
+            )
+
+        if preparation_data is not None:
+            preparation_record.preparation_data = preparation_data
+        if notes is not None:
+            preparation_record.notes = notes
+        preparation_record.status = PreparationRecord.Status.COMPLETED
+        preparation_record.completed_at = timezone.now()
+        preparation_record.save(
+            update_fields=[
+                "preparation_data",
+                "notes",
+                "status",
+                "completed_at",
+                "updated_at",
+            ]
+        )
+
+        sample = preparation_record.sample
+        sample.sample_status = Sample.SampleStatus.PENDING_ANALYSIS
+        sample.save(update_fields=["sample_status", "updated_at"])
+
+        job = sample.job
+        if (
+            job.current_status == JobOrder.Status.IN_PREP
+            and _all_job_preparations_completed(job)
+        ):
+            transition_job(
+                job,
+                JobOrder.Status.IN_ANALYSIS,
+                allowed_from=[JobOrder.Status.IN_PREP],
+            )
+
+    return preparation_record
+
+
+def submit_analysis_result(analysis_result, user):
+    """Submit an analyst result for QC review."""
+    if analysis_result.state not in {
+        AnalysisResult.State.DRAFT,
+        AnalysisResult.State.REJECTED,
+    }:
+        raise WorkflowTransitionError(
+            "Only draft or rejected analysis results can be submitted."
+        )
+    if not analysis_result.value.strip():
+        raise WorkflowTransitionError("Result value is required before submission.")
+
+    with transaction.atomic():
+        analysis_result = AnalysisResult.objects.select_for_update().select_related(
+            "sample_test",
+            "sample_test__sample",
+            "sample_test__sample__job",
+        ).get(pk=analysis_result.pk)
+
+        if analysis_result.state not in {
+            AnalysisResult.State.DRAFT,
+            AnalysisResult.State.REJECTED,
+        }:
+            raise WorkflowTransitionError(
+                "Only draft or rejected analysis results can be submitted."
+            )
+        if not analysis_result.value.strip():
+            raise WorkflowTransitionError("Result value is required before submission.")
+
+        if analysis_result.state == AnalysisResult.State.REJECTED:
+            analysis_result.revision += 1
+        if analysis_result.analyst_id is None:
+            analysis_result.analyst = user
+        analysis_result.state = AnalysisResult.State.SUBMITTED
+        analysis_result.submitted_at = timezone.now()
+        analysis_result.approved_at = None
+        analysis_result.rejected_at = None
+        analysis_result.save(
+            update_fields=[
+                "analyst",
+                "state",
+                "revision",
+                "submitted_at",
+                "approved_at",
+                "rejected_at",
+                "updated_at",
+            ]
+        )
+
+        sample = analysis_result.sample_test.sample
+        sample.sample_status = Sample.SampleStatus.IN_ANALYSIS
+        sample.save(update_fields=["sample_status", "updated_at"])
+
+        job = sample.job
+        if (
+            job.current_status == JobOrder.Status.IN_ANALYSIS
+            and _all_job_results_submitted_or_approved(job)
+        ):
+            transition_job(
+                job,
+                JobOrder.Status.QC,
+                allowed_from=[JobOrder.Status.IN_ANALYSIS],
+            )
+
+    return analysis_result
+
+
+def _all_job_preparations_completed(job):
+    samples = job.samples.prefetch_related("sample_tests").all()
+    if not samples.exists():
+        return False
+    for sample in samples:
+        if not sample.sample_tests.exists():
+            return False
+        try:
+            preparation_record = sample.preparation_record
+        except PreparationRecord.DoesNotExist:
+            return False
+        if preparation_record.status != PreparationRecord.Status.COMPLETED:
+            return False
+    return True
+
+
+def _all_job_results_submitted_or_approved(job):
+    samples = job.samples.prefetch_related("sample_tests").all()
+    if not samples.exists():
+        return False
+    for sample in samples:
+        sample_tests = sample.sample_tests.all()
+        if not sample_tests.exists():
+            return False
+        for sample_test in sample_tests:
+            try:
+                result = sample_test.analysis_result
+            except AnalysisResult.DoesNotExist:
+                return False
+            if result.state not in {
+                AnalysisResult.State.SUBMITTED,
+                AnalysisResult.State.APPROVED,
+            }:
+                return False
+    return True
+
+
+def approve_analysis_result(analysis_result, user, *, reason=""):
+    """Approve a submitted result and advance sample/job when all work is done."""
+    return _decide_analysis_result(
+        analysis_result,
+        user,
+        decision=QCDecision.Decision.APPROVED,
+        reason=reason,
+    )
+
+
+def reject_analysis_result(analysis_result, user, *, reason):
+    """Reject a submitted result and return the work to analysis."""
+    if not reason.strip():
+        raise WorkflowTransitionError("A rejection reason is required.")
+    return _decide_analysis_result(
+        analysis_result,
+        user,
+        decision=QCDecision.Decision.REJECTED,
+        reason=reason,
+    )
+
+
+def _decide_analysis_result(analysis_result, user, *, decision, reason=""):
+    if analysis_result.state != AnalysisResult.State.SUBMITTED:
+        raise WorkflowTransitionError("Only submitted analysis results can be reviewed.")
+
+    with transaction.atomic():
+        analysis_result = AnalysisResult.objects.select_for_update().select_related(
+            "sample_test",
+            "sample_test__sample",
+            "sample_test__sample__job",
+        ).get(pk=analysis_result.pk)
+
+        if analysis_result.state != AnalysisResult.State.SUBMITTED:
+            raise WorkflowTransitionError(
+                "Only submitted analysis results can be reviewed."
+            )
+
+        QCDecision.objects.create(
+            analysis_result=analysis_result,
+            decision=decision,
+            reason=reason,
+            decided_by=user,
+        )
+
+        sample = analysis_result.sample_test.sample
+        job = sample.job
+
+        if decision == QCDecision.Decision.APPROVED:
+            analysis_result.state = AnalysisResult.State.APPROVED
+            analysis_result.approved_at = timezone.now()
+            analysis_result.rejected_at = None
+            analysis_result.save(
+                update_fields=[
+                    "state",
+                    "approved_at",
+                    "rejected_at",
+                    "updated_at",
+                ]
+            )
+            if _all_sample_results_approved(sample):
+                sample.sample_status = Sample.SampleStatus.COMPLETED
+                sample.save(update_fields=["sample_status", "updated_at"])
+            if _all_job_results_approved(job) and job.current_status == JobOrder.Status.QC:
+                transition_job(
+                    job,
+                    JobOrder.Status.COMPLETED,
+                    allowed_from=[JobOrder.Status.QC],
+                )
+        else:
+            analysis_result.state = AnalysisResult.State.REJECTED
+            analysis_result.rejected_at = timezone.now()
+            analysis_result.approved_at = None
+            analysis_result.save(
+                update_fields=[
+                    "state",
+                    "rejected_at",
+                    "approved_at",
+                    "updated_at",
+                ]
+            )
+            sample.sample_status = Sample.SampleStatus.PENDING_ANALYSIS
+            sample.save(update_fields=["sample_status", "updated_at"])
+            if job.current_status == JobOrder.Status.QC:
+                transition_job(
+                    job,
+                    JobOrder.Status.IN_ANALYSIS,
+                    reason="QC returned result for correction.",
+                    allowed_from=[JobOrder.Status.QC],
+                )
+
+    return analysis_result
+
+
+def _all_sample_results_approved(sample):
+    sample_tests = sample.sample_tests.all()
+    if not sample_tests.exists():
+        return False
+    for sample_test in sample_tests:
+        try:
+            result = sample_test.analysis_result
+        except AnalysisResult.DoesNotExist:
+            return False
+        if result.state != AnalysisResult.State.APPROVED:
+            return False
+    return True
+
+
+def _all_job_results_approved(job):
+    samples = job.samples.prefetch_related("sample_tests").all()
+    if not samples.exists():
+        return False
+    for sample in samples:
+        if not _all_sample_results_approved(sample):
+            return False
+    return True
+
+
+def resolve_complaint(complaint, user, *, resolution):
+    """Resolve a complaint/dispute with a written resolution."""
+    if not resolution.strip():
+        raise WorkflowTransitionError("A resolution is required.")
+    if complaint.status in {
+        ComplaintRecord.Status.RESOLVED,
+        ComplaintRecord.Status.REJECTED,
+    }:
+        raise WorkflowTransitionError("Closed complaints cannot be changed.")
+
+    complaint.status = ComplaintRecord.Status.RESOLVED
+    complaint.resolution = resolution
+    complaint.resolved_by = user
+    complaint.resolved_at = timezone.now()
+    complaint.save(
+        update_fields=[
+            "status",
+            "resolution",
+            "resolved_by",
+            "resolved_at",
+            "updated_at",
+        ]
+    )
+    return complaint
+
+
+def reject_complaint(complaint, user, *, resolution):
+    """Reject a complaint/dispute with a written reason."""
+    if not resolution.strip():
+        raise WorkflowTransitionError("A rejection reason is required.")
+    if complaint.status in {
+        ComplaintRecord.Status.RESOLVED,
+        ComplaintRecord.Status.REJECTED,
+    }:
+        raise WorkflowTransitionError("Closed complaints cannot be changed.")
+
+    complaint.status = ComplaintRecord.Status.REJECTED
+    complaint.resolution = resolution
+    complaint.resolved_by = user
+    complaint.resolved_at = timezone.now()
+    complaint.save(
+        update_fields=[
+            "status",
+            "resolution",
+            "resolved_by",
+            "resolved_at",
+            "updated_at",
+        ]
+    )
+    return complaint
+
+
+def approve_discount_approval(discount_approval, user, *, review_note=""):
+    """Approve a discount/free-test request and apply waiver when applicable."""
+    if discount_approval.status != DiscountApproval.Status.PENDING:
+        raise WorkflowTransitionError("Only pending discount approvals can be reviewed.")
+
+    with transaction.atomic():
+        discount_approval = DiscountApproval.objects.select_for_update().select_related(
+            "job",
+        ).get(pk=discount_approval.pk)
+        if discount_approval.status != DiscountApproval.Status.PENDING:
+            raise WorkflowTransitionError(
+                "Only pending discount approvals can be reviewed."
+            )
+
+        discount_approval.status = DiscountApproval.Status.APPROVED
+        discount_approval.reviewed_by = user
+        discount_approval.reviewed_at = timezone.now()
+        discount_approval.review_note = review_note
+        discount_approval.save(
+            update_fields=[
+                "status",
+                "reviewed_by",
+                "reviewed_at",
+                "review_note",
+                "updated_at",
+            ]
+        )
+
+        if discount_approval.discount_type == DiscountApproval.DiscountType.FREE_TEST:
+            record, _ = FinancialRecord.objects.get_or_create(
+                job=discount_approval.job,
+                defaults={
+                    "amount_expected": 0,
+                    "amount_paid": 0,
+                    "payment_status": FinancialRecord.PaymentStatus.PENDING,
+                },
+            )
+            record.payment_required = False
+            record.waiver_reason = (
+                "Director-approved free test: "
+                f"{discount_approval.reason}"
+            )
+            record.waiver_approved_by = user
+            record.waiver_approved_at = timezone.now()
+            record.save()
+
+    return discount_approval
+
+
+def reject_discount_approval(discount_approval, user, *, review_note):
+    """Reject a discount/free-test request."""
+    if not review_note.strip():
+        raise WorkflowTransitionError("A rejection reason is required.")
+    if discount_approval.status != DiscountApproval.Status.PENDING:
+        raise WorkflowTransitionError("Only pending discount approvals can be reviewed.")
+
+    discount_approval.status = DiscountApproval.Status.REJECTED
+    discount_approval.reviewed_by = user
+    discount_approval.reviewed_at = timezone.now()
+    discount_approval.review_note = review_note
+    discount_approval.save(
+        update_fields=[
+            "status",
+            "reviewed_by",
+            "reviewed_at",
+            "review_note",
+            "updated_at",
+        ]
+    )
+    return discount_approval

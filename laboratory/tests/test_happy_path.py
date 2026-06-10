@@ -185,7 +185,7 @@ class SampleHappyPathTests(BaseTestCase):
         self.assertTrue(sample.blind_alias.code.startswith("BC-"))
         self.assertEqual(job.current_status, JobOrder.Status.RECEIVED)
 
-    def test_payment_waiver_codes_samples(self):
+    def test_direct_financial_record_waiver_does_not_code_samples(self):
         client = self.get_authenticated_client("finance_lab@ministry.gov", "FinancePass123!")
         job = self._create_job_order()
         sample = self._create_sample(job=job)
@@ -207,11 +207,13 @@ class SampleHappyPathTests(BaseTestCase):
         record = FinancialRecord.objects.get(invoice_no=response.data["invoice_no"])
         sample.refresh_from_db()
         job.refresh_from_db()
-        self.assertTrue(sample.sample_code.startswith("SMP-"))
-        self.assertIsNotNone(sample.blind_alias)
-        self.assertEqual(job.current_status, JobOrder.Status.RECEIVED)
-        self.assertEqual(record.waiver_approved_by, self.finance_user)
-        self.assertIsNotNone(record.waiver_approved_at)
+        self.assertIsNone(sample.sample_code)
+        self.assertIsNone(sample.blind_alias)
+        self.assertEqual(job.current_status, JobOrder.Status.PAYMENT_PENDING)
+        self.assertTrue(record.payment_required)
+        self.assertEqual(record.waiver_reason, "")
+        self.assertIsNone(record.waiver_approved_by)
+        self.assertIsNone(record.waiver_approved_at)
 
     def test_admin_can_list_all_samples(self):
         self._create_sample()
@@ -227,12 +229,12 @@ class SampleHappyPathTests(BaseTestCase):
         sample = self._create_sample()
         response = client.patch(
             reverse("sample-detail", args=[sample.id]),
-            {"sample_status": "in_queue"},
+            {"notes": "Updated intake note."},
             format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         sample.refresh_from_db()
-        self.assertEqual(sample.sample_status, "in_queue")
+        self.assertEqual(sample.notes, "Updated intake note.")
 
 
 class SampleTestHappyPathTests(BaseTestCase):

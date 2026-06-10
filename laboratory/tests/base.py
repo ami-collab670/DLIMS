@@ -25,8 +25,10 @@ class BaseTestCase(TestCase):
         """Create shared test fixtures (roles, users, test catalog entries)."""
         cls.admin_role = Role.objects.get(role_name="admin")
         cls.receptionist_role = Role.objects.get(role_name="receptionist")
+        cls.lab_technician_role = Role.objects.get(role_name="lab_technician")
         cls.analyst_role = Role.objects.get(role_name="analyst")
         cls.qc_role = Role.objects.get(role_name="qc_manager")
+        cls.lab_director_role = Role.objects.get(role_name="lab_director")
         cls.finance_role = Role.objects.get(role_name="finance")
         cls.auditor_role = Role.objects.get(role_name="auditor")
 
@@ -53,6 +55,22 @@ class BaseTestCase(TestCase):
             user_type="internal",
             role=cls.receptionist_role,
         )
+        cls.lab_technician_user = User.objects.create_user(
+            username="lab_technician_lab",
+            email="lab_technician_lab@ministry.gov",
+            password="LabTechPass123!",
+            user_type="internal",
+            role=cls.lab_technician_role,
+            department=cls.department_water,
+        )
+        cls.lab_technician_user_2 = User.objects.create_user(
+            username="lab_technician_lab_2",
+            email="lab_technician_lab_2@ministry.gov",
+            password="LabTechPass123!",
+            user_type="internal",
+            role=cls.lab_technician_role,
+            department=cls.department_mineralogy,
+        )
         cls.analyst_user = User.objects.create_user(
             username="analyst_lab",
             email="analyst_lab@ministry.gov",
@@ -76,6 +94,13 @@ class BaseTestCase(TestCase):
             user_type="internal",
             role=cls.qc_role,
             department=cls.department_water,
+        )
+        cls.lab_director_user = User.objects.create_user(
+            username="lab_director_lab",
+            email="lab_director_lab@ministry.gov",
+            password="DirectorPass123!",
+            user_type="internal",
+            role=cls.lab_director_role,
         )
         cls.finance_user = User.objects.create_user(
             username="finance_lab",

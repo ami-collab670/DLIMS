@@ -34,12 +34,53 @@ class EdgeCaseTests(BaseTestCase):
         )
         response = client.patch(
             reverse("sample-detail", args=[sample.id]),
-            {"sample_status": Sample.SampleStatus.IN_QUEUE},
+            {"notes": "Superuser update note."},
             format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         sample.refresh_from_db()
-        self.assertEqual(sample.sample_status, Sample.SampleStatus.IN_QUEUE)
+        self.assertEqual(sample.notes, "Superuser update note.")
+
+    def test_generic_job_patch_cannot_change_workflow_status(self):
+        job = self._create_job_order(client_user=self.client_user)
+        client = self.get_authenticated_client("admin_lab@ministry.gov", "AdminPass123!")
+
+        response = client.patch(
+            reverse("joborder-detail", args=[job.id]),
+            {
+                "current_status": JobOrder.Status.COMPLETED,
+                "status_reason": "Attempted direct workflow jump.",
+                "description": "Allowed metadata update.",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        job.refresh_from_db()
+        self.assertEqual(job.current_status, JobOrder.Status.PAYMENT_PENDING)
+        self.assertEqual(job.status_reason, "")
+        self.assertEqual(job.description, "Allowed metadata update.")
+
+    def test_generic_sample_patch_cannot_change_workflow_status(self):
+        sample = self._create_sample()
+        client = self.get_authenticated_client(
+            "receptionist_lab@ministry.gov",
+            "ReceptionistPass123!",
+        )
+
+        response = client.patch(
+            reverse("sample-detail", args=[sample.id]),
+            {
+                "sample_status": Sample.SampleStatus.COMPLETED,
+                "notes": "Allowed sample note.",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        sample.refresh_from_db()
+        self.assertEqual(sample.sample_status, Sample.SampleStatus.REGISTERED)
+        self.assertEqual(sample.notes, "Allowed sample note.")
 
     def test_retrieve_nonexistent_job_returns_404(self):
         client = self.get_authenticated_client("admin_lab@ministry.gov", "AdminPass123!")
