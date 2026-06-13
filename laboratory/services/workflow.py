@@ -167,7 +167,6 @@ def start_preparation(preparation_record, user):
         preparation_record = PreparationRecord.objects.select_for_update().select_related(
             "sample",
             "sample__job",
-            "technician",
         ).get(pk=preparation_record.pk)
 
         if preparation_record.status != PreparationRecord.Status.PENDING:
