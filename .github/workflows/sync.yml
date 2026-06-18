@@ -9,7 +9,6 @@ jobs:
 sync:
 runs-on: ubuntu-latest
 
-```
 steps:
   - name: Checkout source repo
     uses: actions/checkout@v4
@@ -21,4 +20,4 @@ steps:
 
       git remote add replica https://x-access-token:${{ secrets.REPLICATOKEN }}@github.com/ami-collab670/DLIMS.git
       git push replica main --force
-```
+
