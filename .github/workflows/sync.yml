@@ -18,5 +18,5 @@ jobs:
           git config --global user.name "sync-bot"
           git config --global user.email "sync@example.com"
 
-          git remote add replica https://x-access-token:${{secrets.replica}}@github.com/ami-collab670/DLIMS.git
+          git remote add replica https://x-access-token:${{secrets.sync_replica}}@github.com/ami-collab670/DLIMS.git
           git push replica main --force
