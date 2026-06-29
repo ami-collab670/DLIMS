@@ -1,16 +1,74 @@
 # Docker Desktop install/start helpers for Windows (official Docker sources).
 
 $script:DockerDesktopInstallerUrl = "https://desktop.docker.com/win/main/amd64/Docker%20Desktop%20Installer.exe"
+$script:DockerCliBinPaths = @(
+    "$env:LOCALAPPDATA\Programs\DockerDesktop\resources\bin"
+    "$env:LOCALAPPDATA\Programs\Docker\Docker\resources\bin"
+    "$env:ProgramFiles\Docker\Docker\resources\bin"
+)
 $script:DockerDesktopPaths = @(
+    "$env:LOCALAPPDATA\Programs\DockerDesktop\Docker Desktop.exe"
     "$env:LOCALAPPDATA\Programs\Docker\Docker\Docker Desktop.exe"
     "$env:ProgramFiles\Docker\Docker\Docker Desktop.exe"
 )
 
+# #region agent log
+function Write-DebugLog {
+    param(
+        [string]$Location,
+        [string]$Message,
+        [hashtable]$Data,
+        [string]$HypothesisId
+    )
+    $logPath = Join-Path (Split-Path (Split-Path $PSScriptRoot -Parent) -Parent) "debug-ccbc68.log"
+    $entry = @{
+        sessionId    = "ccbc68"
+        location     = $Location
+        message      = $Message
+        data         = $Data
+        hypothesisId = $HypothesisId
+        timestamp    = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
+        runId        = if ($env:LSIMS_DEBUG_RUN_ID) { $env:LSIMS_DEBUG_RUN_ID } else { "post-fix" }
+    } | ConvertTo-Json -Compress
+    Add-Content -Path $logPath -Value $entry -Encoding UTF8
+}
+# #endregion
+
+function Add-DockerCliToPath {
+    $added = @()
+    foreach ($bin in $script:DockerCliBinPaths) {
+        if ((Test-Path $bin) -and (($env:PATH -split ';') -notcontains $bin)) {
+            $env:PATH = "$bin;$env:PATH"
+            $added += $bin
+        }
+    }
+    # #region agent log
+    Write-DebugLog -Location "install-docker.ps1:Add-DockerCliToPath" -Message "PATH refresh" -HypothesisId "H1,H2" -Data @{
+        addedPaths   = $added
+        cliAvailable = [bool](Get-Command docker -ErrorAction SilentlyContinue)
+        cliSource    = (Get-Command docker -ErrorAction SilentlyContinue).Source
+    }
+    # #endregion
+    return $added
+}
+
 function Test-DockerCliInstalled {
-    return [bool](Get-Command docker -ErrorAction SilentlyContinue)
+    $cmd = Get-Command docker -ErrorAction SilentlyContinue
+    # #region agent log
+    Write-DebugLog -Location "install-docker.ps1:Test-DockerCliInstalled" -Message "docker CLI lookup" -HypothesisId "H1" -Data @{
+        found     = [bool]$cmd
+        source    = if ($cmd) { $cmd.Source } else { $null }
+        pathHead  = ($env:PATH -split ';' | Select-Object -First 5) -join ';'
+    }
+    # #endregion
+    return [bool]$cmd
 }
 
 function Test-DockerComposeAvailable {
+    if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
+        return $false
+    }
+
     $prevPreference = $ErrorActionPreference
     $ErrorActionPreference = "Continue"
     docker compose version *> $null
@@ -89,10 +147,7 @@ function Install-DockerDesktop {
 
     Write-Host "Docker Desktop installed."
 
-    $dockerBin = "$env:LOCALAPPDATA\Programs\Docker\Docker\resources\bin"
-    if (Test-Path $dockerBin) {
-        $env:PATH = "$dockerBin;$env:PATH"
-    }
+    Add-DockerCliToPath | Out-Null
 }
 
 function Show-DockerNotReadyHelp {
@@ -109,14 +164,40 @@ function Show-DockerNotReadyHelp {
 }
 
 function Ensure-DockerDesktop {
+    # #region agent log
+    Write-DebugLog -Location "install-docker.ps1:Ensure-DockerDesktop" -Message "entry" -HypothesisId "H1,H2,H3" -Data @{
+        cliInstalled   = [bool](Get-Command docker -ErrorAction SilentlyContinue)
+        legacyBinExists = (Test-Path "$env:LOCALAPPDATA\Programs\Docker\Docker\resources\bin\docker.exe")
+        newBinExists    = (Test-Path "$env:LOCALAPPDATA\Programs\DockerDesktop\resources\bin\docker.exe")
+    }
+    # #endregion
+    Add-DockerCliToPath | Out-Null
+
     if (-not (Test-DockerCliInstalled)) {
         Install-DockerDesktop
     }
 
+    Add-DockerCliToPath | Out-Null
+
     if (-not (Test-DockerComposeAvailable)) {
+        if (Start-DockerDesktopApp) {
+            Wait-ForDockerDaemon -TimeoutSeconds 300 | Out-Null
+        }
+        Add-DockerCliToPath | Out-Null
+    }
+
+    if (-not (Test-DockerComposeAvailable)) {
+        # #region agent log
+        Write-DebugLog -Location "install-docker.ps1:Ensure-DockerDesktop" -Message "compose still unavailable" -HypothesisId "H1,H2,H3" -Data @{
+            cliInstalledAfterInstall = (Test-DockerCliInstalled)
+            legacyBinExists          = (Test-Path "$env:LOCALAPPDATA\Programs\Docker\Docker\resources\bin\docker.exe")
+            newBinExists             = (Test-Path "$env:LOCALAPPDATA\Programs\DockerDesktop\resources\bin\docker.exe")
+        }
+        # #endregion
         Write-Host ""
         Write-Host "docker compose is not available." -ForegroundColor Red
         Write-Host "Install or update Docker Desktop: https://www.docker.com/products/docker-desktop/" -ForegroundColor Yellow
+        Write-Host "If you just installed Docker Desktop, open a new PowerShell window and run setup again." -ForegroundColor Yellow
         exit 1
     }
 
