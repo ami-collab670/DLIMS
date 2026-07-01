@@ -2,7 +2,7 @@
 Management command to seed the 8 mandatory system roles.
 Usage: python manage.py seed_roles
 
-Safe to run multiple times — uses get_or_create to avoid duplicates.
+Safe to run multiple times ΓÇö uses get_or_create to avoid duplicates.
 """
 
 from django.core.management.base import BaseCommand
@@ -16,8 +16,10 @@ class Command(BaseCommand):
         roles_to_create = [
             ("admin", "System Administrator"),
             ("receptionist", "Reception & Sample Intake"),
+            ("lab_technician", "Laboratory Preparation Technician"),
             ("analyst", "Laboratory Analyst"),
-            ("qc_manager", "Quality Control Manager"),
+            ("qc_manager", "Department Manager"),
+            ("lab_director", "Laboratory Director"),
             ("finance", "Finance & Billing Officer"),
             ("procurement", "Procurement Officer"),
             ("ministry_coordinator", "Ministry Requester / Coordinator"),
@@ -33,10 +35,10 @@ class Command(BaseCommand):
             if created:
                 created_count += 1
                 self.stdout.write(
-                    self.style.SUCCESS(f"  ✓ Created role: {role_name}")
+                    self.style.SUCCESS(f"  Γ£ô Created role: {role_name}")
                 )
             else:
-                self.stdout.write(f"  · Already exists: {role_name}")
+                self.stdout.write(f"  ┬╖ Already exists: {role_name}")
 
         self.stdout.write(
             self.style.SUCCESS(

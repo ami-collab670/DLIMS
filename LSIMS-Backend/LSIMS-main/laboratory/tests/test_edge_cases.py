@@ -20,12 +20,12 @@ class EdgeCaseTests(BaseTestCase):
         )
         response = client.patch(
             reverse("joborder-detail", args=[job.id]),
-            {"priority": JobOrder.Priority.CRITICAL},
+            {"priority": JobOrder.Priority.URGENT},
             format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         job.refresh_from_db()
-        self.assertEqual(job.priority, JobOrder.Priority.CRITICAL)
+        self.assertEqual(job.priority, JobOrder.Priority.URGENT)
 
     def test_external_superuser_can_update_unowned_sample(self):
         sample = self._create_sample()
@@ -34,15 +34,53 @@ class EdgeCaseTests(BaseTestCase):
         )
         response = client.patch(
             reverse("sample-detail", args=[sample.id]),
-            {
-                "status_sync_with_job": False,
-                "sample_status": Sample.SampleStatus.SUBMITTED,
-            },
+            {"notes": "Superuser update note."},
             format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         sample.refresh_from_db()
-        self.assertEqual(sample.sample_status, Sample.SampleStatus.SUBMITTED)
+        self.assertEqual(sample.notes, "Superuser update note.")
+
+    def test_generic_job_patch_cannot_change_workflow_status(self):
+        job = self._create_job_order(client_user=self.client_user)
+        client = self.get_authenticated_client("admin_lab@ministry.gov", "AdminPass123!")
+
+        response = client.patch(
+            reverse("joborder-detail", args=[job.id]),
+            {
+                "current_status": JobOrder.Status.COMPLETED,
+                "status_reason": "Attempted direct workflow jump.",
+                "description": "Allowed metadata update.",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        job.refresh_from_db()
+        self.assertEqual(job.current_status, JobOrder.Status.PENDING_FINANCE)
+        self.assertEqual(job.status_reason, "")
+        self.assertEqual(job.description, "Allowed metadata update.")
+
+    def test_generic_sample_patch_cannot_change_workflow_status(self):
+        sample = self._create_sample()
+        client = self.get_authenticated_client(
+            "receptionist_lab@ministry.gov",
+            "ReceptionistPass123!",
+        )
+
+        response = client.patch(
+            reverse("sample-detail", args=[sample.id]),
+            {
+                "sample_status": Sample.SampleStatus.COMPLETED,
+                "notes": "Allowed sample note.",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        sample.refresh_from_db()
+        self.assertEqual(sample.sample_status, Sample.SampleStatus.REGISTERED)
+        self.assertEqual(sample.notes, "Allowed sample note.")
 
     def test_retrieve_nonexistent_job_returns_404(self):
         client = self.get_authenticated_client("admin_lab@ministry.gov", "AdminPass123!")
@@ -114,7 +152,10 @@ class EdgeCaseTests(BaseTestCase):
     def test_filter_jobs_by_status(self):
         self._create_job_order()
         client = self.get_authenticated_client("admin_lab@ministry.gov", "AdminPass123!")
-        response = client.get(reverse("joborder-list"), {"current_status": "received"})
+        response = client.get(
+            reverse("joborder-list"),
+            {"current_status": JobOrder.Status.PENDING_FINANCE},
+        )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertGreaterEqual(response.data["count"], 1)
 

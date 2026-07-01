@@ -1,35 +1,42 @@
 """
-LSIMS Accounts — Comprehensive Test Suite (Sprint 1)
+LSIMS Accounts ΓÇö Comprehensive Test Suite (Sprint 1)
 =======================================================
 Covers the Verification Protocol requirements:
-  1. Authentication Check  — Unauthorized users get 401
-  2. Permission Check      — Wrong roles get 403
-  3. Success Check         — Happy paths return 200/201 with correct DB state
-  4. Logic Check           — Business logic (internal users must have roles, etc.)
+  1. Authentication Check  ΓÇö Unauthorized users get 401
+  2. Permission Check      ΓÇö Wrong roles get 403
+  3. Success Check         ΓÇö Happy paths return 200/201 with correct DB state
+  4. Logic Check           ΓÇö Business logic (internal users must have roles, etc.)
 """
 
-from django.test import TestCase
+from datetime import timedelta
+from unittest.mock import patch
+
+from django.core import mail
+from django.test import TestCase, override_settings
 from django.urls import reverse
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from .models import Role, User
+from .models import Department, OTPToken, Role, User
 
 
 class BaseTestCase(TestCase):
     """
-    Shared setup: creates all 8 roles, an admin user, and a non-admin user.
+    Shared setup: creates system roles, an admin user, and a non-admin user.
     """
 
     @classmethod
     def setUpTestData(cls):
-        # Get or create all 8 roles (data migration 0002 may have seeded them)
+        # Get or create all roles (data migrations may have seeded them)
         cls.roles = {}
         role_data = [
             ("admin", "System Administration"),
             ("receptionist", "Reception Desk"),
+            ("lab_technician", "Laboratory Preparation Technician"),
             ("analyst", "Laboratory Analysis Dept"),
             ("qc_manager", "QC-Department-Support"),
+            ("lab_director", "Laboratory Director"),
             ("finance", "Finance Department"),
             ("procurement", "Procurement Office"),
             ("ministry_coordinator", "Ministry Coordination"),
@@ -39,6 +46,11 @@ class BaseTestCase(TestCase):
             cls.roles[role_name], _ = Role.objects.get_or_create(
                 role_name=role_name, defaults={"contact_alias": alias}
             )
+
+        cls.department = Department.objects.create(
+            name="Water",
+            description="Water and environmental analysis.",
+        )
 
         # Admin user
         cls.admin_user = User.objects.create_user(
@@ -58,6 +70,16 @@ class BaseTestCase(TestCase):
             role=cls.roles["receptionist"],
         )
 
+        # Lab Technician user
+        cls.lab_technician_user = User.objects.create_user(
+            username="labtech",
+            email="labtech@ministry.gov",
+            password="LabTechPass123!",
+            user_type="internal",
+            role=cls.roles["lab_technician"],
+            department=cls.department,
+        )
+
         # Analyst user
         cls.analyst_user = User.objects.create_user(
             username="analyst",
@@ -65,6 +87,7 @@ class BaseTestCase(TestCase):
             password="AnalystPass123!",
             user_type="internal",
             role=cls.roles["analyst"],
+            department=cls.department,
         )
 
         # QC Manager user
@@ -74,6 +97,16 @@ class BaseTestCase(TestCase):
             password="QCPass123!",
             user_type="internal",
             role=cls.roles["qc_manager"],
+            department=cls.department,
+        )
+
+        # Lab Director user
+        cls.lab_director_user = User.objects.create_user(
+            username="labdirector",
+            email="director@ministry.gov",
+            password="DirectorPass123!",
+            user_type="internal",
+            role=cls.roles["lab_director"],
         )
 
         # Finance user
@@ -118,9 +151,10 @@ class BaseTestCase(TestCase):
             email="client@company.com",
             password="ClientPass123!",
             user_type="external",
+            country="ethiopia",
             nationality="Ethiopian",
             organization_name="Mining Corp",
-            organization_type="Private",
+            organization_type="private",
         )
 
     def get_authenticated_client(self, user_email, password):
@@ -151,6 +185,12 @@ class RoleModelTests(TestCase):
         self.assertEqual(str(role), "Admin")
         self.assertIsNotNone(role.id)
 
+    def test_qc_manager_display_label_is_department_manager(self):
+        role, _ = Role.objects.get_or_create(
+            role_name="qc_manager", defaults={"contact_alias": "Department Manager"}
+        )
+        self.assertEqual(str(role), "Department Manager")
+
     def test_role_name_uniqueness(self):
         """Duplicate role_name must raise an exception."""
         Role.objects.get_or_create(
@@ -158,6 +198,18 @@ class RoleModelTests(TestCase):
         )
         with self.assertRaises(Exception):
             Role.objects.create(role_name="admin", contact_alias="Admin 2")
+
+
+class DepartmentModelTests(TestCase):
+    """Tests for the Department model."""
+
+    def test_department_creation(self):
+        department = Department.objects.create(
+            name="Water",
+            description="Water and environmental analysis.",
+        )
+        self.assertEqual(str(department), "Water")
+        self.assertIsNotNone(department.id)
 
 
 class UserModelTests(TestCase):
@@ -184,9 +236,11 @@ class UserModelTests(TestCase):
             email="ext@corp.com",
             password="ExtPass123!",
             user_type="external",
+            country="other",
             nationality="Kenyan",
         )
         self.assertIsNone(user.role_name)
+        self.assertEqual(user.country, "other")
         self.assertEqual(user.nationality, "Kenyan")
 
     def test_email_uniqueness(self):
@@ -317,8 +371,7 @@ class AdminRoleCRUDTests(BaseTestCase):
     def test_list_roles(self):
         response = self.client.get(reverse("role-list"))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        # 8 roles were created in setUpTestData
-        self.assertEqual(response.data["count"], 8)
+        self.assertEqual(response.data["count"], 10)
 
     def test_create_role_after_delete(self):
         """Delete a role then re-create it to verify full create flow."""
@@ -358,6 +411,35 @@ class AdminRoleCRUDTests(BaseTestCase):
         self.assertFalse(Role.objects.filter(id=role.id).exists())
 
 
+class AdminDepartmentCRUDTests(BaseTestCase):
+    """Admin can manage laboratory departments."""
+
+    def setUp(self):
+        self.client = self.get_authenticated_client(
+            "admin@ministry.gov", "AdminPass123!"
+        )
+
+    def test_admin_can_create_department(self):
+        response = self.client.post(
+            reverse("department-list"),
+            {"name": "Mineralogy", "description": "Ore and mineral analysis."},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertTrue(Department.objects.filter(name="Mineralogy").exists())
+
+    def test_non_admin_cannot_create_department(self):
+        client = self.get_authenticated_client(
+            "reception@ministry.gov", "RecepPass123!"
+        )
+        response = client.post(
+            reverse("department-list"),
+            {"name": "Water"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+
 class AdminUserCRUDTests(BaseTestCase):
     """Admin can perform full CRUD on Users."""
 
@@ -369,7 +451,7 @@ class AdminUserCRUDTests(BaseTestCase):
     def test_list_users(self):
         response = self.client.get(reverse("user-list"))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertGreaterEqual(response.data["count"], 9)  # 8 internal + 1 external
+        self.assertGreaterEqual(response.data["count"], 11)
 
     def test_create_internal_user(self):
         response = self.client.post(
@@ -382,6 +464,7 @@ class AdminUserCRUDTests(BaseTestCase):
                 "last_name": "Analyst",
                 "user_type": "internal",
                 "role": str(self.roles["analyst"].id),
+                "department": str(self.department.id),
                 "phone": "+251911000000",
             },
             format="json",
@@ -389,6 +472,7 @@ class AdminUserCRUDTests(BaseTestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         new_user = User.objects.get(email="new.analyst@ministry.gov")
         self.assertEqual(new_user.role_name, "analyst")
+        self.assertEqual(new_user.department, self.department)
         self.assertTrue(new_user.check_password("NewAnalyst123!"))
 
     def test_create_external_user(self):
@@ -399,15 +483,18 @@ class AdminUserCRUDTests(BaseTestCase):
                 "email": "new.client@corp.com",
                 "password": "NewClient123!",
                 "user_type": "external",
+                "country": "ethiopia",
                 "nationality": "Ethiopian",
                 "organization_name": "Gold Corp",
-                "organization_type": "Private",
+                "organization_type": "private",
             },
             format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         new_user = User.objects.get(email="new.client@corp.com")
         self.assertIsNone(new_user.role)
+        self.assertEqual(new_user.country, "ethiopia")
+        self.assertEqual(new_user.organization_type, "private")
 
     def test_retrieve_user(self):
         response = self.client.get(
@@ -491,6 +578,22 @@ class BusinessLogicTests(BaseTestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("role", response.data)
+
+    def test_department_scoped_internal_user_requires_department(self):
+        """Department-scoped internal roles must be tied to a department."""
+        response = self.client.post(
+            reverse("user-list"),
+            {
+                "username": "nodeptanalyst",
+                "email": "nodept@ministry.gov",
+                "password": "NoDept123!",
+                "user_type": "internal",
+                "role": str(self.roles["analyst"].id),
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("department", response.data)
 
     def test_external_user_does_not_require_role(self):
         """External (client) users do NOT need a role."""
@@ -617,6 +720,125 @@ class JWTAuthTests(BaseTestCase):
 
 
 # ===========================================================================
+# PASSWORD RESET OTP TESTS
+# ===========================================================================
+@override_settings(
+    EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
+    DEFAULT_FROM_EMAIL="noreply@lsims.test",
+)
+class PasswordResetOTPTests(BaseTestCase):
+    """Tests for public email OTP password recovery endpoints."""
+
+    def setUp(self):
+        self.client = APIClient()
+        mail.outbox = []
+
+    def request_otp(self, email="client@company.com", code="123456"):
+        with patch("accounts.models.OTPToken.generate_code", return_value=code):
+            return self.client.post(
+                reverse("password-reset-request"),
+                {"email": email},
+                format="json",
+            )
+
+    def test_password_reset_request_sends_otp_for_existing_user(self):
+        response = self.request_otp()
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(OTPToken.objects.filter(user=self.client_user).count(), 1)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn("123456", mail.outbox[0].body)
+        self.assertEqual(mail.outbox[0].to, ["client@company.com"])
+
+    def test_password_reset_confirm_success_resets_password(self):
+        self.request_otp(code="654321")
+
+        response = self.client.post(
+            reverse("password-reset-confirm"),
+            {
+                "email": "client@company.com",
+                "otp": "654321",
+                "new_password": "NewResetPass123!",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.client_user.refresh_from_db()
+        self.assertTrue(self.client_user.check_password("NewResetPass123!"))
+        self.assertTrue(OTPToken.objects.get(user=self.client_user).is_used)
+
+    def test_password_reset_confirm_rejects_expired_otp(self):
+        self.request_otp(code="222222")
+        token = OTPToken.objects.get(user=self.client_user)
+        token.expires_at = timezone.now() - timedelta(minutes=1)
+        token.save(update_fields=["expires_at"])
+
+        response = self.client.post(
+            reverse("password-reset-confirm"),
+            {
+                "email": "client@company.com",
+                "otp": "222222",
+                "new_password": "NewResetPass123!",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.client_user.refresh_from_db()
+        self.assertTrue(self.client_user.check_password("ClientPass123!"))
+
+    def test_password_reset_confirm_rejects_invalid_otp(self):
+        self.request_otp(code="333333")
+
+        response = self.client.post(
+            reverse("password-reset-confirm"),
+            {
+                "email": "client@company.com",
+                "otp": "999999",
+                "new_password": "NewResetPass123!",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.client_user.refresh_from_db()
+        self.assertTrue(self.client_user.check_password("ClientPass123!"))
+
+    def test_password_reset_request_nonexistent_email_is_generic(self):
+        response = self.request_otp(email="missing@example.com")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(OTPToken.objects.count(), 0)
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_password_reset_confirm_rejects_reused_otp(self):
+        self.request_otp(code="444444")
+        confirm_payload = {
+            "email": "client@company.com",
+            "otp": "444444",
+            "new_password": "NewResetPass123!",
+        }
+
+        first_response = self.client.post(
+            reverse("password-reset-confirm"),
+            confirm_payload,
+            format="json",
+        )
+        second_response = self.client.post(
+            reverse("password-reset-confirm"),
+            {
+                **confirm_payload,
+                "new_password": "AnotherResetPass123!",
+            },
+            format="json",
+        )
+
+        self.assertEqual(first_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(second_response.status_code, status.HTTP_400_BAD_REQUEST)
+
+
+# ===========================================================================
 # PROFILE ENDPOINT TESTS
 # ===========================================================================
 class ProfileTests(BaseTestCase):
@@ -640,12 +862,14 @@ class ProfileTests(BaseTestCase):
         self.assertEqual(response.data["nationality"], "Ethiopian")
 
     def test_each_role_can_view_own_profile(self):
-        """All 8 internal roles + external client can view their profile."""
+        """All internal roles + external client can view their profile."""
         test_users = [
             ("admin@ministry.gov", "AdminPass123!"),
             ("reception@ministry.gov", "RecepPass123!"),
+            ("labtech@ministry.gov", "LabTechPass123!"),
             ("analyst@ministry.gov", "AnalystPass123!"),
             ("qc@ministry.gov", "QCPass123!"),
+            ("director@ministry.gov", "DirectorPass123!"),
             ("finance@ministry.gov", "FinancePass123!"),
             ("procurement@ministry.gov", "ProcurePass123!"),
             ("coordinator@ministry.gov", "CoordPass123!"),
@@ -662,6 +886,38 @@ class ProfileTests(BaseTestCase):
             )
             self.assertEqual(response.data["email"], email)
 
+    def test_authenticated_user_can_change_own_password(self):
+        client = self.get_authenticated_client(
+            "client@company.com", "ClientPass123!"
+        )
+        response = client.post(
+            reverse("profile-change-password"),
+            {
+                "current_password": "ClientPass123!",
+                "new_password": "ClientNewPass123!",
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.client_user.refresh_from_db()
+        self.assertTrue(self.client_user.check_password("ClientNewPass123!"))
+
+    def test_change_own_password_rejects_wrong_current_password(self):
+        client = self.get_authenticated_client(
+            "client@company.com", "ClientPass123!"
+        )
+        response = client.post(
+            reverse("profile-change-password"),
+            {
+                "current_password": "WrongPass123!",
+                "new_password": "ClientNewPass123!",
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.client_user.refresh_from_db()
+        self.assertTrue(self.client_user.check_password("ClientPass123!"))
+
 
 # ===========================================================================
 # PERMISSION CLASS UNIT TESTS
@@ -670,9 +926,10 @@ class PermissionClassUnitTests(BaseTestCase):
     """Direct unit tests for all 8 permission classes."""
 
     def test_all_roles_exist_in_database(self):
-        """Verify all 8 roles were properly created."""
+        """Verify all system roles were properly created."""
         expected_roles = [
-            "admin", "receptionist", "analyst", "qc_manager",
+            "admin", "receptionist", "lab_technician", "analyst", "qc_manager",
+            "lab_director",
             "finance", "procurement", "ministry_coordinator", "auditor",
         ]
         for role_name in expected_roles:
@@ -685,8 +942,10 @@ class PermissionClassUnitTests(BaseTestCase):
         """Verify the User.role_name shortcut property."""
         self.assertEqual(self.admin_user.role_name, "admin")
         self.assertEqual(self.receptionist_user.role_name, "receptionist")
+        self.assertEqual(self.lab_technician_user.role_name, "lab_technician")
         self.assertEqual(self.analyst_user.role_name, "analyst")
         self.assertEqual(self.qc_user.role_name, "qc_manager")
+        self.assertEqual(self.lab_director_user.role_name, "lab_director")
         self.assertEqual(self.finance_user.role_name, "finance")
         self.assertEqual(self.procurement_user.role_name, "procurement")
         self.assertEqual(self.coordinator_user.role_name, "ministry_coordinator")
@@ -787,9 +1046,11 @@ class EdgeCaseTests(BaseTestCase):
                 "phone": "+251900000000",
                 "user_type": "internal",
                 "role": str(self.roles["analyst"].id),
+                "department": str(self.department.id),
+                "country": "ethiopia",
                 "nationality": "",
                 "organization_name": "",
-                "organization_type": "",
+                "organization_type": "other",
                 "is_active": True,
             },
             format="json",
@@ -797,6 +1058,16 @@ class EdgeCaseTests(BaseTestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.analyst_user.refresh_from_db()
         self.assertEqual(self.analyst_user.first_name, "Updated")
+
+    def test_update_department_scoped_user_remove_department_rejected(self):
+        """Department-scoped internal roles cannot be left without a department."""
+        response = self.admin_client.patch(
+            reverse("user-detail", args=[self.analyst_user.id]),
+            {"department": None},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("department", response.data)
 
     # --- 404 on nonexistent user ---
     def test_retrieve_nonexistent_user_returns_404(self):

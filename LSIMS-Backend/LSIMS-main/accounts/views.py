@@ -1,35 +1,60 @@
 """
 LSIMS Accounts — DRF Views
-Admin-only CRUD for Roles and Users.
+Admin CRUD, registration, profile, and password reset flows.
 """
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
-from rest_framework import viewsets, status, generics
-from rest_framework.decorators import action
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated, AllowAny
+from django.core.mail import send_mail
+from django.utils import timezone
 from drf_spectacular.utils import extend_schema, extend_schema_view
-
-from .models import Role
-from .permissions import IsAdmin, IsAdminOrReceptionist
+from rest_framework import generics, status, viewsets
+from rest_framework.decorators import action
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
+from .models import Department, OTPToken, Role
+from .permissions import IsAdmin, IsAdminOrReceptionist
 from .serializers import (
-    RoleSerializer,
-    UserSerializer,
-    UserCreateSerializer,
-    UserUpdateSerializer,
     ChangePasswordSerializer,
-    UserRegisterSerializer,
+    DepartmentSerializer,
+    PasswordResetConfirmSerializer,
+    PasswordResetRequestSerializer,
     ProfileSelfSerializer,
+    RoleSerializer,
+    SelfChangePasswordSerializer,
+    UserCreateSerializer,
+    UserRegisterSerializer,
+    UserSerializer,
+    UserUpdateSerializer,
 )
 
 User = get_user_model()
 
+PASSWORD_RESET_SUCCESS = (
+    "If an active account exists for that email, a password reset OTP has been sent."
+)
 
-# ---------------------------------------------------------------------------
-# Role ViewSet (Admin only)
-# ---------------------------------------------------------------------------
+
+@extend_schema_view(
+    list=extend_schema(summary="List all departments", tags=["Departments"]),
+    retrieve=extend_schema(summary="Get department details", tags=["Departments"]),
+    create=extend_schema(summary="Create a new department", tags=["Departments"]),
+    update=extend_schema(summary="Update a department", tags=["Departments"]),
+    partial_update=extend_schema(summary="Partially update a department", tags=["Departments"]),
+    destroy=extend_schema(summary="Delete a department", tags=["Departments"]),
+)
+class DepartmentViewSet(viewsets.ModelViewSet):
+    """CRUD operations for laboratory departments."""
+
+    queryset = Department.objects.all()
+    serializer_class = DepartmentSerializer
+    permission_classes = [IsAuthenticated, IsAdmin]
+    search_fields = ["name", "description"]
+
+
 @extend_schema_view(
     list=extend_schema(summary="List all roles", tags=["Roles"]),
     retrieve=extend_schema(summary="Get role details", tags=["Roles"]),
@@ -39,10 +64,7 @@ User = get_user_model()
     destroy=extend_schema(summary="Delete a role", tags=["Roles"]),
 )
 class RoleViewSet(viewsets.ModelViewSet):
-    """
-    CRUD operations for system Roles.
-    Only accessible by Admin users.
-    """
+    """CRUD operations for system Roles."""
 
     queryset = Role.objects.all()
     serializer_class = RoleSerializer
@@ -50,9 +72,6 @@ class RoleViewSet(viewsets.ModelViewSet):
     search_fields = ["role_name", "contact_alias"]
 
 
-# ---------------------------------------------------------------------------
-# User ViewSet (Admin only)
-# ---------------------------------------------------------------------------
 @extend_schema_view(
     list=extend_schema(summary="List all users", tags=["Users"]),
     retrieve=extend_schema(summary="Get user details", tags=["Users"]),
@@ -62,16 +81,26 @@ class RoleViewSet(viewsets.ModelViewSet):
     destroy=extend_schema(summary="Deactivate a user", tags=["Users"]),
 )
 class UserViewSet(viewsets.ModelViewSet):
-    """
-    CRUD operations for system Users.
-    Only accessible by Admin users.
-    Soft-deletes users (sets is_active=False) instead of hard deletes.
-    """
+    """CRUD operations for system Users."""
 
-    queryset = User.objects.select_related("role").all()
+    queryset = User.objects.select_related("role", "department").all()
     permission_classes = [IsAuthenticated, IsAdmin]
-    filterset_fields = ["user_type", "role__role_name", "is_active"]
-    search_fields = ["email", "username", "first_name", "last_name"]
+    filterset_fields = [
+        "user_type",
+        "role__role_name",
+        "department",
+        "country",
+        "organization_type",
+        "is_active",
+    ]
+    search_fields = [
+        "email",
+        "username",
+        "first_name",
+        "last_name",
+        "organization_name",
+        "department__name",
+    ]
 
     def get_serializer_class(self):
         if self.action == "create":
@@ -83,7 +112,6 @@ class UserViewSet(viewsets.ModelViewSet):
         return UserSerializer
 
     def destroy(self, request, *args, **kwargs):
-        """Soft-delete: set is_active=False instead of removing from DB."""
         user = self.get_object()
         user.is_active = False
         user.save(update_fields=["is_active"])
@@ -100,7 +128,6 @@ class UserViewSet(viewsets.ModelViewSet):
     )
     @action(detail=True, methods=["post"], url_path="change-password")
     def change_password(self, request, pk=None):
-        """Admin-initiated password reset for a specific user."""
         user = self.get_object()
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -112,19 +139,13 @@ class UserViewSet(viewsets.ModelViewSet):
         )
 
 
-# ---------------------------------------------------------------------------
-# Profile View (Authenticated user views own profile)
-# ---------------------------------------------------------------------------
 @extend_schema_view(
     get=extend_schema(tags=["Profile"], summary="Get my profile"),
     put=extend_schema(tags=["Profile"], summary="Replace my profile (editable fields)"),
     patch=extend_schema(tags=["Profile"], summary="Update my profile"),
 )
 class ProfileView(generics.RetrieveUpdateAPIView):
-    """
-    Returns and updates the authenticated user's own profile.
-    Only contact and organization fields are writable; role and account flags are read-only.
-    """
+    """Returns and updates the authenticated user's own profile."""
 
     serializer_class = ProfileSelfSerializer
     permission_classes = [IsAuthenticated]
@@ -135,15 +156,34 @@ class ProfileView(generics.RetrieveUpdateAPIView):
 
 
 @extend_schema(
+    summary="Change the authenticated user's password",
+    tags=["Profile"],
+    request=SelfChangePasswordSerializer,
+    responses={200: {"description": "Password changed successfully."}},
+)
+class ProfilePasswordChangeView(APIView):
+    """Authenticated endpoint for users changing their own password."""
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = SelfChangePasswordSerializer(
+            data=request.data,
+            context={"request": request},
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(
+            {"detail": "Password changed successfully."},
+            status=status.HTTP_200_OK,
+        )
+
+
+@extend_schema(
     summary="List active lab analysts (for sample assignment)",
     tags=["Users"],
 )
 class LabAnalystListView(generics.ListAPIView):
-    """
-    Minimal directory for receptionists and admins when registering samples.
-    Full `/users/` CRUD remains admin-only.
-    """
-
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticated, IsAdminOrReceptionist]
     pagination_class = None
@@ -165,8 +205,6 @@ class LabAnalystListView(generics.ListAPIView):
     tags=["Users"],
 )
 class LabClientListView(generics.ListAPIView):
-    """Picker list for receptionists creating jobs or samples."""
-
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticated, IsAdminOrReceptionist]
     pagination_class = None
@@ -201,3 +239,57 @@ class RegisterView(generics.CreateAPIView):
             "refresh": str(refresh),
         }
         return Response(payload, status=status.HTTP_201_CREATED)
+
+
+@extend_schema(
+    summary="Request a password reset OTP",
+    tags=["auth"],
+    request=PasswordResetRequestSerializer,
+    responses={200: {"description": PASSWORD_RESET_SUCCESS}},
+)
+class PasswordResetRequestView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        serializer = PasswordResetRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        email = serializer.validated_data["email"]
+        user = User.objects.filter(email=email, is_active=True).first()
+
+        if user is not None:
+            OTPToken.objects.filter(user=user, is_used=False).update(
+                is_used=True,
+                used_at=timezone.now(),
+            )
+            _, code = OTPToken.create_for_user(user)
+            send_mail(
+                subject="LSIMS password reset OTP",
+                message=(
+                    "Your LSIMS password reset code is "
+                    f"{code}. This code expires in 15 minutes."
+                ),
+                from_email=getattr(settings, "DEFAULT_FROM_EMAIL", None),
+                recipient_list=[user.email],
+                fail_silently=False,
+            )
+
+        return Response({"detail": PASSWORD_RESET_SUCCESS}, status=status.HTTP_200_OK)
+
+
+@extend_schema(
+    summary="Confirm a password reset OTP",
+    tags=["auth"],
+    request=PasswordResetConfirmSerializer,
+    responses={200: {"description": "Password reset successfully."}},
+)
+class PasswordResetConfirmView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        serializer = PasswordResetConfirmSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(
+            {"detail": "Password reset successfully."},
+            status=status.HTTP_200_OK,
+        )

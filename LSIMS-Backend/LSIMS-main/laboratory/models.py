@@ -57,6 +57,14 @@ class TestCatalog(models.Model):
         default=Decimal("0.00"),
         help_text="Price per test in ETB.",
     )
+    department = models.ForeignKey(
+        "accounts.Department",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="tests",
+        help_text="Department responsible for this test.",
+    )
     is_active = models.BooleanField(
         default=True,
         help_text="Inactive tests are hidden from selection but preserved for history.",
@@ -168,6 +176,11 @@ class JobOrder(models.Model):
 
     def __str__(self):
         return f"JOB-{str(self.id)[:8]} ({self.get_current_status_display()})"
+
+
+def generate_invoice_no():
+    """Generate a readable invoice number for finance records."""
+    return f"INV-{timezone.now():%Y%m%d}-{uuid.uuid4().hex[:8].upper()}"
 
 
 # ---------------------------------------------------------------------------
@@ -331,11 +344,15 @@ class Sample(models.Model):
         BlindCode,
         on_delete=models.PROTECT,
         related_name="sample",
+        null=True,
+        blank=True,
         help_text="Auto-assigned anonymous code for blind analysis.",
     )
     sample_code = models.CharField(
         max_length=20,
         unique=True,
+        null=True,
+        blank=True,
         help_text="Human-readable sequential code (e.g., 'SMP-2026-0001').",
     )
     sample_name = models.CharField(
@@ -422,7 +439,7 @@ class Sample(models.Model):
         ordering = ["-created_at"]
 
     def __str__(self):
-        return f"{self.sample_code} — {self.sample_name}"
+        return f"{self.sample_code or 'PENDING-CODE'} — {self.sample_name}"
 
     @staticmethod
     def generate_sample_code():
@@ -434,26 +451,472 @@ class Sample(models.Model):
 
     def save(self, *args, **kwargs):
         """
-        Override save to auto-generate BlindCode and sample_code on creation.
-        - BlindCode: collision-safe BC-XXXXXX format.
-        - sample_code: sequential SMP-YYYY-NNNN format allocated atomically.
+        Save without assigning permanent identity until finance clears payment.
         """
         if self._state.adding and self.status_sync_with_job:
             self.sample_status = self.job.current_status
 
-        if not self.pk or self._state.adding:
-            with transaction.atomic():
-                if not self.blind_alias_id:
-                    code_str = BlindCode.generate_unique_code()
-                    blind_code = BlindCode.objects.create(code=code_str)
-                    self.blind_alias = blind_code
+        was_adding = self._state.adding
+        result = super().save(*args, **kwargs)
 
-                if not self.sample_code:
-                    self.sample_code = Sample.generate_sample_code()
+        if was_adding:
+            try:
+                financial_record = self.job.financial_record
+            except FinancialRecord.DoesNotExist:
+                financial_record = None
+            from .services.workflow import (
+                financial_record_clears_payment_gate as _financial_record_clears_payment_gate,
+            )
 
-                return super().save(*args, **kwargs)
+            if (
+                financial_record
+                and _financial_record_clears_payment_gate(financial_record)
+            ):
+                self.assign_permanent_identity()
 
-        return super().save(*args, **kwargs)
+        return result
+
+    def assign_permanent_identity(self):
+        """Assign missing permanent codes idempotently after payment confirmation."""
+        from .services.workflow import assign_sample_permanent_identity
+
+        return assign_sample_permanent_identity(self)
+
+
+def code_paid_job_samples(job):
+    """Generate missing sample identities for a paid job."""
+    from .services.workflow import code_paid_job_samples as service_code_paid_job_samples
+
+    return service_code_paid_job_samples(job)
+
+
+def generate_preparation_reference():
+    """Generate a readable preparation workflow reference."""
+    return f"PREP-{timezone.now():%Y%m%d}-{uuid.uuid4().hex[:8].upper()}"
+
+
+class PreparationRecord(models.Model):
+    """Tracks lab technician preparation work for a paid and coded sample."""
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        IN_PROGRESS = "in_progress", "In Progress"
+        COMPLETED = "completed", "Completed"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    sample = models.OneToOneField(
+        Sample,
+        on_delete=models.CASCADE,
+        related_name="preparation_record",
+        help_text="Paid/coded sample being prepared for analysis.",
+    )
+    reference_code = models.CharField(
+        max_length=32,
+        unique=True,
+        default=generate_preparation_reference,
+        help_text="Internal preparation reference code.",
+    )
+    technician = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="preparation_records",
+        help_text="Lab Technician assigned to preparation.",
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PENDING,
+    )
+    preparation_data = models.JSONField(blank=True, default=dict)
+    notes = models.TextField(blank=True, default="")
+    started_at = models.DateTimeField(null=True, blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="preparation_records_created",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "preparation_records"
+        ordering = ["-created_at"]
+        verbose_name = "Preparation Record"
+        verbose_name_plural = "Preparation Records"
+
+    def __str__(self):
+        return f"{self.reference_code} ({self.get_status_display()})"
+
+
+class AnalysisResult(models.Model):
+    """Analyst-entered result for a requested sample test."""
+
+    class State(models.TextChoices):
+        DRAFT = "draft", "Draft"
+        SUBMITTED = "submitted", "Submitted for QC"
+        REJECTED = "rejected", "Rejected"
+        APPROVED = "approved", "Approved"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    sample_test = models.OneToOneField(
+        "laboratory.SampleTest",
+        on_delete=models.CASCADE,
+        related_name="analysis_result",
+        help_text="Sample test this result satisfies.",
+    )
+    analyst = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="analysis_results",
+        help_text="Analyst responsible for this result.",
+    )
+    state = models.CharField(
+        max_length=20,
+        choices=State.choices,
+        default=State.DRAFT,
+    )
+    value = models.TextField(blank=True, default="")
+    unit = models.CharField(max_length=50, blank=True, default="")
+    method = models.CharField(max_length=200, blank=True, default="")
+    remarks = models.TextField(blank=True, default="")
+    revision = models.PositiveIntegerField(default=1)
+    submitted_at = models.DateTimeField(null=True, blank=True)
+    approved_at = models.DateTimeField(null=True, blank=True)
+    rejected_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "analysis_results"
+        ordering = ["-created_at"]
+        verbose_name = "Analysis Result"
+        verbose_name_plural = "Analysis Results"
+
+    def __str__(self):
+        return f"Result for {self.sample_test}"
+
+
+class CalibrationRecord(models.Model):
+    """Calibration metadata recorded with an analysis result."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    analysis_result = models.ForeignKey(
+        AnalysisResult,
+        on_delete=models.CASCADE,
+        related_name="calibration_records",
+    )
+    instrument_name = models.CharField(max_length=200)
+    calibration_reference = models.CharField(max_length=200, blank=True, default="")
+    calibration_date = models.DateField(null=True, blank=True)
+    calibration_data = models.JSONField(blank=True, default=dict)
+    notes = models.TextField(blank=True, default="")
+    recorded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="calibration_records",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "calibration_records"
+        ordering = ["-created_at"]
+        verbose_name = "Calibration Record"
+        verbose_name_plural = "Calibration Records"
+
+    def __str__(self):
+        return f"{self.instrument_name} calibration for {self.analysis_result_id}"
+
+
+class QCDecision(models.Model):
+    """Department Manager/QC decision for a submitted analysis result."""
+
+    class Decision(models.TextChoices):
+        APPROVED = "approved", "Approved"
+        REJECTED = "rejected", "Rejected"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    analysis_result = models.ForeignKey(
+        AnalysisResult,
+        on_delete=models.CASCADE,
+        related_name="qc_decisions",
+    )
+    decision = models.CharField(max_length=20, choices=Decision.choices)
+    reason = models.TextField(blank=True, default="")
+    decided_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="qc_decisions",
+    )
+    decided_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "qc_decisions"
+        ordering = ["-decided_at"]
+        verbose_name = "QC Decision"
+        verbose_name_plural = "QC Decisions"
+
+    def __str__(self):
+        return f"{self.get_decision_display()} for {self.analysis_result_id}"
+
+
+class ComplaintRecord(models.Model):
+    """Client/internal complaint or dispute against a job/sample/result."""
+
+    class Category(models.TextChoices):
+        PAYMENT = "payment", "Payment"
+        SAMPLE = "sample", "Sample"
+        RESULT = "result", "Result"
+        OTHER = "other", "Other"
+
+    class Status(models.TextChoices):
+        OPEN = "open", "Open"
+        IN_REVIEW = "in_review", "In Review"
+        RESOLVED = "resolved", "Resolved"
+        REJECTED = "rejected", "Rejected"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    client = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="complaints",
+    )
+    job = models.ForeignKey(
+        JobOrder,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="complaints",
+    )
+    sample = models.ForeignKey(
+        Sample,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="complaints",
+    )
+    category = models.CharField(
+        max_length=20,
+        choices=Category.choices,
+        default=Category.OTHER,
+    )
+    description = models.TextField()
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.OPEN,
+    )
+    resolution = models.TextField(blank=True, default="")
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="complaints_created",
+    )
+    resolved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="complaints_resolved",
+    )
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "complaint_records"
+        ordering = ["-created_at"]
+        verbose_name = "Complaint Record"
+        verbose_name_plural = "Complaint Records"
+
+    def __str__(self):
+        return f"{self.get_category_display()} complaint ({self.get_status_display()})"
+
+
+class DiscountApproval(models.Model):
+    """Director approval record for discounts or free-test cases."""
+
+    class DiscountType(models.TextChoices):
+        PERCENTAGE = "percentage", "Percentage"
+        FIXED_AMOUNT = "fixed_amount", "Fixed Amount"
+        FREE_TEST = "free_test", "Free Test"
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        APPROVED = "approved", "Approved"
+        REJECTED = "rejected", "Rejected"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    job = models.ForeignKey(
+        JobOrder,
+        on_delete=models.CASCADE,
+        related_name="discount_approvals",
+    )
+    discount_type = models.CharField(max_length=20, choices=DiscountType.choices)
+    percentage = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        null=True,
+        blank=True,
+    )
+    amount = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+    )
+    reason = models.TextField()
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PENDING,
+    )
+    requested_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="discount_approvals_requested",
+    )
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="discount_approvals_reviewed",
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    review_note = models.TextField(blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "discount_approvals"
+        ordering = ["-created_at"]
+        verbose_name = "Discount Approval"
+        verbose_name_plural = "Discount Approvals"
+
+    def __str__(self):
+        return f"{self.get_discount_type_display()} ({self.get_status_display()})"
+
+
+class FinancialRecord(models.Model):
+    """Finance record that gates permanent sample coding for a job."""
+
+    class PaymentStatus(models.TextChoices):
+        PENDING = "pending", "Pending"
+        PARTIAL = "partial", "Partial"
+        PAID = "paid", "Paid"
+
+    invoice_no = models.CharField(
+        max_length=32,
+        primary_key=True,
+        default=generate_invoice_no,
+        help_text="Unique invoice number for this job.",
+    )
+    job = models.OneToOneField(
+        JobOrder,
+        on_delete=models.CASCADE,
+        related_name="financial_record",
+        help_text="Job order covered by this financial record.",
+    )
+    amount_expected = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00"),
+    )
+    amount_paid = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00"),
+    )
+    payment_status = models.CharField(
+        max_length=10,
+        choices=PaymentStatus.choices,
+        default=PaymentStatus.PENDING,
+    )
+    paid_at = models.DateTimeField(null=True, blank=True)
+    payment_required = models.BooleanField(
+        default=True,
+        help_text="When false, an approved waiver bypasses the payment gate.",
+    )
+    waiver_reason = models.TextField(
+        blank=True,
+        default="",
+        help_text="Reason payment was waived for this job.",
+    )
+    waiver_approved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="financial_waivers_approved",
+        help_text="User who approved the payment waiver.",
+    )
+    waiver_approved_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "financial_records"
+        ordering = ["-created_at"]
+        verbose_name = "Financial Record"
+        verbose_name_plural = "Financial Records"
+
+    def __str__(self):
+        return f"{self.invoice_no} ({self.get_payment_status_display()})"
+
+    def save(self, *args, **kwargs):
+        previous_status = None
+        previous_payment_required = None
+        previous_waiver_approved_at = None
+        if self.pk:
+            previous_values = (
+                FinancialRecord.objects.filter(pk=self.pk)
+                .values_list(
+                    "payment_status",
+                    "payment_required",
+                    "waiver_approved_at",
+                )
+                .first()
+            )
+            if previous_values:
+                (
+                    previous_status,
+                    previous_payment_required,
+                    previous_waiver_approved_at,
+                ) = previous_values
+
+        if self.payment_status == self.PaymentStatus.PAID and self.paid_at is None:
+            self.paid_at = timezone.now()
+        if self.payment_status != self.PaymentStatus.PAID:
+            self.paid_at = None
+        if not self.payment_required and self.waiver_approved_at is None:
+            self.waiver_approved_at = timezone.now()
+
+        with transaction.atomic():
+            super().save(*args, **kwargs)
+            from .services.workflow import handle_financial_record_saved
+
+            handle_financial_record_saved(
+                self,
+                previous_status,
+                previous_payment_required,
+                previous_waiver_approved_at,
+            )
 
 
 # ---------------------------------------------------------------------------
@@ -493,4 +956,4 @@ class SampleTest(models.Model):
         verbose_name_plural = "Sample Test Assignments"
 
     def __str__(self):
-        return f"{self.sample.sample_code} → {self.test.test_code}"
+        return f"{self.sample.sample_code or 'PENDING-CODE'} → {self.test.test_code}"

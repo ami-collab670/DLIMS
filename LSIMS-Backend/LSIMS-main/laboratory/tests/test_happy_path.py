@@ -5,7 +5,7 @@ from decimal import Decimal
 from django.urls import reverse
 from rest_framework import status
 
-from laboratory.models import JobOrder, Sample, SampleTest, TestCatalog
+from laboratory.models import FinancialRecord, JobOrder, Sample, SampleTest, TestCatalog
 
 from .base import BaseTestCase
 
@@ -92,7 +92,7 @@ class JobOrderHappyPathTests(BaseTestCase):
         job = JobOrder.objects.get(id=response.data["id"])
         self.assertEqual(job.client, self.client_user)
         self.assertEqual(job.submitted_by, self.receptionist_user)
-        self.assertEqual(job.current_status, "received")
+        self.assertEqual(job.current_status, JobOrder.Status.PENDING_FINANCE)
 
     def test_receptionist_can_list_all_jobs(self):
         self._create_job_order(client_user=self.client_user)
@@ -117,12 +117,12 @@ class JobOrderHappyPathTests(BaseTestCase):
         job = self._create_job_order()
         response = client.patch(
             reverse("joborder-detail", args=[job.id]),
-            {"priority": "critical"},
+            {"priority": "urgent"},
             format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         job.refresh_from_db()
-        self.assertEqual(job.priority, "critical")
+        self.assertEqual(job.priority, "urgent")
 
     def test_delete_job_order_soft_cancels(self):
         client = self.get_authenticated_client("admin_lab@ministry.gov", "AdminPass123!")
@@ -155,13 +155,65 @@ class SampleHappyPathTests(BaseTestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         sample = Sample.objects.get(id=response.data["id"])
+        self.assertIsNone(sample.sample_code)
+        self.assertIsNone(sample.blind_alias)
+        self.assertEqual(sample.received_by, self.receptionist_user)
+        self.assertEqual(sample.submitted_by, self.client_user)
+        self.assertEqual(sample.sample_status, "registered")
+
+    def test_payment_confirmation_codes_samples(self):
+        client = self.get_authenticated_client("finance_lab@ministry.gov", "FinancePass123!")
+        job = self._create_job_order()
+        sample = self._create_sample(job=job)
+
+        response = client.post(
+            reverse("financialrecord-list"),
+            {
+                "job": str(job.id),
+                "amount_expected": "500.00",
+                "amount_paid": "500.00",
+                "payment_status": FinancialRecord.PaymentStatus.PAID,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        sample.refresh_from_db()
+        job.refresh_from_db()
         self.assertTrue(sample.sample_code.startswith("SMP-"))
         self.assertIsNotNone(sample.blind_alias)
         self.assertTrue(sample.blind_alias.code.startswith("BC-"))
-        self.assertEqual(sample.received_by, self.receptionist_user)
-        self.assertEqual(sample.submitted_by, self.client_user)
-        self.assertTrue(sample.status_sync_with_job)
-        self.assertEqual(sample.sample_status, JobOrder.Status.RECEIVED)
+        self.assertEqual(job.current_status, JobOrder.Status.RECEIVED)
+
+    def test_direct_financial_record_waiver_does_not_code_samples(self):
+        client = self.get_authenticated_client("finance_lab@ministry.gov", "FinancePass123!")
+        job = self._create_job_order()
+        sample = self._create_sample(job=job)
+
+        response = client.post(
+            reverse("financialrecord-list"),
+            {
+                "job": str(job.id),
+                "amount_expected": "500.00",
+                "amount_paid": "0.00",
+                "payment_status": FinancialRecord.PaymentStatus.PENDING,
+                "payment_required": False,
+                "waiver_reason": "Director-approved demonstration waiver.",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        record = FinancialRecord.objects.get(invoice_no=response.data["invoice_no"])
+        sample.refresh_from_db()
+        job.refresh_from_db()
+        self.assertIsNone(sample.sample_code)
+        self.assertIsNone(sample.blind_alias)
+        self.assertEqual(job.current_status, JobOrder.Status.PENDING_FINANCE)
+        self.assertTrue(record.payment_required)
+        self.assertEqual(record.waiver_reason, "")
+        self.assertIsNone(record.waiver_approved_by)
+        self.assertIsNone(record.waiver_approved_at)
 
     def test_admin_can_list_all_samples(self):
         self._create_sample()
@@ -177,62 +229,12 @@ class SampleHappyPathTests(BaseTestCase):
         sample = self._create_sample()
         response = client.patch(
             reverse("sample-detail", args=[sample.id]),
-            {
-                "status_sync_with_job": False,
-                "sample_status": JobOrder.Status.SUBMITTED,
-            },
+            {"notes": "Updated intake note."},
             format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         sample.refresh_from_db()
-        self.assertFalse(sample.status_sync_with_job)
-        self.assertEqual(sample.sample_status, JobOrder.Status.SUBMITTED)
-
-    def test_job_status_update_syncs_linked_samples(self):
-        client = self.get_authenticated_client(
-            "receptionist_lab@ministry.gov", "ReceptionistPass123!"
-        )
-        job = self._create_job_order()
-        sample = self._create_sample(job=job)
-        self.assertEqual(sample.sample_status, job.current_status)
-        response = client.patch(
-            reverse("joborder-detail", args=[job.id]),
-            {"current_status": JobOrder.Status.IN_PREP},
-            format="json",
-        )
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        sample.refresh_from_db()
-        self.assertEqual(sample.sample_status, JobOrder.Status.IN_PREP)
-
-    def test_job_status_change_does_not_override_manual_sample(self):
-        client = self.get_authenticated_client(
-            "receptionist_lab@ministry.gov", "ReceptionistPass123!"
-        )
-        job = self._create_job_order()
-        sample = self._create_sample(job=job)
-        sample.status_sync_with_job = False
-        sample.sample_status = Sample.SampleStatus.IN_PREP
-        sample.save(update_fields=["status_sync_with_job", "sample_status"])
-        response = client.patch(
-            reverse("joborder-detail", args=[job.id]),
-            {"current_status": JobOrder.Status.QC},
-            format="json",
-        )
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        sample.refresh_from_db()
-        self.assertEqual(sample.sample_status, Sample.SampleStatus.IN_PREP)
-
-    def test_cannot_patch_sample_status_while_sync_enabled(self):
-        client = self.get_authenticated_client(
-            "receptionist_lab@ministry.gov", "ReceptionistPass123!"
-        )
-        sample = self._create_sample()
-        response = client.patch(
-            reverse("sample-detail", args=[sample.id]),
-            {"sample_status": JobOrder.Status.QC},
-            format="json",
-        )
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(sample.notes, "Updated intake note.")
 
 
 class SampleTestHappyPathTests(BaseTestCase):

@@ -1,0 +1,22 @@
+name: Sync to Replica Repo
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source repo
+        uses: actions/checkout@v4
+
+      - name: Push to replica repo
+        run: |
+          git config --global user.name "sync-bot"
+          git config --global user.email "sync@example.com"
+
+          git remote add replica https://x-access-token:${{secrets.syncReplicaToken}}@github.com/ami-collab670/DLIMS.git
+          git push replica main --force

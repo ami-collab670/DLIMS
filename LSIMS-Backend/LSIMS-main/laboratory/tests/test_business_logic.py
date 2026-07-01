@@ -3,7 +3,7 @@
 from django.urls import reverse
 from rest_framework import status
 
-from laboratory.models import JobOrder
+from laboratory.models import FinancialRecord, JobOrder
 
 from .base import BaseTestCase
 
@@ -43,7 +43,7 @@ class BusinessLogicTests(BaseTestCase):
         self.client_user_2.is_active = True
         self.client_user_2.save()
 
-    def test_job_order_rejects_non_received_initial_status(self):
+    def test_job_order_rejects_non_pending_finance_initial_status(self):
         client = self.get_authenticated_client(
             "receptionist_lab@ministry.gov", "ReceptionistPass123!"
         )
@@ -58,6 +58,21 @@ class BusinessLogicTests(BaseTestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("current_status", response.data)
+
+    def test_job_order_rejects_removed_critical_priority(self):
+        client = self.get_authenticated_client(
+            "receptionist_lab@ministry.gov", "ReceptionistPass123!"
+        )
+        response = client.post(
+            reverse("joborder-list"),
+            {
+                "client": str(self.client_user.id),
+                "priority": "critical",
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("priority", response.data)
 
     def test_sample_requires_matching_job_client(self):
         client = self.get_authenticated_client(
@@ -111,18 +126,43 @@ class BusinessLogicTests(BaseTestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("assigned_analyst", response.data)
 
-    def test_sample_update_rejects_non_analyst_assignment(self):
+    def test_assign_analyst_rejects_non_analyst_assignment(self):
         client = self.get_authenticated_client(
             "receptionist_lab@ministry.gov", "ReceptionistPass123!"
         )
         sample = self._create_sample()
-        response = client.patch(
-            reverse("sample-detail", args=[sample.id]),
+        response = client.post(
+            reverse("sample-assign-analyst", args=[sample.id]),
             {"assigned_analyst": str(self.qc_user.id)},
             format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("assigned_analyst", response.data)
+
+    def test_direct_financial_record_waiver_payload_is_ignored(self):
+        client = self.get_authenticated_client("finance_lab@ministry.gov", "FinancePass123!")
+        job = self._create_job_order()
+
+        response = client.post(
+            reverse("financialrecord-list"),
+            {
+                "job": str(job.id),
+                "amount_expected": "500.00",
+                "amount_paid": "0.00",
+                "payment_status": FinancialRecord.PaymentStatus.PENDING,
+                "payment_required": False,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        record = FinancialRecord.objects.get(invoice_no=response.data["invoice_no"])
+        self.assertTrue(record.payment_required)
+        self.assertEqual(record.waiver_reason, "")
+        self.assertIsNone(record.waiver_approved_by)
+        self.assertIsNone(record.waiver_approved_at)
+        job.refresh_from_db()
+        self.assertEqual(job.current_status, JobOrder.Status.PENDING_FINANCE)
 
     def test_duplicate_sample_test_assignment_rejected(self):
         client = self.get_authenticated_client("admin_lab@ministry.gov", "AdminPass123!")

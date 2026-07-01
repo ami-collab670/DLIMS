@@ -9,28 +9,79 @@ Implements role-based access control:
 - SampleTest: Receptionist/Admin assigns tests to samples.
 """
 
-from django.db.models import Count
+from datetime import timedelta
 
-from django_filters.rest_framework import DjangoFilterBackend
+from django.utils import timezone
 from rest_framework import viewsets, status
-from rest_framework.filters import OrderingFilter, SearchFilter
+from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from drf_spectacular.utils import extend_schema, extend_schema_view
 
-from accounts.permissions import IsAdminOrReadOnly, IsAdminOrReceptionist, IsReceptionist
-from .models import TestCatalog, JobOrder, Sample, SampleTest
+from accounts.permissions import IsAdminOrReceptionist, IsReceptionist
+from .models import (
+    AnalysisResult,
+    CalibrationRecord,
+    ComplaintRecord,
+    DiscountApproval,
+    FinancialRecord,
+    TestCatalog,
+    JobOrder,
+    PreparationRecord,
+    QCDecision,
+    Sample,
+    SampleTest,
+)
+from .policies import (
+    analysis_results_visible_to,
+    calibration_records_visible_to,
+    complaint_records_visible_to,
+    discount_approvals_visible_to,
+    financial_records_visible_to,
+    jobs_visible_to,
+    preparation_records_visible_to,
+    qc_decisions_visible_to,
+    samples_visible_to,
+    sample_tests_visible_to,
+    tests_visible_to,
+)
 from .serializers import (
+    ApprovalReviewSerializer,
+    FinancialRecordSerializer,
+    ComplaintRecordSerializer,
+    ComplaintResolveSerializer,
+    DiscountApprovalSerializer,
     TestCatalogSerializer,
     JobOrderSerializer,
     JobOrderCreateSerializer,
-    JobOrderClientSelfCreateSerializer,
     SampleSerializer,
     SampleCreateSerializer,
     SampleUpdateSerializer,
+    SampleAssignAnalystSerializer,
     SampleAnalystSerializer,
+    AnalysisResultSerializer,
+    CalibrationRecordSerializer,
+    PreparationCompleteSerializer,
+    PreparationRecordSerializer,
+    PriorityAlertSerializer,
+    QCDecisionSerializer,
+    QCReviewSerializer,
+    ResultSummarySerializer,
     SampleTestSerializer,
     SampleTestCreateSerializer,
+)
+from .services.workflow import (
+    WorkflowTransitionError,
+    approve_analysis_result,
+    approve_discount_approval,
+    complete_preparation,
+    reject_complaint,
+    reject_analysis_result,
+    reject_discount_approval,
+    resolve_complaint,
+    start_preparation,
+    submit_analysis_result,
 )
 
 
@@ -48,14 +99,108 @@ from .serializers import (
 class TestCatalogViewSet(viewsets.ModelViewSet):
     """
     CRUD operations for the Test Catalog.
-    Admin has full access. All authenticated users can read (list/retrieve).
+    Admin has full access. Department Managers can manage their own department.
+    All authenticated users can read according to visibility rules.
     """
 
-    queryset = TestCatalog.objects.all()
     serializer_class = TestCatalogSerializer
-    permission_classes = [IsAuthenticated, IsAdminOrReadOnly]
-    filterset_fields = ["is_active"]
-    search_fields = ["test_name", "test_code"]
+    permission_classes = [IsAuthenticated]
+    filterset_fields = ["is_active", "department"]
+    search_fields = ["test_name", "test_code", "department__name"]
+
+    def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return TestCatalog.objects.none()
+
+        base_qs = TestCatalog.objects.select_related("department")
+        return tests_visible_to(self.request.user, base_qs)
+
+    def check_permissions(self, request):
+        super().check_permissions(request)
+        if request.method in ("GET", "HEAD", "OPTIONS"):
+            return
+
+        role_name = getattr(request.user, "role_name", None)
+        if request.user.is_superuser or role_name == "admin":
+            return
+        if role_name == "qc_manager" and request.user.department_id is not None:
+            return
+
+        self.permission_denied(
+            request,
+            message="Only Admin or Department Manager can manage test catalog entries.",
+        )
+
+    def perform_create(self, serializer):
+        user = self.request.user
+        if getattr(user, "role_name", None) == "qc_manager" and not user.is_superuser:
+            department = serializer.validated_data.get("department")
+            if department and department.id != user.department_id:
+                raise ValidationError(
+                    {"department": "Department Managers can only manage their department."}
+                )
+            serializer.save(department=user.department)
+            return
+        serializer.save()
+
+    def perform_update(self, serializer):
+        user = self.request.user
+        if getattr(user, "role_name", None) == "qc_manager" and not user.is_superuser:
+            department = serializer.validated_data.get(
+                "department",
+                serializer.instance.department,
+            )
+            if department and department.id != user.department_id:
+                raise ValidationError(
+                    {"department": "Department Managers can only manage their department."}
+                )
+            serializer.save(department=user.department)
+            return
+        serializer.save()
+
+
+# ---------------------------------------------------------------------------
+# FinancialRecord ViewSet — Finance/Admin manage payment gate
+# ---------------------------------------------------------------------------
+@extend_schema_view(
+    list=extend_schema(summary="List financial records", tags=["Financial Records"]),
+    retrieve=extend_schema(summary="Get financial record details", tags=["Financial Records"]),
+    create=extend_schema(summary="Create a financial record", tags=["Financial Records"]),
+    update=extend_schema(summary="Update a financial record", tags=["Financial Records"]),
+    partial_update=extend_schema(summary="Partially update a financial record", tags=["Financial Records"]),
+    destroy=extend_schema(summary="Delete a financial record", tags=["Financial Records"]),
+)
+class FinancialRecordViewSet(viewsets.ModelViewSet):
+    """
+    Payment records for job orders.
+
+    Finance/Admin can create and update payment records. Clients can read only
+    their own records. Payment changing to paid triggers permanent sample coding.
+    """
+
+    serializer_class = FinancialRecordSerializer
+    permission_classes = [IsAuthenticated]
+    lookup_field = "invoice_no"
+    filterset_fields = ["payment_status", "job"]
+    search_fields = ["invoice_no", "job__description", "job__client__email"]
+    http_method_names = ["get", "post", "put", "patch", "head", "options"]
+
+    def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return FinancialRecord.objects.none()
+
+        base_qs = FinancialRecord.objects.select_related("job", "job__client")
+        return financial_records_visible_to(self.request.user, base_qs)
+
+    def check_permissions(self, request):
+        super().check_permissions(request)
+        if request.method not in ("GET", "HEAD", "OPTIONS"):
+            role_name = getattr(request.user, "role_name", None)
+            if not request.user.is_superuser and role_name not in {"admin", "finance"}:
+                self.permission_denied(
+                    request,
+                    message="Only Admin or Finance can manage financial records.",
+                )
 
 
 # ---------------------------------------------------------------------------
@@ -75,28 +220,16 @@ class JobOrderViewSet(viewsets.ModelViewSet):
 
     Access rules:
     - Admin: read/update/delete on all jobs.
-    - Receptionist: create + read/update all jobs (full intake payload).
-    - Client (external): create job **requests** for themselves; read-only on existing jobs.
+    - Receptionist: create + read/update all jobs.
+    - Client (external): read-only, only their own jobs.
     - Other roles: read-only, all jobs (for downstream workflow visibility).
 
     DELETE is implemented as a soft cancel that keeps the database row.
     """
 
     permission_classes = [IsAuthenticated]
-    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ["current_status", "priority", "is_cancelled"]
     search_fields = ["description"]
-    ordering_fields = [
-        "created_at",
-        "updated_at",
-        "current_status",
-        "priority",
-        "description",
-        "id",
-        "sample_count",
-        "client__email",
-    ]
-    ordering = ["-created_at"]
 
     def get_queryset(self):
         """
@@ -108,61 +241,29 @@ class JobOrderViewSet(viewsets.ModelViewSet):
         if getattr(self, "swagger_fake_view", False):
             return JobOrder.objects.none()
 
-        user = self.request.user
-        # Annotate counts instead of prefetching samples — avoids loading every Sample row
-        # (large payloads, and prefetch uses SELECT * which breaks if migrations are pending).
         base_qs = JobOrder.objects.select_related(
             "client", "submitted_by", "blocked_by_role"
-        ).annotate(sample_count=Count("samples", distinct=True))
-
-        # Superusers should always see the full queryset, even if their
-        # LSIMS profile fields were misconfigured.
-        if user.is_superuser:
-            return base_qs
-
-        # External clients: only their own jobs
-        if user.user_type == "external":
-            return base_qs.filter(client=user)
-
-        # All internal roles see all jobs
-        return base_qs
+        ).prefetch_related("samples", "samples__sample_tests__test")
+        return jobs_visible_to(self.request.user, base_qs)
 
     def get_serializer_class(self):
         if self.action == "create":
-            user = self.request.user
-            if getattr(user, "user_type", None) == "external":
-                return JobOrderClientSelfCreateSerializer
             return JobOrderCreateSerializer
         return JobOrderSerializer
-
-    def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer)
-        # Re-fetch with list queryset (annotations, select_related) so the response
-        # matches detail/list payloads and avoids subtle ORM edge cases.
-        instance = self.get_queryset().get(pk=serializer.instance.pk)
-        output = JobOrderSerializer(instance, context=self.get_serializer_context())
-        headers = self.get_success_headers(output.data)
-        return Response(output.data, status=status.HTTP_201_CREATED, headers=headers)
 
     def check_permissions(self, request):
         """
         Enforce job-order write permissions:
-        - Receptionist (or Admin via role): create with full intake serializer.
-        - External clients: create self-requests only (handled via serializer branch).
+        - Only Receptionists can create new job orders.
         - Admin/Receptionist can update or delete existing job orders.
-        - Everyone else gets read-only on non-create writes.
+        - Everyone else gets read-only.
         """
         super().check_permissions(request)
         if self.action == "create":
-            user = request.user
-            if getattr(user, "user_type", None) == "external":
-                return
             if not IsReceptionist().has_permission(request, self):
                 self.permission_denied(
                     request,
-                    message="Only Receptionists can create job orders on behalf of clients.",
+                    message="Only Receptionists can create job orders.",
                 )
         elif request.method not in ("GET", "HEAD", "OPTIONS"):
             if not IsAdminOrReceptionist().has_permission(request, self):
@@ -175,6 +276,51 @@ class JobOrderViewSet(viewsets.ModelViewSet):
         """Soft-cancel a job order instead of hard-deleting its database row."""
         instance.is_cancelled = True
         instance.save(update_fields=["is_cancelled"])
+
+    @extend_schema(
+        summary="Get compiled result summary for a job",
+        tags=["Job Orders"],
+        responses={200: ResultSummarySerializer},
+    )
+    @action(detail=True, methods=["get"], url_path="result-summary")
+    def result_summary(self, request, pk=None):
+        role_name = getattr(request.user, "role_name", None)
+        if getattr(request.user, "user_type", None) == "external":
+            self.permission_denied(
+                request,
+                message="Client-facing result release is not available in this workflow step.",
+            )
+
+        job = self.get_object()
+        results_qs = analysis_results_visible_to(
+            request.user,
+            AnalysisResult.objects.filter(sample_test__sample__job=job).select_related(
+                "sample_test",
+                "sample_test__sample",
+                "sample_test__test",
+                "analyst",
+            ),
+        )
+        if role_name not in {"analyst"} and not request.user.is_superuser:
+            total_tests = SampleTest.objects.filter(sample__job=job).count()
+        else:
+            total_tests = results_qs.count()
+
+        counts = {
+            "draft": results_qs.filter(state=AnalysisResult.State.DRAFT).count(),
+            "submitted": results_qs.filter(state=AnalysisResult.State.SUBMITTED).count(),
+            "rejected": results_qs.filter(state=AnalysisResult.State.REJECTED).count(),
+            "approved": results_qs.filter(state=AnalysisResult.State.APPROVED).count(),
+        }
+        payload = {
+            "job": job.id,
+            "job_status": job.current_status,
+            "total_tests": total_tests,
+            **counts,
+            "results": results_qs,
+        }
+        serializer = ResultSummarySerializer(payload, context={"request": request})
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 # ---------------------------------------------------------------------------
@@ -216,28 +362,15 @@ class SampleViewSet(viewsets.ModelViewSet):
         if getattr(self, "swagger_fake_view", False):
             return Sample.objects.none()
 
-        user = self.request.user
         base_qs = Sample.objects.select_related(
-            "job", "blind_alias", "received_by", "submitted_by", "assigned_analyst"
+            "job",
+            "job__client",
+            "blind_alias",
+            "received_by",
+            "submitted_by",
+            "assigned_analyst",
         ).prefetch_related("sample_tests__test")
-
-        # Superusers should always see the full queryset, even if their
-        # LSIMS profile fields were misconfigured.
-        if user.is_superuser:
-            return base_qs
-
-        role_name = getattr(user, "role_name", None)
-
-        # Analyst: only samples assigned to them
-        if role_name == "analyst":
-            return base_qs.filter(assigned_analyst=user)
-
-        # External client: only samples from their own jobs
-        if user.user_type == "external":
-            return base_qs.filter(job__client=user)
-
-        # Admin, Receptionist, QC, Finance, etc.: all samples
-        return base_qs
+        return samples_visible_to(self.request.user, base_qs)
 
     def get_serializer_class(self):
         """
@@ -249,6 +382,8 @@ class SampleViewSet(viewsets.ModelViewSet):
         """
         if self.action == "create":
             return SampleCreateSerializer
+        if self.action == "assign_analyst":
+            return SampleAssignAnalystSerializer
         if self.action in ("update", "partial_update"):
             return SampleUpdateSerializer
 
@@ -273,6 +408,20 @@ class SampleViewSet(viewsets.ModelViewSet):
                     request,
                     message="Only Receptionists can register samples.",
                 )
+        elif self.action == "assign_analyst":
+            role_name = getattr(request.user, "role_name", None)
+            if not request.user.is_superuser and role_name not in {
+                "admin",
+                "receptionist",
+                "qc_manager",
+            }:
+                self.permission_denied(
+                    request,
+                    message=(
+                        "Only Admin, Receptionist, or Department Manager can "
+                        "assign analysts."
+                    ),
+                )
         elif request.method not in ("GET", "HEAD", "OPTIONS"):
             if not IsAdminOrReceptionist().has_permission(request, self):
                 self.permission_denied(
@@ -281,6 +430,689 @@ class SampleViewSet(viewsets.ModelViewSet):
                         "Only Admin or Receptionist can modify or hard-delete samples."
                     ),
                 )
+
+    @extend_schema(
+        summary="Assign an analyst to a sample",
+        tags=["Samples"],
+        request=SampleAssignAnalystSerializer,
+        responses={200: SampleSerializer},
+    )
+    @action(detail=True, methods=["post"], url_path="assign-analyst")
+    def assign_analyst(self, request, pk=None):
+        sample = self.get_object()
+        serializer = self.get_serializer(
+            sample,
+            data=request.data,
+            context={"request": request},
+        )
+        serializer.is_valid(raise_exception=True)
+        sample = serializer.save()
+        return Response(
+            SampleSerializer(sample, context={"request": request}).data,
+            status=status.HTTP_200_OK,
+        )
+
+
+# ---------------------------------------------------------------------------
+# PreparationRecord ViewSet — Lab preparation workflow
+# ---------------------------------------------------------------------------
+@extend_schema_view(
+    list=extend_schema(summary="List preparation records", tags=["Preparation"]),
+    retrieve=extend_schema(summary="Get preparation record details", tags=["Preparation"]),
+    create=extend_schema(summary="Create a preparation record", tags=["Preparation"]),
+    update=extend_schema(summary="Update a preparation record", tags=["Preparation"]),
+    partial_update=extend_schema(
+        summary="Partially update a preparation record",
+        tags=["Preparation"],
+    ),
+    destroy=extend_schema(summary="Delete a preparation record", tags=["Preparation"]),
+)
+class PreparationRecordViewSet(viewsets.ModelViewSet):
+    """
+    Preparation workflow for paid and coded samples.
+
+    Admin/Receptionist/Department Manager can create preparation records.
+    Lab Technicians and Department Managers can start/complete department-valid
+    preparation work.
+    """
+
+    serializer_class = PreparationRecordSerializer
+    permission_classes = [IsAuthenticated]
+    filterset_fields = ["status", "sample", "technician"]
+    search_fields = ["reference_code", "sample__sample_code", "sample__sample_name"]
+    http_method_names = ["get", "post", "head", "options"]
+
+    def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return PreparationRecord.objects.none()
+
+        base_qs = PreparationRecord.objects.select_related(
+            "sample",
+            "sample__job",
+            "technician",
+            "created_by",
+        ).prefetch_related("sample__sample_tests__test")
+        return preparation_records_visible_to(self.request.user, base_qs)
+
+    def check_permissions(self, request):
+        super().check_permissions(request)
+        role_name = getattr(request.user, "role_name", None)
+
+        if request.method in ("GET", "HEAD", "OPTIONS"):
+            return
+
+        if self.action == "create":
+            if request.user.is_superuser or role_name in {
+                "admin",
+                "receptionist",
+                "qc_manager",
+            }:
+                return
+            self.permission_denied(
+                request,
+                message=(
+                    "Only Admin, Receptionist, or Department Manager can create "
+                    "preparation records."
+                ),
+            )
+
+        if self.action in {"start", "complete"}:
+            if request.user.is_superuser or role_name in {
+                "admin",
+                "lab_technician",
+                "qc_manager",
+            }:
+                return
+            self.permission_denied(
+                request,
+                message=(
+                    "Only Admin, Lab Technician, or Department Manager can update "
+                    "preparation workflow state."
+                ),
+            )
+
+        if request.method not in ("GET", "HEAD", "OPTIONS"):
+            if not request.user.is_superuser and role_name not in {"admin", "qc_manager"}:
+                self.permission_denied(
+                    request,
+                    message="Only Admin or Department Manager can modify preparation records.",
+                )
+
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)
+
+    @extend_schema(
+        summary="Start preparation",
+        tags=["Preparation"],
+        request=None,
+        responses={200: PreparationRecordSerializer},
+    )
+    @action(detail=True, methods=["post"])
+    def start(self, request, pk=None):
+        preparation_record = self.get_object()
+        try:
+            preparation_record = start_preparation(preparation_record, request.user)
+        except WorkflowTransitionError as exc:
+            raise ValidationError({"status": str(exc)}) from exc
+        return Response(
+            self.get_serializer(preparation_record).data,
+            status=status.HTTP_200_OK,
+        )
+
+    @extend_schema(
+        summary="Complete preparation",
+        tags=["Preparation"],
+        request=PreparationCompleteSerializer,
+        responses={200: PreparationRecordSerializer},
+    )
+    @action(detail=True, methods=["post"])
+    def complete(self, request, pk=None):
+        preparation_record = self.get_object()
+        serializer = PreparationCompleteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            preparation_record = complete_preparation(
+                preparation_record,
+                user=request.user,
+                preparation_data=serializer.validated_data.get("preparation_data"),
+                notes=serializer.validated_data.get("notes"),
+            )
+        except WorkflowTransitionError as exc:
+            raise ValidationError({"status": str(exc)}) from exc
+        return Response(
+            self.get_serializer(preparation_record).data,
+            status=status.HTTP_200_OK,
+        )
+
+
+# ---------------------------------------------------------------------------
+# AnalysisResult ViewSet — Analyst result entry and QC actions
+# ---------------------------------------------------------------------------
+@extend_schema_view(
+    list=extend_schema(summary="List analysis results", tags=["Analysis Results"]),
+    retrieve=extend_schema(summary="Get analysis result details", tags=["Analysis Results"]),
+    create=extend_schema(summary="Create a draft analysis result", tags=["Analysis Results"]),
+    update=extend_schema(summary="Update an analysis result", tags=["Analysis Results"]),
+    partial_update=extend_schema(
+        summary="Partially update an analysis result",
+        tags=["Analysis Results"],
+    ),
+    destroy=extend_schema(summary="Delete an analysis result", tags=["Analysis Results"]),
+)
+class AnalysisResultViewSet(viewsets.ModelViewSet):
+    """Analyst result entry with submit/approve/reject workflow actions."""
+
+    serializer_class = AnalysisResultSerializer
+    permission_classes = [IsAuthenticated]
+    filterset_fields = ["state", "sample_test", "analyst"]
+    http_method_names = ["get", "post", "patch", "head", "options"]
+    search_fields = [
+        "sample_test__sample__sample_code",
+        "sample_test__test__test_code",
+        "value",
+        "method",
+    ]
+
+    def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return AnalysisResult.objects.none()
+
+        base_qs = AnalysisResult.objects.select_related(
+            "sample_test",
+            "sample_test__sample",
+            "sample_test__sample__job",
+            "sample_test__test",
+            "analyst",
+        ).prefetch_related("calibration_records", "qc_decisions")
+        return analysis_results_visible_to(self.request.user, base_qs)
+
+    def check_permissions(self, request):
+        super().check_permissions(request)
+        role_name = getattr(request.user, "role_name", None)
+
+        if request.method in ("GET", "HEAD", "OPTIONS"):
+            return
+
+        if self.action in {"create", "update", "partial_update", "submit"}:
+            if request.user.is_superuser or role_name in {"admin", "analyst"}:
+                return
+            self.permission_denied(
+                request,
+                message="Only Admin or assigned Analysts can manage analysis results.",
+            )
+
+        if self.action in {"approve", "reject"}:
+            if request.user.is_superuser or role_name in {"admin", "qc_manager"}:
+                return
+            self.permission_denied(
+                request,
+                message="Only Admin or Department Manager can review results.",
+            )
+
+        if self.action == "destroy":
+            if request.user.is_superuser or role_name == "admin":
+                return
+            self.permission_denied(
+                request,
+                message="Only Admin can delete analysis results.",
+            )
+
+    @extend_schema(
+        summary="Submit analysis result for QC",
+        tags=["Analysis Results"],
+        request=None,
+        responses={200: AnalysisResultSerializer},
+    )
+    @action(detail=True, methods=["post"])
+    def submit(self, request, pk=None):
+        analysis_result = self.get_object()
+        try:
+            analysis_result = submit_analysis_result(analysis_result, request.user)
+        except WorkflowTransitionError as exc:
+            raise ValidationError({"state": str(exc)}) from exc
+        return Response(
+            self.get_serializer(analysis_result).data,
+            status=status.HTTP_200_OK,
+        )
+
+    @extend_schema(
+        summary="Approve analysis result",
+        tags=["Analysis Results"],
+        request=QCReviewSerializer,
+        responses={200: AnalysisResultSerializer},
+    )
+    @action(detail=True, methods=["post"])
+    def approve(self, request, pk=None):
+        analysis_result = self.get_object()
+        serializer = QCReviewSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            analysis_result = approve_analysis_result(
+                analysis_result,
+                request.user,
+                reason=serializer.validated_data.get("reason", ""),
+            )
+        except WorkflowTransitionError as exc:
+            raise ValidationError({"state": str(exc)}) from exc
+        return Response(
+            self.get_serializer(analysis_result).data,
+            status=status.HTTP_200_OK,
+        )
+
+    @extend_schema(
+        summary="Reject analysis result",
+        tags=["Analysis Results"],
+        request=QCReviewSerializer,
+        responses={200: AnalysisResultSerializer},
+    )
+    @action(detail=True, methods=["post"])
+    def reject(self, request, pk=None):
+        analysis_result = self.get_object()
+        serializer = QCReviewSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            analysis_result = reject_analysis_result(
+                analysis_result,
+                request.user,
+                reason=serializer.validated_data.get("reason", ""),
+            )
+        except WorkflowTransitionError as exc:
+            raise ValidationError({"state": str(exc)}) from exc
+        return Response(
+            self.get_serializer(analysis_result).data,
+            status=status.HTTP_200_OK,
+        )
+
+
+# ---------------------------------------------------------------------------
+# CalibrationRecord ViewSet — Calibration data for analysis results
+# ---------------------------------------------------------------------------
+@extend_schema_view(
+    list=extend_schema(summary="List calibration records", tags=["Calibration"]),
+    retrieve=extend_schema(summary="Get calibration record details", tags=["Calibration"]),
+    create=extend_schema(summary="Create calibration record", tags=["Calibration"]),
+    update=extend_schema(summary="Update calibration record", tags=["Calibration"]),
+    partial_update=extend_schema(
+        summary="Partially update calibration record",
+        tags=["Calibration"],
+    ),
+    destroy=extend_schema(summary="Delete calibration record", tags=["Calibration"]),
+)
+class CalibrationRecordViewSet(viewsets.ModelViewSet):
+    """Calibration metadata recorded by assigned analysts."""
+
+    serializer_class = CalibrationRecordSerializer
+    permission_classes = [IsAuthenticated]
+    filterset_fields = ["analysis_result", "recorded_by", "calibration_date"]
+    search_fields = ["instrument_name", "calibration_reference", "notes"]
+    http_method_names = ["get", "post", "patch", "head", "options"]
+
+    def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return CalibrationRecord.objects.none()
+
+        base_qs = CalibrationRecord.objects.select_related(
+            "analysis_result",
+            "analysis_result__sample_test",
+            "analysis_result__sample_test__sample",
+            "analysis_result__sample_test__test",
+            "recorded_by",
+        )
+        return calibration_records_visible_to(self.request.user, base_qs)
+
+    def check_permissions(self, request):
+        super().check_permissions(request)
+        role_name = getattr(request.user, "role_name", None)
+        if request.method in ("GET", "HEAD", "OPTIONS"):
+            return
+        if request.user.is_superuser or role_name in {"admin", "analyst"}:
+            return
+        self.permission_denied(
+            request,
+            message="Only Admin or assigned Analysts can manage calibration records.",
+        )
+
+
+# ---------------------------------------------------------------------------
+# QCDecision ViewSet — Read-only QC decision history
+# ---------------------------------------------------------------------------
+@extend_schema_view(
+    list=extend_schema(summary="List QC decisions", tags=["QC Decisions"]),
+    retrieve=extend_schema(summary="Get QC decision details", tags=["QC Decisions"]),
+)
+class QCDecisionViewSet(viewsets.ReadOnlyModelViewSet):
+    """Read-only QC decision history."""
+
+    serializer_class = QCDecisionSerializer
+    permission_classes = [IsAuthenticated]
+    filterset_fields = ["decision", "analysis_result", "decided_by"]
+    search_fields = ["reason", "decided_by__email"]
+
+    def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return QCDecision.objects.none()
+
+        base_qs = QCDecision.objects.select_related(
+            "analysis_result",
+            "analysis_result__sample_test",
+            "analysis_result__sample_test__sample",
+            "analysis_result__sample_test__test",
+            "decided_by",
+        )
+        return qc_decisions_visible_to(self.request.user, base_qs)
+
+
+# ---------------------------------------------------------------------------
+# ComplaintRecord ViewSet — Complaint/dispute handling
+# ---------------------------------------------------------------------------
+@extend_schema_view(
+    list=extend_schema(summary="List complaints", tags=["Complaints"]),
+    retrieve=extend_schema(summary="Get complaint details", tags=["Complaints"]),
+    create=extend_schema(summary="Create complaint", tags=["Complaints"]),
+    update=extend_schema(summary="Update complaint", tags=["Complaints"]),
+    partial_update=extend_schema(summary="Partially update complaint", tags=["Complaints"]),
+    destroy=extend_schema(summary="Delete complaint", tags=["Complaints"]),
+)
+class ComplaintRecordViewSet(viewsets.ModelViewSet):
+    """Client/internal complaint and dispute handling."""
+
+    serializer_class = ComplaintRecordSerializer
+    permission_classes = [IsAuthenticated]
+    filterset_fields = ["status", "category", "client", "job", "sample"]
+    search_fields = ["description", "resolution", "client__email"]
+    http_method_names = ["get", "post", "head", "options"]
+
+    def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return ComplaintRecord.objects.none()
+
+        base_qs = ComplaintRecord.objects.select_related(
+            "client",
+            "job",
+            "sample",
+            "created_by",
+            "resolved_by",
+        )
+        return complaint_records_visible_to(self.request.user, base_qs)
+
+    def check_permissions(self, request):
+        super().check_permissions(request)
+        role_name = getattr(request.user, "role_name", None)
+        user_type = getattr(request.user, "user_type", None)
+
+        if request.method in ("GET", "HEAD", "OPTIONS"):
+            return
+
+        if self.action == "create":
+            if request.user.is_superuser or user_type == "external" or role_name in {
+                "admin",
+                "receptionist",
+            }:
+                return
+            self.permission_denied(
+                request,
+                message="Only clients, Admin, or Receptionist can create complaints.",
+            )
+
+        if self.action in {"resolve", "reject"}:
+            if request.user.is_superuser or role_name in {
+                "admin",
+                "receptionist",
+                "lab_director",
+            }:
+                return
+            self.permission_denied(
+                request,
+                message="Only Admin, Receptionist, or Lab Director can close complaints.",
+            )
+
+        if request.method not in ("GET", "HEAD", "OPTIONS"):
+            if request.user.is_superuser or role_name in {
+                "admin",
+                "receptionist",
+                "lab_director",
+            }:
+                return
+            self.permission_denied(
+                request,
+                message="Only Admin, Receptionist, or Lab Director can modify complaints.",
+            )
+
+    @extend_schema(
+        summary="Resolve complaint",
+        tags=["Complaints"],
+        request=ComplaintResolveSerializer,
+        responses={200: ComplaintRecordSerializer},
+    )
+    @action(detail=True, methods=["post"])
+    def resolve(self, request, pk=None):
+        complaint = self.get_object()
+        serializer = ComplaintResolveSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            complaint = resolve_complaint(
+                complaint,
+                request.user,
+                resolution=serializer.validated_data["resolution"],
+            )
+        except WorkflowTransitionError as exc:
+            raise ValidationError({"status": str(exc)}) from exc
+        return Response(
+            self.get_serializer(complaint).data,
+            status=status.HTTP_200_OK,
+        )
+
+    @extend_schema(
+        summary="Reject complaint",
+        tags=["Complaints"],
+        request=ComplaintResolveSerializer,
+        responses={200: ComplaintRecordSerializer},
+    )
+    @action(detail=True, methods=["post"])
+    def reject(self, request, pk=None):
+        complaint = self.get_object()
+        serializer = ComplaintResolveSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            complaint = reject_complaint(
+                complaint,
+                request.user,
+                resolution=serializer.validated_data["resolution"],
+            )
+        except WorkflowTransitionError as exc:
+            raise ValidationError({"status": str(exc)}) from exc
+        return Response(
+            self.get_serializer(complaint).data,
+            status=status.HTTP_200_OK,
+        )
+
+
+# ---------------------------------------------------------------------------
+# DiscountApproval ViewSet — Director discount/free-test approvals
+# ---------------------------------------------------------------------------
+@extend_schema_view(
+    list=extend_schema(summary="List discount approvals", tags=["Discount Approvals"]),
+    retrieve=extend_schema(
+        summary="Get discount approval details",
+        tags=["Discount Approvals"],
+    ),
+    create=extend_schema(summary="Create discount approval", tags=["Discount Approvals"]),
+    update=extend_schema(summary="Update discount approval", tags=["Discount Approvals"]),
+    partial_update=extend_schema(
+        summary="Partially update discount approval",
+        tags=["Discount Approvals"],
+    ),
+    destroy=extend_schema(summary="Delete discount approval", tags=["Discount Approvals"]),
+)
+class DiscountApprovalViewSet(viewsets.ModelViewSet):
+    """Director approval workflow for discounts and free-test waivers."""
+
+    serializer_class = DiscountApprovalSerializer
+    permission_classes = [IsAuthenticated]
+    filterset_fields = ["status", "discount_type", "job", "requested_by", "reviewed_by"]
+    search_fields = ["reason", "review_note", "job__description", "job__client__email"]
+    http_method_names = ["get", "post", "head", "options"]
+
+    def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return DiscountApproval.objects.none()
+
+        base_qs = DiscountApproval.objects.select_related(
+            "job",
+            "job__client",
+            "requested_by",
+            "reviewed_by",
+        )
+        return discount_approvals_visible_to(self.request.user, base_qs)
+
+    def check_permissions(self, request):
+        super().check_permissions(request)
+        role_name = getattr(request.user, "role_name", None)
+
+        if request.method in ("GET", "HEAD", "OPTIONS"):
+            return
+
+        if self.action == "create":
+            if request.user.is_superuser or role_name in {
+                "admin",
+                "finance",
+                "receptionist",
+            }:
+                return
+            self.permission_denied(
+                request,
+                message=(
+                    "Only Admin, Finance, or Receptionist can request discount "
+                    "approval."
+                ),
+            )
+
+        if self.action in {"approve", "reject"}:
+            if request.user.is_superuser or role_name in {"admin", "lab_director"}:
+                return
+            self.permission_denied(
+                request,
+                message="Only Admin or Lab Director can review discount approvals.",
+            )
+
+        if request.method not in ("GET", "HEAD", "OPTIONS"):
+            if request.user.is_superuser or role_name in {"admin", "finance"}:
+                return
+            self.permission_denied(
+                request,
+                message="Only Admin or Finance can modify discount approvals.",
+            )
+
+    @extend_schema(
+        summary="Approve discount/free-test request",
+        tags=["Discount Approvals"],
+        request=ApprovalReviewSerializer,
+        responses={200: DiscountApprovalSerializer},
+    )
+    @action(detail=True, methods=["post"])
+    def approve(self, request, pk=None):
+        discount_approval = self.get_object()
+        serializer = ApprovalReviewSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            discount_approval = approve_discount_approval(
+                discount_approval,
+                request.user,
+                review_note=serializer.validated_data.get("review_note", ""),
+            )
+        except WorkflowTransitionError as exc:
+            raise ValidationError({"status": str(exc)}) from exc
+        return Response(
+            self.get_serializer(discount_approval).data,
+            status=status.HTTP_200_OK,
+        )
+
+    @extend_schema(
+        summary="Reject discount/free-test request",
+        tags=["Discount Approvals"],
+        request=ApprovalReviewSerializer,
+        responses={200: DiscountApprovalSerializer},
+    )
+    @action(detail=True, methods=["post"])
+    def reject(self, request, pk=None):
+        discount_approval = self.get_object()
+        serializer = ApprovalReviewSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            discount_approval = reject_discount_approval(
+                discount_approval,
+                request.user,
+                review_note=serializer.validated_data.get("review_note", ""),
+            )
+        except WorkflowTransitionError as exc:
+            raise ValidationError({"status": str(exc)}) from exc
+        return Response(
+            self.get_serializer(discount_approval).data,
+            status=status.HTTP_200_OK,
+        )
+
+
+# ---------------------------------------------------------------------------
+# PriorityAlert ViewSet — computed workload monitoring
+# ---------------------------------------------------------------------------
+class PriorityAlertViewSet(viewsets.ViewSet):
+    """Computed priority/workload alerts."""
+
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        summary="List priority/workload alerts",
+        tags=["Priority Alerts"],
+        responses={200: PriorityAlertSerializer(many=True)},
+    )
+    def list(self, request):
+        role_name = getattr(request.user, "role_name", None)
+        if not request.user.is_superuser and role_name not in {
+            "admin",
+            "receptionist",
+            "qc_manager",
+            "lab_director",
+            "auditor",
+        }:
+            self.permission_denied(
+                request,
+                message="This role cannot view priority/workload alerts.",
+            )
+
+        active_statuses = [
+            JobOrder.Status.PENDING_FINANCE,
+            JobOrder.Status.RECEIVED,
+            JobOrder.Status.IN_PREP,
+            JobOrder.Status.IN_ANALYSIS,
+            JobOrder.Status.QC,
+            JobOrder.Status.FINANCE_HOLD,
+        ]
+        threshold = timezone.now() - timedelta(days=7)
+        jobs = (
+            JobOrder.objects.filter(
+                priority=JobOrder.Priority.NORMAL,
+                current_status__in=active_statuses,
+                created_at__lte=threshold,
+            )
+            .prefetch_related("samples")
+            .order_by("created_at")
+        )
+        payload = []
+        now = timezone.now()
+        for job in jobs:
+            age_days = max((now - job.created_at).days, 0)
+            payload.append(
+                {
+                    "job": job.id,
+                    "priority": job.priority,
+                    "current_status": job.current_status,
+                    "age_days": age_days,
+                    "sample_count": job.samples.count(),
+                    "reason": "Normal-priority job has remained active for over 7 days.",
+                }
+            )
+        serializer = PriorityAlertSerializer(payload, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 # ---------------------------------------------------------------------------
@@ -305,7 +1137,18 @@ class SampleTestViewSet(viewsets.ModelViewSet):
     http_method_names = ["get", "post", "delete", "head", "options"]
 
     def get_queryset(self):
-        return SampleTest.objects.select_related("sample", "test").all()
+        if getattr(self, "swagger_fake_view", False):
+            return SampleTest.objects.none()
+
+        base_qs = SampleTest.objects.select_related(
+            "sample",
+            "sample__job",
+            "sample__job__client",
+            "sample__assigned_analyst",
+            "test",
+            "test__department",
+        )
+        return sample_tests_visible_to(self.request.user, base_qs)
 
     def get_serializer_class(self):
         if self.action == "create":
