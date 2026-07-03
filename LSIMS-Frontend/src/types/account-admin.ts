@@ -1,5 +1,13 @@
 import type { RoleDetail } from "@/types/user";
 
+export type DepartmentRecord = {
+  id: string;
+  name: string;
+  description: string;
+  created_at: string;
+  updated_at: string;
+};
+
 export type AdminUserRow = {
   id: string;
   username: string;
@@ -10,6 +18,8 @@ export type AdminUserRow = {
   user_type: "internal" | "external";
   role: string | null;
   role_detail: RoleDetail | null;
+  department: string | null;
+  country?: string;
   nationality: string;
   organization_name: string;
   organization_type: string;

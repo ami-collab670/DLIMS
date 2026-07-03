@@ -69,6 +69,10 @@ export function ProfileAccountSection({ profile, extended = false }: Props) {
               <dd>{profile.role_detail.display_name}</dd>
             </div>
             <div>
+              <dt className="text-muted-foreground">Department</dt>
+              <dd>{profile.department?.trim() || "—"}</dd>
+            </div>
+            <div>
               <dt className="text-muted-foreground">Role key</dt>
               <dd className="font-mono text-xs">{profile.role_detail.role_name}</dd>
             </div>

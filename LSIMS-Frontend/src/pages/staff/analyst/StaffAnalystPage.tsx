@@ -3,6 +3,7 @@ import {
   canIntakeSamples,
   canManageJobsAndSamples,
   isStaffAnalyst,
+  isStaffLabTechnician,
 } from "@/lib/staff-permissions";
 import { useAuthStore } from "@/stores/auth-store";
 
@@ -13,18 +14,28 @@ export default function StaffAnalystPage() {
   const intake = canIntakeSamples(user);
   const manage = canManageJobsAndSamples(user);
   const analyst = isStaffAnalyst(user);
+  const labTechnician = isStaffLabTechnician(user);
 
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-semibold tracking-tight">
-          {analyst ? "Assigned to you" : "Analyst"}
+          {labTechnician
+            ? "Preparation bench"
+            : analyst
+              ? "Assigned to you"
+              : "Analyst"}
         </h2>
         <p className="text-sm text-muted-foreground">
-          {analyst ? (
+          {labTechnician ? (
+            <>
+              Lab technician workspace: complete preparation steps on assigned samples, then hand off
+              to analysts for result entry and QC submission.
+            </>
+          ) : analyst ? (
             <>
               Work assigned to your analyst account. Listing is blind (no client identifiers);
-              workflow or roster changes go through reception or admin in Laboratory.
+              enter results on each sample detail panel and submit for QC.
             </>
           ) : (
             <>

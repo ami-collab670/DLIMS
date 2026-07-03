@@ -15,6 +15,7 @@ import {
   ANALYST_LIST_PAGE_SIZE,
   ANALYST_SAMPLE_STATUS_OPTIONS,
 } from "./analyst-workspace-constants";
+import { AnalystPreparationSection } from "./analyst-preparation-section";
 import { AnalystSampleDetailPanel } from "./analyst-sample-detail-panel";
 import { RegisterSampleForm } from "./register-sample-form";
 
@@ -69,6 +70,8 @@ export function StaffAnalystSection({
 
   return (
     <div className="space-y-4">
+
+      <AnalystPreparationSection />
 
       {intake ? (
         <RegisterSampleForm

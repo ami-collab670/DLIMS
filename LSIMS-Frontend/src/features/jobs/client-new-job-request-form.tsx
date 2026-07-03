@@ -1,20 +1,19 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  ChevronLeft,
-  ChevronRight,
   Copy,
   Dice5,
   FilePlus2,
-} from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+} from "lucide-react";import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { WizardStepNav } from "@/components/data-table/wizard-step-nav";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { createClientJobRequest } from "@/features/jobs/api";
+import { fetchActiveTestCatalog } from "@/features/laboratory/test-catalog-api";
 import { getApiErrorMessage } from "@/lib/api-error";
 import { qrTextToDataUrl } from "@/lib/qr-data-url";
 import {
@@ -278,6 +277,11 @@ function resizeSets(prev: Set<string>[], count: number): Set<string>[] {
 
 export function ClientNewJobRequestForm({ onCreated }: Props) {
   const queryClient = useQueryClient();
+  const { data: liveCatalog = [] } = useQuery({
+    queryKey: ["client-live-test-catalog"],
+    queryFn: fetchActiveTestCatalog,
+    staleTime: 120_000,
+  });
   const [step, setStep] = useState(0);
   const [referenceId, setReferenceId] = useState("");
   const [sampleCount, setSampleCount] = useState(1);
@@ -518,6 +522,34 @@ export function ClientNewJobRequestForm({ onCreated }: Props) {
 
   const goBack = () => setStep((s) => Math.max(s - 1, 0));
 
+  const goToStep = (target: number) => {
+    if (target === step) return;
+    if (target < step) {
+      setStep(target);
+      return;
+    }
+    if (target === step + 1) {
+      goNext();
+      return;
+    }
+    if (target === 2 && step === 0) {
+      if (!canProceedStep0) {
+        toast.error("Enter a reference ID (at least 4 characters) or roll one.");
+        return;
+      }
+      applySampleCount(sampleCount);
+      if (!servicesStepValid) {
+        setStep(1);
+        toast.error(
+          "Complete services on step 2 before review — select services or add notes.",
+        );
+        return;
+      }
+      setConfirmationCode((c) => c || randomConfirmationCode());
+      setStep(2);
+    }
+  };
+
   const toggleItem = (
     sectionKey: keyof ClientServiceCatalog,
     category: string,
@@ -589,23 +621,23 @@ export function ClientNewJobRequestForm({ onCreated }: Props) {
             review. Jobs start in finance review; multiple samples can share
             one scope or differ per sample.
           </p>
-          <ol className="mt-3 flex flex-wrap gap-2 text-xs" aria-label="Steps">
-            {STEPS.map((label, i) => (
-              <li
-                key={label}
-                className={cn(
-                  "rounded-full border px-3 py-1",
-                  i === step
-                    ? "border-primary bg-primary/10 font-medium text-primary"
-                    : i < step
-                      ? "border-border bg-muted/40 text-muted-foreground"
-                      : "border-dashed border-border text-muted-foreground",
-                )}
-              >
-                {i + 1}. {label}
-              </li>
-            ))}
-          </ol>
+          {liveCatalog.length > 0 ? (
+            <p className="text-xs text-muted-foreground">
+              Live laboratory catalog: {liveCatalog.length} active tests loaded from the API
+              (codes {liveCatalog.slice(0, 3).map((t) => t.test_code).join(", ")}
+              {liveCatalog.length > 3 ? "…" : ""}). Menu prices remain indicative until invoiced.
+            </p>
+          ) : null}
+          <WizardStepNav
+            steps={STEPS}
+            step={step}
+            onStepChange={goToStep}
+            onNext={goNext}
+            onBack={goBack}
+            canProceedNext={
+              step === 0 ? canProceedStep0 : step === 1 ? canProceedStep1 : true
+            }
+          />
         </div>
       </div>
 
@@ -1048,24 +1080,6 @@ export function ClientNewJobRequestForm({ onCreated }: Props) {
               Start over
             </Button>
           </form>
-        </div>
-      ) : null}
-
-      {step < 2 ? (
-        <div className="mt-6 flex flex-wrap gap-2 border-t border-border pt-4">
-          <Button
-            type="button"
-            variant="outline"
-            disabled={step === 0}
-            onClick={goBack}
-          >
-            <ChevronLeft className="size-4" />
-            Back
-          </Button>
-          <Button type="button" onClick={goNext}>
-            Next
-            <ChevronRight className="size-4" />
-          </Button>
         </div>
       ) : null}
     </section>

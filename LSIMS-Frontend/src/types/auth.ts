@@ -15,6 +15,8 @@ export type AuthUser = {
   user_type: "internal" | "external";
   role: string | null;
   role_detail: RoleDetail | null;
+  department: string | null;
+  country?: string;
   nationality: string;
   organization_name: string;
   organization_type: string;

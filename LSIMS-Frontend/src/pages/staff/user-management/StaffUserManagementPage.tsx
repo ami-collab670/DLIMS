@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { TableToolbar } from "@/components/data-table/table-toolbar";
 import { Button } from "@/components/ui/button";
 import {
   adminChangeUserPassword,
@@ -11,32 +12,34 @@ import {
   patchAdminUser,
   type UpdateAdminUserBody,
 } from "@/features/accounts/admin-api";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { getApiErrorMessage } from "@/lib/api-error";
+import type { TablePageSize } from "@/lib/table-list-utils";
 import type { AdminUserRow } from "@/types/account-admin";
 
 import { USER_MANAGEMENT_PAGE_SIZE } from "./constants";
+import { DepartmentsManagementSection } from "./departments-management-section";
 import { RolesManagementSection } from "./roles-management-section";
 import { UserCreateForm } from "./user-create-form";
 import { UserEditDialog } from "./user-edit-dialog";
 import { UserManagementHeader } from "./user-management-header";
 import { UserManagementTable } from "./user-management-table";
-import { UserSearchToolbar } from "./user-search-toolbar";
 import { StaffRoleBanner } from "@/pages/staff/lims-extensions/staff-role-banner";
 
 export default function StaffUserManagementPage() {
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<TablePageSize>(USER_MANAGEMENT_PAGE_SIZE);
   const [search, setSearch] = useState("");
-  const [debounced, setDebounced] = useState("");
+  const debounced = useDebouncedValue(search);
   const [showCreate, setShowCreate] = useState(false);
-  const [activeTab, setActiveTab] = useState<"users" | "roles">("users");
+  const [activeTab, setActiveTab] = useState<"users" | "roles" | "departments">(
+    "users",
+  );
   const [createFormKey, setCreateFormKey] = useState(0);
   const [editingUser, setEditingUser] = useState<AdminUserRow | null>(null);
 
-  useEffect(() => {
-    const t = window.setTimeout(() => setDebounced(search), 350);
-    return () => clearTimeout(t);
-  }, [search]);
+  useEffect(() => setPage(1), [debounced, pageSize]);
 
   const {
     data: listData,
@@ -44,9 +47,13 @@ export default function StaffUserManagementPage() {
     isError,
     error,
   } = useQuery({
-    queryKey: ["admin-users", page, debounced],
+    queryKey: ["admin-users", page, pageSize, debounced],
     queryFn: () =>
-      fetchAdminUsers({ page, search: debounced || undefined }),
+      fetchAdminUsers({
+        page,
+        page_size: pageSize,
+        search: debounced || undefined,
+      }),
   });
 
   const invalidateUsers = () => {
@@ -103,7 +110,7 @@ export default function StaffUserManagementPage() {
   });
 
   const totalPages = listData
-    ? Math.max(1, Math.ceil(listData.count / USER_MANAGEMENT_PAGE_SIZE))
+    ? Math.max(1, Math.ceil(listData.count / pageSize))
     : 1;
 
   function handleDeactivate(u: AdminUserRow) {
@@ -145,21 +152,43 @@ export default function StaffUserManagementPage() {
         >
           Roles
         </Button>
+        <Button
+          type="button"
+          variant={activeTab === "departments" ? "default" : "ghost"}
+          size="sm"
+          onClick={() => setActiveTab("departments")}
+        >
+          Departments
+        </Button>
       </div>
 
       {activeTab === "roles" ? <RolesManagementSection /> : null}
+      {activeTab === "departments" ? <DepartmentsManagementSection /> : null}
 
       {activeTab === "users" ? (
         <>
-      <UserSearchToolbar
-        search={search}
+      <TableToolbar
+        searchId="user-search"
+        searchPlaceholder="Email, name, username…"
+        searchValue={search}
         onSearchChange={(v) => {
           setSearch(v);
           setPage(1);
         }}
-        showCreate={showCreate}
-        onToggleCreate={() => setShowCreate((s) => !s)}
-      />
+        pageSize={pageSize}
+        onPageSizeChange={(size) => {
+          setPageSize(size);
+          setPage(1);
+        }}
+      >
+        <Button
+          type="button"
+          onClick={() => setShowCreate((s) => !s)}
+          className="shrink-0 gap-2 sm:ml-auto"
+        >
+          {showCreate ? "Close form" : "New user"}
+        </Button>
+      </TableToolbar>
 
       {showCreate ? (
         <UserCreateForm
@@ -190,6 +219,7 @@ export default function StaffUserManagementPage() {
         isError={isError}
         error={error}
         page={page}
+        pageSize={pageSize}
         totalPages={totalPages}
         onPageChange={setPage}
         onEdit={setEditingUser}

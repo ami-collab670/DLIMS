@@ -2,18 +2,16 @@ import { useQuery } from "@tanstack/react-query";
 import {
   AlertCircle,
   Calendar,
-  ChevronLeft,
-  ChevronRight,
   Filter,
   Loader2,
   Package,
-  Search,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
+import { TablePaginationFooter } from "@/components/data-table/table-pagination-footer";
+import { TableToolbar } from "@/components/data-table/table-toolbar";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { fetchJobOrder, fetchJobOrders } from "@/features/jobs/api";
 import {
@@ -24,6 +22,10 @@ import {
   type JobOrderSortState,
 } from "@/features/jobs/job-order-list-sort";
 import { SortableJobTableHead } from "@/features/jobs/sortable-job-table-head";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
+import {
+  type TablePageSize,
+} from "@/lib/table-list-utils";
 import {
   JOB_PRIORITY_OPTIONS,
   JOB_STATUS_OPTIONS,
@@ -31,11 +33,11 @@ import {
 } from "@/lib/job-order-labels";
 import { cn } from "@/lib/utils";
 
+import { CLIENT_REQUESTS_PAGE_SIZE } from "./constants";
 import {
   ClientRequestPriorityBadge,
   ClientRequestStatusBadge,
 } from "./client-request-badges";
-import { CLIENT_REQUESTS_PAGE_SIZE } from "./constants";
 import { ClientJobDetailPanel } from "./client-job-detail-panel";
 
 export function ClientRequestsSection() {
@@ -43,8 +45,11 @@ export function ClientRequestsSection() {
   const selectedJobId = searchParams.get("job");
 
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<TablePageSize>(
+    CLIENT_REQUESTS_PAGE_SIZE,
+  );
   const [searchInput, setSearchInput] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const debouncedSearch = useDebouncedValue(searchInput);
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [priorityFilter, setPriorityFilter] = useState<string>("");
   const [cancelledFilter, setCancelledFilter] = useState<
@@ -53,17 +58,13 @@ export function ClientRequestsSection() {
   const [sort, setSort] = useState<JobOrderSortState>(DEFAULT_JOB_ORDER_SORT);
 
   useEffect(() => {
-    const t = window.setTimeout(() => setDebouncedSearch(searchInput), 400);
-    return () => window.clearTimeout(t);
-  }, [searchInput]);
-
-  useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, statusFilter, priorityFilter, cancelledFilter, sort]);
+  }, [debouncedSearch, statusFilter, priorityFilter, cancelledFilter, sort, pageSize]);
 
   const listParams = useMemo(() => {
     const p: Parameters<typeof fetchJobOrders>[0] = {
       page,
+      page_size: pageSize,
       ordering: toOrderingParam(sort),
     };
     if (debouncedSearch) p.search = debouncedSearch;
@@ -72,7 +73,7 @@ export function ClientRequestsSection() {
     if (cancelledFilter === "active") p.is_cancelled = false;
     if (cancelledFilter === "cancelled") p.is_cancelled = true;
     return p;
-  }, [page, debouncedSearch, statusFilter, priorityFilter, cancelledFilter, sort]);
+  }, [page, pageSize, debouncedSearch, statusFilter, priorityFilter, cancelledFilter, sort]);
 
   const handleSort = useCallback((key: JobOrderSortKey) => {
     setSort((prev) => toggleSortState(prev, key));
@@ -118,10 +119,6 @@ export function ClientRequestsSection() {
     });
   }, [setSearchParams]);
 
-  const totalPages = listData
-    ? Math.max(1, Math.ceil(listData.count / CLIENT_REQUESTS_PAGE_SIZE))
-    : 1;
-
   const displayJob = useMemo(() => {
     if (!selectedJobId) return null;
     if (detailJob) return detailJob;
@@ -131,90 +128,85 @@ export function ClientRequestsSection() {
   return (
     <div className="flex min-h-[min(80vh,720px)] flex-col gap-6 lg:flex-row">
       <div className="min-w-0 flex-1 space-y-4">
-        <div className="flex flex-col gap-4 rounded-xl border border-border bg-card p-4 shadow-sm">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-            <div className="relative min-w-0 flex-1">
-              <Label htmlFor="job-search" className="sr-only">
-                Search
+        <TableToolbar
+          searchId="job-search"
+          searchPlaceholder="Search by description…"
+          searchValue={searchInput}
+          onSearchChange={setSearchInput}
+          pageSize={pageSize}
+          onPageSizeChange={(size) => {
+            setPageSize(size);
+            setPage(1);
+          }}
+        >
+          <div className="grid w-full gap-2 sm:grid-cols-3 lg:w-auto">
+            <div className="space-y-1">
+              <Label htmlFor="filter-status" className="text-xs">
+                Status
               </Label>
-              <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                id="job-search"
-                className="pl-9"
-                placeholder="Search by description…"
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-              />
+              <select
+                id="filter-status"
+                className={cn(
+                  "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm",
+                  "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+                )}
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+              >
+                <option value="">All statuses</option>
+                {JOB_STATUS_OPTIONS.map(({ value, label }) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
             </div>
-            <div className="grid gap-2 sm:grid-cols-3">
-              <div className="space-y-1">
-                <Label htmlFor="filter-status" className="text-xs">
-                  Status
-                </Label>
-                <select
-                  id="filter-status"
-                  className={cn(
-                    "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm",
-                    "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
-                  )}
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                >
-                  <option value="">All statuses</option>
-                  {JOB_STATUS_OPTIONS.map(({ value, label }) => (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="filter-priority" className="text-xs">
-                  Priority
-                </Label>
-                <select
-                  id="filter-priority"
-                  className={cn(
-                    "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm",
-                    "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
-                  )}
-                  value={priorityFilter}
-                  onChange={(e) => setPriorityFilter(e.target.value)}
-                >
-                  <option value="">All priorities</option>
-                  {JOB_PRIORITY_OPTIONS.map(({ value, label }) => (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="filter-cancelled" className="text-xs">
-                  <span className="inline-flex items-center gap-1">
-                    <Filter className="size-3.5" aria-hidden />
-                    Jobs
-                  </span>
-                </Label>
-                <select
-                  id="filter-cancelled"
-                  className={cn(
-                    "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm",
-                    "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
-                  )}
-                  value={cancelledFilter}
-                  onChange={(e) =>
-                    setCancelledFilter(e.target.value as typeof cancelledFilter)
-                  }
-                >
-                  <option value="active">Active only</option>
-                  <option value="cancelled">Cancelled only</option>
-                  <option value="all">All</option>
-                </select>
-              </div>
+            <div className="space-y-1">
+              <Label htmlFor="filter-priority" className="text-xs">
+                Priority
+              </Label>
+              <select
+                id="filter-priority"
+                className={cn(
+                  "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm",
+                  "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+                )}
+                value={priorityFilter}
+                onChange={(e) => setPriorityFilter(e.target.value)}
+              >
+                <option value="">All priorities</option>
+                {JOB_PRIORITY_OPTIONS.map(({ value, label }) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="filter-cancelled" className="text-xs">
+                <span className="inline-flex items-center gap-1">
+                  <Filter className="size-3.5" aria-hidden />
+                  Jobs
+                </span>
+              </Label>
+              <select
+                id="filter-cancelled"
+                className={cn(
+                  "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm",
+                  "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+                )}
+                value={cancelledFilter}
+                onChange={(e) =>
+                  setCancelledFilter(e.target.value as typeof cancelledFilter)
+                }
+              >
+                <option value="active">Active only</option>
+                <option value="cancelled">Cancelled only</option>
+                <option value="all">All</option>
+              </select>
             </div>
           </div>
-        </div>
+        </TableToolbar>
 
         <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
           {isLoading ? (
@@ -325,47 +317,13 @@ export function ClientRequestsSection() {
           )}
 
           {listData && listData.count > 0 ? (
-            <div className="flex flex-col items-center justify-between gap-3 border-t border-border px-4 py-3 sm:flex-row">
-              <p className="text-xs text-muted-foreground">
-                {isFetching && !isLoading ? (
-                  <span className="inline-flex items-center gap-1">
-                    <Loader2 className="size-3 animate-spin" />
-                    Updating…
-                  </span>
-                ) : (
-                  <>
-                    Showing {(page - 1) * CLIENT_REQUESTS_PAGE_SIZE + 1}–
-                    {Math.min(page * CLIENT_REQUESTS_PAGE_SIZE, listData.count)} of{" "}
-                    {listData.count}
-                  </>
-                )}
-              </p>
-              <div className="flex items-center gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  disabled={page <= 1 || isFetching}
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                >
-                  <ChevronLeft className="size-4" />
-                  Previous
-                </Button>
-                <span className="text-xs text-muted-foreground">
-                  Page {page} / {totalPages}
-                </span>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  disabled={page >= totalPages || isFetching}
-                  onClick={() => setPage((p) => p + 1)}
-                >
-                  Next
-                  <ChevronRight className="size-4" />
-                </Button>
-              </div>
-            </div>
+            <TablePaginationFooter
+              page={page}
+              pageSize={pageSize}
+              count={listData.count}
+              onPageChange={setPage}
+              isFetching={isFetching && !isLoading}
+            />
           ) : null}
         </div>
       </div>

@@ -7,6 +7,7 @@ import { StaffAdminPromoCard } from "./staff-admin-promo-card";
 import { StaffDashboardAttentionQueue } from "./staff-dashboard-attention-queue";
 import { StaffDashboardIntro } from "./staff-dashboard-intro";
 import { StaffDashboardJobPipeline } from "./staff-dashboard-job-pipeline";
+import { StaffDashboardPriorityAlerts } from "./staff-dashboard-priority-alerts";
 import { StaffDashboardQuickLinks } from "./staff-dashboard-quick-links";
 import { StaffDashboardRecentJobs } from "./staff-dashboard-recent-jobs";
 import { StaffDashboardSampleSnapshot } from "./staff-dashboard-sample-snapshot";
@@ -22,6 +23,7 @@ export default function StaffDashboardHome() {
       <StaffDashboardIntro />
       <StaffRoleBanner />
       {showAdmin ? <StaffAdminPromoCard /> : null}
+      <StaffDashboardPriorityAlerts />
       <StaffDashboardQuickLinks />
       {!isAnalyst ? <StaffDashboardAttentionQueue /> : null}
       <StaffDashboardJobPipeline />

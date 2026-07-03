@@ -9,7 +9,6 @@ import {
   LayoutDashboard,
   Microscope,
   Package,
-  Settings,
   Shield,
   TestTube,
   User,
@@ -33,7 +32,6 @@ import { useAuthStore } from "@/stores/auth-store";
 type NavItem = {
   routeKey: StaffRouteKey;
   to: string;
-  label: string;
   icon: LucideIcon;
   end?: boolean;
 };

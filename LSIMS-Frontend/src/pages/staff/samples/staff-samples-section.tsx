@@ -1,19 +1,33 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { TablePaginationFooter } from "@/components/data-table/table-pagination-footer";
+import { SortableTableHead } from "@/components/data-table/sortable-table-head";
+import { TableToolbar } from "@/components/data-table/table-toolbar";
 import { Label } from "@/components/ui/label";
 import { fetchSample, fetchSamples } from "@/features/laboratory/staff-api";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { getApiErrorMessage } from "@/lib/api-error";
 import { shortJobId } from "@/lib/job-order-labels";
+import {
+  sortRowsClientSide,
+  type SortState,
+  type TablePageSize,
+} from "@/lib/table-list-utils";
 import { cn } from "@/lib/utils";
 import type { SampleRecord } from "@/types/laboratory";
 
 import { SAMPLE_STATUS_OPTIONS, SAMPLES_PAGE_SIZE } from "./constants";
 import { NewSampleForm } from "./new-sample-form";
 import { SampleDetailPanel } from "./sample-detail-panel";
+
+type SampleSortKey = "sample_code" | "sample_name" | "job" | "sample_status" | "assigned_analyst";
+
+const DEFAULT_SAMPLE_SORT: SortState<SampleSortKey> = {
+  key: "sample_code",
+  direction: "asc",
+};
 
 function rowLabel(s: SampleRecord): string {
   if (s.sample_name?.trim()) return s.sample_name;
@@ -30,22 +44,22 @@ export function StaffSamplesSection({
 }) {
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<TablePageSize>(SAMPLES_PAGE_SIZE);
   const [jobFilter, setJobFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [search, setSearch] = useState("");
-  const [debounced, setDebounced] = useState("");
+  const debounced = useDebouncedValue(search);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [sort, setSort] = useState(DEFAULT_SAMPLE_SORT);
 
-  useEffect(() => {
-    const t = window.setTimeout(() => setDebounced(search), 350);
-    return () => clearTimeout(t);
-  }, [search]);
+  useEffect(() => setPage(1), [debounced, jobFilter, statusFilter, pageSize]);
 
   const { data, isLoading, isError, error } = useQuery({
-    queryKey: ["staff-samples", page, jobFilter, statusFilter, debounced],
+    queryKey: ["staff-samples", page, pageSize, jobFilter, statusFilter, debounced],
     queryFn: () =>
       fetchSamples({
         page,
+        page_size: pageSize,
         job: jobFilter || undefined,
         sample_status: statusFilter || undefined,
         search: debounced || undefined,
@@ -58,13 +72,37 @@ export function StaffSamplesSection({
     enabled: Boolean(selectedId),
   });
 
-  const totalPages = data
-    ? Math.max(1, Math.ceil(data.count / SAMPLES_PAGE_SIZE))
-    : 1;
+  const handleSort = useCallback((key: SampleSortKey) => {
+    setSort((prev) =>
+      prev.key === key
+        ? { key, direction: prev.direction === "asc" ? "desc" : "asc" }
+        : { key, direction: "asc" },
+    );
+  }, []);
+
+  // API has no ordering param — sort current page only.
+  const rows = useMemo(() => {
+    const base = data?.results ?? [];
+    return sortRowsClientSide(base, sort, (row, key) => {
+      switch (key as SampleSortKey) {
+        case "sample_code":
+          return row.sample_code ?? row.blind_alias_code ?? "";
+        case "sample_name":
+          return rowLabel(row);
+        case "job":
+          return row.job ?? "";
+        case "sample_status":
+          return row.sample_status;
+        case "assigned_analyst":
+          return row.assigned_analyst ?? "";
+        default:
+          return "";
+      }
+    });
+  }, [data?.results, sort]);
 
   return (
     <div className="space-y-4">
-
       {intake ? (
         <NewSampleForm
           onCreated={() => {
@@ -78,21 +116,20 @@ export function StaffSamplesSection({
         </p>
       )}
 
-      <div className="flex flex-col gap-3 rounded-xl border bg-card p-4 shadow-sm lg:flex-row lg:flex-wrap">
-        <div className="min-w-[200px] flex-1 space-y-1">
-          <Label>Search</Label>
-          <Input
-            placeholder="Code or name…"
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-            }}
-          />
-        </div>
+      <TableToolbar
+        searchPlaceholder="Code or name…"
+        searchValue={search}
+        onSearchChange={setSearch}
+        pageSize={pageSize}
+        onPageSizeChange={(size) => {
+          setPageSize(size);
+          setPage(1);
+        }}
+      >
         <div className="min-w-[200px] space-y-1 lg:w-72">
           <Label>Filter by job ID</Label>
-          <Input
+          <input
+            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
             placeholder="UUID (optional)"
             value={jobFilter}
             onChange={(e) => {
@@ -119,7 +156,7 @@ export function StaffSamplesSection({
             ))}
           </select>
         </div>
-      </div>
+      </TableToolbar>
 
       <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
         {isLoading ? (
@@ -133,15 +170,40 @@ export function StaffSamplesSection({
             <table className="w-full min-w-[640px] text-left text-sm">
               <thead>
                 <tr className="border-b bg-muted/40">
-                  <th className="px-4 py-2 font-medium">Code</th>
-                  <th className="px-4 py-2 font-medium">Name / blind</th>
-                  <th className="px-4 py-2 font-medium">Job</th>
-                  <th className="px-4 py-2 font-medium">Status</th>
-                  <th className="px-4 py-2 font-medium">Analyst</th>
+                  <SortableTableHead
+                    label="Code"
+                    sortKey="sample_code"
+                    sort={sort}
+                    onSort={handleSort}
+                  />
+                  <SortableTableHead
+                    label="Name / blind"
+                    sortKey="sample_name"
+                    sort={sort}
+                    onSort={handleSort}
+                  />
+                  <SortableTableHead
+                    label="Job"
+                    sortKey="job"
+                    sort={sort}
+                    onSort={handleSort}
+                  />
+                  <SortableTableHead
+                    label="Status"
+                    sortKey="sample_status"
+                    sort={sort}
+                    onSort={handleSort}
+                  />
+                  <SortableTableHead
+                    label="Analyst"
+                    sortKey="assigned_analyst"
+                    sort={sort}
+                    onSort={handleSort}
+                  />
                 </tr>
               </thead>
               <tbody>
-                {data?.results.map((s) => (
+                {rows.map((s) => (
                   <tr
                     key={s.id}
                     className={cn(
@@ -151,7 +213,12 @@ export function StaffSamplesSection({
                     onClick={() => setSelectedId(s.id)}
                   >
                     <td className="px-4 py-2 font-mono text-xs">
-                      {s.sample_code ?? s.blind_alias_code ?? "—"}
+                      {s.sample_code ??
+                        (s.blind_alias_code ? (
+                          <span title="Permanent code pending payment">{s.blind_alias_code}</span>
+                        ) : (
+                          <span className="text-amber-700 dark:text-amber-300">Pending code</span>
+                        ))}
                     </td>
                     <td className="max-w-[200px] truncate px-4 py-2">{rowLabel(s)}</td>
                     <td className="px-4 py-2 font-mono text-xs">
@@ -170,32 +237,12 @@ export function StaffSamplesSection({
           </div>
         )}
         {data && data.count > 0 ? (
-          <div className="flex items-center justify-between border-t px-4 py-2 text-xs text-muted-foreground">
-            <span>
-              {(page - 1) * SAMPLES_PAGE_SIZE + 1}–
-              {Math.min(page * SAMPLES_PAGE_SIZE, data.count)} / {data.count}
-            </span>
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={page <= 1}
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-              >
-                Prev
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={page >= totalPages}
-                onClick={() => setPage((p) => p + 1)}
-              >
-                Next
-              </Button>
-            </div>
-          </div>
+          <TablePaginationFooter
+            page={page}
+            pageSize={pageSize}
+            count={data.count}
+            onPageChange={setPage}
+          />
         ) : null}
       </div>
 

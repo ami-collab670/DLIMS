@@ -1,34 +1,214 @@
-import { Link } from "react-router-dom";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { Link, useNavigate } from "react-router-dom";
+import { toast } from "sonner";
+import { z } from "zod";
+
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { PasswordInput } from "@/components/ui/password-input";
+import {
+  confirmPasswordReset,
+  requestPasswordReset,
+} from "@/features/auth/api";
+import { getApiErrorMessage } from "@/lib/api-error";
 
 import { LoginPageLayout } from "../login/login-page-layout";
 
-/**
- * Backend: no public password-reset or email token flow in `accounts.auth_urls` snapshot.
- */
+const requestSchema = z.object({
+  email: z.string().email("Enter a valid email address"),
+});
+
+const confirmSchema = z
+  .object({
+    email: z.string().email(),
+    otp: z
+      .string()
+      .length(6, "OTP must be 6 digits")
+      .regex(/^\d+$/, "OTP must be numeric"),
+    new_password: z.string().min(8, "Password must be at least 8 characters"),
+    confirm_password: z.string().min(1, "Confirm your new password"),
+  })
+  .refine((data) => data.new_password === data.confirm_password, {
+    message: "Passwords do not match",
+    path: ["confirm_password"],
+  });
+
+type RequestValues = z.infer<typeof requestSchema>;
+type ConfirmValues = z.infer<typeof confirmSchema>;
+
 export default function ForgotPasswordPage() {
+  const navigate = useNavigate();
+  const [step, setStep] = useState<"request" | "confirm">("request");
+  const [emailForReset, setEmailForReset] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const requestForm = useForm<RequestValues>({
+    resolver: zodResolver(requestSchema),
+    defaultValues: { email: "" },
+  });
+
+  const confirmForm = useForm<ConfirmValues>({
+    resolver: zodResolver(confirmSchema),
+    defaultValues: {
+      email: "",
+      otp: "",
+      new_password: "",
+      confirm_password: "",
+    },
+  });
+
+  async function onRequest(values: RequestValues) {
+    setSubmitting(true);
+    try {
+      const email = values.email.trim().toLowerCase();
+      await requestPasswordReset(email);
+      setEmailForReset(email);
+      confirmForm.setValue("email", email);
+      setStep("confirm");
+      toast.success("If that account exists, a reset code was sent to your email.");
+    } catch (e) {
+      toast.error(getApiErrorMessage(e));
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function onConfirm(values: ConfirmValues) {
+    setSubmitting(true);
+    try {
+      await confirmPasswordReset({
+        email: values.email.trim().toLowerCase(),
+        otp: values.otp.trim(),
+        new_password: values.new_password,
+      });
+      toast.success("Password updated. You can sign in with your new password.");
+      navigate("/login", { replace: true });
+    } catch (e) {
+      toast.error(getApiErrorMessage(e));
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   return (
     <LoginPageLayout
       title="Forgot password"
-      description="Self-service reset is not exposed by the current API. An administrator can issue a new password from user management."
+      description={
+        step === "request"
+          ? "Enter your account email to receive a one-time reset code."
+          : `Enter the 6-digit code sent to ${emailForReset || "your email"}.`
+      }
     >
-      <div className="space-y-4 text-left text-sm text-muted-foreground">
-        <p>
-          Admins may use{" "}
-          <code className="rounded bg-muted px-1">POST /api/accounts/users/:id/change-password/</code>{" "}
-          from the interactive docs or staff tools.
-        </p>
-        <p>
-          <Link to="/signup" className="text-primary underline-offset-4 hover:underline">
-            Create a client account
-          </Link>{" "}
-          if you are new to the portal.
-        </p>
-        <p>
-          <Link to="/login" className="font-medium text-primary underline-offset-4 hover:underline">
-            ← Back to sign in
-          </Link>
-        </p>
-      </div>
+      {step === "request" ? (
+        <form
+          className="space-y-4 text-left"
+          onSubmit={requestForm.handleSubmit(onRequest)}
+          noValidate
+        >
+          <div className="space-y-2">
+            <Label htmlFor="reset-email">Email</Label>
+            <Input
+              id="reset-email"
+              type="email"
+              autoComplete="email"
+              {...requestForm.register("email")}
+            />
+            {requestForm.formState.errors.email ? (
+              <p className="text-xs text-destructive">
+                {requestForm.formState.errors.email.message}
+              </p>
+            ) : null}
+          </div>
+          <Button type="submit" className="w-full" disabled={submitting}>
+            {submitting ? "Sending…" : "Send reset code"}
+          </Button>
+          <p className="text-center text-sm text-muted-foreground">
+            <Link to="/login" className="font-medium text-primary underline-offset-4 hover:underline">
+              ← Back to sign in
+            </Link>
+          </p>
+        </form>
+      ) : (
+        <form
+          className="space-y-4 text-left"
+          onSubmit={confirmForm.handleSubmit(onConfirm)}
+          noValidate
+        >
+          <div className="space-y-2">
+            <Label htmlFor="confirm-email">Email</Label>
+            <Input
+              id="confirm-email"
+              type="email"
+              autoComplete="email"
+              {...confirmForm.register("email")}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="confirm-otp">One-time code</Label>
+            <Input
+              id="confirm-otp"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={6}
+              placeholder="000000"
+              {...confirmForm.register("otp")}
+            />
+            {confirmForm.formState.errors.otp ? (
+              <p className="text-xs text-destructive">
+                {confirmForm.formState.errors.otp.message}
+              </p>
+            ) : null}
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="confirm-new">New password</Label>
+            <PasswordInput
+              id="confirm-new"
+              autoComplete="new-password"
+              minLength={8}
+              {...confirmForm.register("new_password")}
+            />
+            {confirmForm.formState.errors.new_password ? (
+              <p className="text-xs text-destructive">
+                {confirmForm.formState.errors.new_password.message}
+              </p>
+            ) : null}
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="confirm-repeat">Confirm new password</Label>
+            <PasswordInput
+              id="confirm-repeat"
+              autoComplete="new-password"
+              {...confirmForm.register("confirm_password")}
+            />
+            {confirmForm.formState.errors.confirm_password ? (
+              <p className="text-xs text-destructive">
+                {confirmForm.formState.errors.confirm_password.message}
+              </p>
+            ) : null}
+          </div>
+          <Button type="submit" className="w-full" disabled={submitting}>
+            {submitting ? "Updating…" : "Reset password"}
+          </Button>
+          <div className="flex flex-col gap-2 text-center text-sm text-muted-foreground">
+            <button
+              type="button"
+              className="font-medium text-primary underline-offset-4 hover:underline"
+              onClick={() => {
+                setStep("request");
+                confirmForm.reset();
+              }}
+            >
+              Use a different email
+            </button>
+            <Link to="/login" className="font-medium text-primary underline-offset-4 hover:underline">
+              ← Back to sign in
+            </Link>
+          </div>
+        </form>
+      )}
     </LoginPageLayout>
   );
 }

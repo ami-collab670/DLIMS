@@ -16,6 +16,7 @@ import SignupPage from "@/pages/auth/SignupPage";
 import ClientDashboardHome from "@/pages/client/ClientDashboardHome";
 import ClientNotificationsPage from "@/pages/client/ClientNotificationsPage";
 import ClientRequestsPage from "@/pages/client/ClientRequestsPage";
+import ClientResultsPage from "@/pages/client/results/ClientResultsPage";
 import ClientNotFoundPage from "@/pages/errors/ClientNotFoundPage";
 import PublicNotFoundPage from "@/pages/errors/PublicNotFoundPage";
 import StaffNotFoundPage from "@/pages/errors/StaffNotFoundPage";
@@ -206,7 +207,7 @@ export const appRoutes: RouteObject[] = [
         children: [
           { index: true, element: <ClientDashboardHome /> },
           { path: "requests", element: <ClientRequestsPage /> },
-          // { path: "results", element: <ClientResultsPage /> },
+          { path: "results", element: <ClientResultsPage /> },
           { path: "notifications", element: <ClientNotificationsPage /> },
           {
             path: "profile",

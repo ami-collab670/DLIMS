@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import {
   type CreateAdminUserBody,
 } from "@/features/accounts/admin-api";
+import { fetchDepartments } from "@/features/accounts/departments-api";
 import { fetchRoles } from "@/features/accounts/roles-api";
 import { cn } from "@/lib/utils";
 
@@ -25,6 +26,12 @@ export function UserCreateForm({ onSubmit, isPending }: Props) {
     queryFn: () => fetchRoles(),
   });
 
+  const { data: departmentsData } = useQuery({
+    queryKey: ["admin-departments"],
+    queryFn: () => fetchDepartments(),
+  });
+  const departments = departmentsData?.results ?? [];
+
   const [form, setForm] = useState({
     email: "",
     username: "",
@@ -34,6 +41,7 @@ export function UserCreateForm({ onSubmit, isPending }: Props) {
     phone: "",
     user_type: "external" as "internal" | "external",
     role: "" as string,
+    department: "" as string,
     organization_name: "",
     nationality: "",
   });
@@ -54,8 +62,12 @@ export function UserCreateForm({ onSubmit, isPending }: Props) {
       phone: form.phone.trim() || undefined,
       user_type: form.user_type,
       role: form.user_type === "internal" ? form.role || undefined : null,
+      department:
+        form.user_type === "internal" && form.department
+          ? form.department
+          : null,
       organization_name: form.organization_name.trim() || undefined,
-      nationality: form.nationality.trim() || undefined,
+      country: form.nationality.trim() || undefined,
     });
   }
 
@@ -127,6 +139,7 @@ export function UserCreateForm({ onSubmit, isPending }: Props) {
         </select>
       </div>
       {form.user_type === "internal" ? (
+        <>
         <div className="space-y-2 col-span-full">
           <Label htmlFor="c-role">Role</Label>
           <select
@@ -148,6 +161,28 @@ export function UserCreateForm({ onSubmit, isPending }: Props) {
             ))}
           </select>
         </div>
+        <div className="space-y-2 col-span-full">
+          <Label htmlFor="c-dept">Department (optional)</Label>
+          <select
+            id="c-dept"
+            className={cn(
+              "flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm",
+              "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+            )}
+            value={form.department}
+            onChange={(e) =>
+              setForm((f) => ({ ...f, department: e.target.value }))
+            }
+          >
+            <option value="">No department</option>
+            {departments.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        </>
       ) : null}
       <div className="space-y-2">
         <Label htmlFor="c-fn">First name</Label>

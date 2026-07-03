@@ -3,47 +3,68 @@ import { Loader2 } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 
-import { Button } from "@/components/ui/button";
-import { fetchSamples } from "@/features/laboratory/staff-api";
-import { shortJobId } from "@/lib/job-order-labels";
+import { TablePaginationFooter } from "@/components/data-table/table-pagination-footer";
+import { TableToolbar } from "@/components/data-table/table-toolbar";
+import { fetchJobOrders } from "@/features/jobs/api";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
+import { JOB_STATUS_LABEL, shortJobId } from "@/lib/job-order-labels";
+import type { TablePageSize } from "@/lib/table-list-utils";
+import { DEFAULT_TABLE_PAGE_SIZE } from "@/lib/table-list-utils";
+import type { JobOrder } from "@/types/laboratory";
 
-const PAGE_SIZE = 20;
+const RELEASED_STATUSES = new Set(["completed", "qc"]);
 
-/**
- * Backend: external users see only their samples (`job__client` filter in SampleViewSet).
- * Response includes assigned tests; no numeric results field yet.
- */
 export default function ClientResultsPage() {
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<TablePageSize>(DEFAULT_TABLE_PAGE_SIZE);
+  const [search, setSearch] = useState("");
+  const debouncedSearch = useDebouncedValue(search);
+
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["client-my-samples", page],
-    queryFn: () => fetchSamples({ page }),
+    queryKey: ["client-job-orders", page, pageSize, debouncedSearch],
+    queryFn: () =>
+      fetchJobOrders({
+        page,
+        page_size: pageSize,
+        search: debouncedSearch || undefined,
+        is_cancelled: false,
+        ordering: "-created_at",
+      }),
     staleTime: 45_000,
   });
-
-  const totalPages = data
-    ? Math.max(1, Math.ceil(data.count / PAGE_SIZE))
-    : 1;
 
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-semibold tracking-tight">My samples &amp; tests</h2>
+        <h2 className="text-2xl font-semibold tracking-tight">My results</h2>
         <p className="text-sm text-muted-foreground">
-          Samples linked to your job orders. Assigned catalog tests show what the laboratory
-          plans to run; analytical values are not returned by the API in this version.
+          Track job progress here. Detailed analytical values will appear when the client results
+          API is available — for now you can see workflow status from your job orders.
         </p>
       </div>
 
       <div className="rounded-lg border border-dashed bg-muted/15 px-4 py-3 text-sm text-muted-foreground">
-        Data source:{" "}
-        <code className="rounded bg-muted px-1">GET /api/laboratory/samples/</code> scoped to
-        your account. Track job intake under{" "}
+        Track intake under{" "}
         <Link to="/client/requests" className="text-primary underline-offset-4 hover:underline">
           My requests
         </Link>
-        .
+        . Approved QC values are not yet exposed to client accounts on{" "}
+        <code className="rounded bg-muted px-1">/result-summary/</code>.
       </div>
+
+      <TableToolbar
+        searchPlaceholder="Search jobs…"
+        searchValue={search}
+        onSearchChange={(v) => {
+          setSearch(v);
+          setPage(1);
+        }}
+        pageSize={pageSize}
+        onPageSizeChange={(size) => {
+          setPageSize(size);
+          setPage(1);
+        }}
+      />
 
       <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
         {isLoading ? (
@@ -51,75 +72,48 @@ export default function ClientResultsPage() {
             <Loader2 className="size-8 animate-spin text-muted-foreground" />
           </div>
         ) : isError ? (
-          <p className="p-4 text-destructive">Could not load your samples.</p>
+          <p className="p-4 text-destructive">Could not load your jobs.</p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[560px] text-left text-sm">
-              <thead>
-                <tr className="border-b bg-muted/40">
-                  <th className="px-4 py-3 font-medium">Sample</th>
-                  <th className="px-4 py-3 font-medium">Job</th>
-                  <th className="px-4 py-3 font-medium">Status</th>
-                  <th className="px-4 py-3 font-medium">Tests</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data?.results.map((s) => (
-                  <tr key={s.id} className="border-b border-border">
-                    <td className="px-4 py-3">
-                      <span className="font-mono text-xs">{s.sample_code ?? "—"}</span>
-                      {s.sample_name ? (
-                        <span className="mt-0.5 block text-xs text-muted-foreground">
-                          {s.sample_name}
-                        </span>
-                      ) : null}
-                    </td>
-                    <td className="px-4 py-3 font-mono text-xs">
-                      {s.job ? shortJobId(s.job) : "—"}
-                    </td>
-                    <td className="px-4 py-3 capitalize">
-                      {s.sample_status.replace(/_/g, " ")}
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {s.sample_tests.length
-                        ? s.sample_tests.map((t) => t.test_code).join(", ")
-                        : "—"}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="divide-y">
+            {data?.results.map((job: JobOrder) => {
+              const statusLabel = JOB_STATUS_LABEL[job.current_status] ??
+                job.current_status.replace(/_/g, " ");
+              const mayHaveResults =
+                RELEASED_STATUSES.has(job.current_status) || job.current_status === "completed";
+
+              return (
+                <div key={job.id} className="p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div>
+                      <p className="font-mono text-sm">{shortJobId(job.id)}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {statusLabel} · {job.sample_count} samples
+                      </p>
+                    </div>
+                    <span className="rounded-full bg-muted px-2 py-0.5 text-xs capitalize">
+                      {statusLabel}
+                    </span>
+                  </div>
+                  <p className="mt-3 text-sm text-muted-foreground">
+                    {mayHaveResults
+                      ? "Results not released yet — your account cannot access the staff result summary endpoint. Check back after the client results API is enabled."
+                      : "Results not released yet — this job is still in the laboratory workflow."}
+                  </p>
+                </div>
+              );
+            })}
           </div>
         )}
         {data && data.count > 0 ? (
-          <div className="flex items-center justify-between border-t px-4 py-2 text-xs text-muted-foreground">
-            <span>
-              Page {page} of {totalPages} ({data.count} samples)
-            </span>
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={page <= 1}
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-              >
-                Previous
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={page >= totalPages}
-                onClick={() => setPage((p) => p + 1)}
-              >
-                Next
-              </Button>
-            </div>
-          </div>
+          <TablePaginationFooter
+            page={page}
+            pageSize={pageSize}
+            count={data.count}
+            onPageChange={setPage}
+          />
         ) : !isLoading ? (
           <p className="p-6 text-sm text-muted-foreground">
-            No samples are registered for your jobs yet.
+            No job orders found for your account.
           </p>
         ) : null}
       </div>

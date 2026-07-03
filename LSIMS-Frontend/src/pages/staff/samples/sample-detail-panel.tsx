@@ -8,7 +8,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { fetchLabAnalysts } from "@/features/accounts/lab-analysts-api";
+import { createPreparationRecord } from "@/features/laboratory/preparation-records-api";
 import {
+  assignSampleAnalyst,
   assignTestToSample,
   deleteSampleHard,
   fetchTestCatalog,
@@ -18,8 +20,6 @@ import {
 import { getApiErrorMessage } from "@/lib/api-error";
 import { shortJobId } from "@/lib/job-order-labels";
 import type { SampleRecord } from "@/types/laboratory";
-
-import { SAMPLE_STATUS_OPTIONS } from "./constants";
 
 function formatDateForInput(isoOrDate: string | null | undefined): string {
   if (!isoOrDate) return "";
@@ -48,10 +48,9 @@ export function SampleDetailPanel({
   const queryClient = useQueryClient();
   const displayCode = sample.sample_code ?? sample.blind_alias_code ?? "—";
   const isBlindView = !sample.sample_code && Boolean(sample.blind_alias_code);
+  const pendingPermanentCode = !sample.sample_code;
 
   const [sampleName, setSampleName] = useState(sample.sample_name ?? "");
-  const [statusSync, setStatusSync] = useState(sample.status_sync_with_job !== false);
-  const [status, setStatus] = useState(sample.sample_status);
   const [notes, setNotes] = useState(sample.notes);
   const [analystId, setAnalystId] = useState(sample.assigned_analyst ?? "");
   const [sampleWeight, setSampleWeight] = useState(
@@ -80,8 +79,6 @@ export function SampleDetailPanel({
 
   useEffect(() => {
     setSampleName(sample.sample_name ?? "");
-    setStatusSync(sample.status_sync_with_job !== false);
-    setStatus(sample.sample_status);
     setNotes(sample.notes);
     setAnalystId(sample.assigned_analyst ?? "");
     setSampleWeight(sample.sample_weight != null ? String(sample.sample_weight) : "");
@@ -96,15 +93,11 @@ export function SampleDetailPanel({
     mutationFn: () => {
       const weightTrim = sampleWeight.trim();
       const body: Parameters<typeof patchSample>[1] = {
-        status_sync_with_job: statusSync,
         notes,
-        assigned_analyst: analystId || null,
         sample_name: sampleName.trim() || undefined,
         packaging_type: packagingType.trim(),
         collection_date: collectionDate.trim() || null,
-        reassigned_reason: reassignedReason.trim(),
       };
-      if (!statusSync) body.sample_status = status;
       if (weightTrim) body.sample_weight = weightTrim;
       else body.sample_weight = null;
       if (assignedAt.trim()) {
@@ -117,6 +110,29 @@ export function SampleDetailPanel({
     },
     onSuccess: () => {
       toast.success("Sample updated.");
+      onUpdated();
+    },
+    onError: (e) => toast.error(getApiErrorMessage(e)),
+  });
+
+  const assignAnalystMut = useMutation({
+    mutationFn: () =>
+      assignSampleAnalyst(sample.id, {
+        assigned_analyst: analystId,
+        reassigned_reason: reassignedReason.trim() || undefined,
+      }),
+    onSuccess: () => {
+      toast.success("Analyst assigned.");
+      onUpdated();
+    },
+    onError: (e) => toast.error(getApiErrorMessage(e)),
+  });
+
+  const prepMut = useMutation({
+    mutationFn: () => createPreparationRecord({ sample: sample.id }),
+    onSuccess: () => {
+      toast.success("Preparation record created.");
+      void queryClient.invalidateQueries({ queryKey: ["preparation-records"] });
       onUpdated();
     },
     onError: (e) => toast.error(getApiErrorMessage(e)),
@@ -167,9 +183,9 @@ export function SampleDetailPanel({
             {isBlindView ? "Blind sample" : "Sample"}
           </p>
           <p className="font-mono font-semibold">{displayCode}</p>
-          {isBlindView ? (
-            <p className="mt-1 text-xs text-muted-foreground">
-              Analyst view hides client identifiers; only technical fields are shown.
+          {pendingPermanentCode ? (
+            <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
+              Permanent sample code pending — assigned after invoice is paid or waiver approved.
             </p>
           ) : null}
         </div>
@@ -186,8 +202,12 @@ export function SampleDetailPanel({
           </div>
         ) : null}
         <div>
+          <dt className="text-xs text-muted-foreground">Workflow status</dt>
+          <dd className="capitalize">{sample.sample_status.replace(/_/g, " ")}</dd>
+        </div>
+        <div>
           <dt className="text-xs text-muted-foreground">Blind code</dt>
-          <dd className="font-mono">{sample.blind_alias_code}</dd>
+          <dd className="font-mono">{sample.blind_alias_code ?? "—"}</dd>
         </div>
         {sample.job ? (
           <div>
@@ -211,6 +231,12 @@ export function SampleDetailPanel({
           <div>
             <dt className="text-xs text-muted-foreground">Submitted by (client)</dt>
             <dd className="truncate">{sample.submitted_by}</dd>
+          </div>
+        ) : null}
+        {sample.assigned_analyst ? (
+          <div>
+            <dt className="text-xs text-muted-foreground">Assigned analyst</dt>
+            <dd className="truncate">{sample.assigned_analyst}</dd>
           </div>
         ) : null}
       </dl>
@@ -248,14 +274,28 @@ export function SampleDetailPanel({
         )}
       </div>
 
+      {manage ? (
+        <div className="mt-4 space-y-2 border-t pt-4">
+          <Label>Preparation</Label>
+          <p className="text-xs text-muted-foreground">
+            Create a preparation record when the sample enters the prep bench (
+            <code className="rounded bg-muted px-1">POST /preparation-records/</code>).
+          </p>
+          <Button
+            type="button"
+            size="sm"
+            variant="secondary"
+            disabled={prepMut.isPending}
+            onClick={() => prepMut.mutate()}
+          >
+            Create preparation record
+          </Button>
+        </div>
+      ) : null}
+
       {manage && testsForPicker.length ? (
         <div className="mt-4 space-y-2 border-t pt-4">
           <Label>Assign catalog test</Label>
-          <p className="text-xs text-muted-foreground">
-            Admin and receptionist can link tests via{" "}
-            <code className="rounded bg-muted px-1">POST /api/laboratory/sample-tests/</code>
-            .
-          </p>
           <div className="flex flex-wrap gap-2">
             <select
               className="flex min-w-[200px] flex-1 h-9 rounded-md border border-input bg-transparent px-3 text-sm"
@@ -284,10 +324,8 @@ export function SampleDetailPanel({
         <div className="mt-4 space-y-3 border-t pt-4">
           <p className="text-sm font-medium">Edit sample</p>
           <p className="text-xs text-muted-foreground">
-            Updates use{" "}
-            <code className="rounded bg-muted px-1">PATCH /api/laboratory/samples/:id/</code>.
-            Hard delete uses <code className="rounded bg-muted px-1">DELETE</code> on the same
-            URL.
+            Sample workflow status follows the parent job automatically. Assign analysts via the
+            dedicated action — not PATCH.
           </p>
           {!isBlindView ? (
             <div className="space-y-1">
@@ -295,48 +333,8 @@ export function SampleDetailPanel({
               <Input value={sampleName} onChange={(e) => setSampleName(e.target.value)} />
             </div>
           ) : null}
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                id="sample-status-sync"
-                className="size-4 rounded border border-input"
-                checked={statusSync}
-                onChange={(e) => {
-                  const on = e.target.checked;
-                  setStatusSync(on);
-                  if (on && sample.job_status) {
-                    setStatus(sample.job_status);
-                  }
-                }}
-              />
-              <Label htmlFor="sample-status-sync" className="cursor-pointer font-normal">
-                Match job workflow (automatic)
-              </Label>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {statusSync
-                ? "This sample’s stage follows the parent job. Change the job’s status in Laboratory → Jobs to move it through submitted → received → preparation → analysis → QC → finance hold → completed."
-                : "Manual mode: pick any stage below. Turn this back on to align this sample with the job’s current stage."}
-            </p>
-          </div>
           <div className="grid gap-3 sm:grid-cols-2">
-            <div className="space-y-1">
-              <Label>Workflow status</Label>
-              <select
-                disabled={statusSync}
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm disabled:cursor-not-allowed disabled:opacity-60"
-                value={status}
-                onChange={(e) => setStatus(e.target.value)}
-              >
-                {SAMPLE_STATUS_OPTIONS.map(({ value, label }) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-1">
+            <div className="space-y-1 sm:col-span-2">
               <Label>Analyst</Label>
               <select
                 className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
@@ -357,9 +355,20 @@ export function SampleDetailPanel({
             <Input
               value={reassignedReason}
               onChange={(e) => setReassignedReason(e.target.value)}
-              placeholder="Required when changing analyst (recommended)"
+              placeholder="Recommended when changing analyst"
             />
           </div>
+          {analystId ? (
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              disabled={assignAnalystMut.isPending}
+              onClick={() => assignAnalystMut.mutate()}
+            >
+              Assign analyst
+            </Button>
+          ) : null}
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1">
               <Label>Sample weight (g)</Label>
@@ -398,19 +407,11 @@ export function SampleDetailPanel({
           </div>
           <div className="space-y-1">
             <Label>Notes</Label>
-            <Textarea
-              rows={3}
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-            />
+            <Textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} />
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button
-              type="button"
-              onClick={() => patchMut.mutate()}
-              disabled={patchMut.isPending}
-            >
-              Save changes
+            <Button type="button" onClick={() => patchMut.mutate()} disabled={patchMut.isPending}>
+              Save metadata
             </Button>
             <Button
               type="button"

@@ -21,8 +21,10 @@ import { roleOptionLabel } from "./role-display";
 const ROLE_NAME_OPTIONS: { value: RoleName; label: string }[] = [
   { value: "admin", label: "Admin" },
   { value: "receptionist", label: "Receptionist" },
+  { value: "lab_technician", label: "Lab Technician" },
   { value: "analyst", label: "Lab Analyst" },
   { value: "qc_manager", label: "QC Manager" },
+  { value: "lab_director", label: "Lab Director" },
   { value: "finance", label: "Finance Officer" },
   { value: "procurement", label: "Procurement Officer" },
   { value: "ministry_coordinator", label: "Ministry Coordinator" },

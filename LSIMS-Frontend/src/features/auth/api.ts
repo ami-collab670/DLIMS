@@ -38,3 +38,23 @@ export async function fetchProfile(): Promise<AuthUser> {
   const { data } = await apiClient.get<AuthUser>("/api/accounts/profile/");
   return data;
 }
+
+export async function requestPasswordReset(email: string): Promise<{ detail: string }> {
+  const { data } = await apiClient.post<{ detail: string }>(
+    "/api/auth/password-reset-request/",
+    { email },
+  );
+  return data;
+}
+
+export async function confirmPasswordReset(body: {
+  email: string;
+  otp: string;
+  new_password: string;
+}): Promise<{ detail: string }> {
+  const { data } = await apiClient.post<{ detail: string }>(
+    "/api/auth/password-reset-confirm/",
+    body,
+  );
+  return data;
+}

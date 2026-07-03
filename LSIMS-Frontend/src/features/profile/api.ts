@@ -32,6 +32,18 @@ export async function replaceProfile(
   return data;
 }
 
+/** Self-service password change for the signed-in user. */
+export async function changeOwnPassword(body: {
+  current_password: string;
+  new_password: string;
+}): Promise<{ detail: string }> {
+  const { data } = await apiClient.post<{ detail: string }>(
+    "/api/accounts/profile/change-password/",
+    body,
+  );
+  return data;
+}
+
 /** Admin/superuser only — uses `POST /api/accounts/users/:id/change-password/`. */
 export async function changeOwnPasswordAsAdmin(
   newPassword: string,

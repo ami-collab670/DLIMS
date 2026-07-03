@@ -8,6 +8,7 @@ import { useAuthStore } from "@/stores/auth-store";
 
 import { LimsPageIntro } from "../lims-page-intro";
 import { StaffRoleBanner } from "../staff-role-banner";
+import { StaffSchedulingPriorityAlerts } from "./staff-scheduling-priority-alerts";
 
 const SAMPLE_QUEUE = [
   { status: "submitted", label: "Submitted" },
@@ -65,6 +66,8 @@ export default function StaffSchedulingPage() {
       </LimsPageIntro>
 
       <StaffRoleBanner />
+
+      <StaffSchedulingPriorityAlerts />
 
       <div className="rounded-lg border border-dashed bg-muted/15 px-4 py-3 text-sm text-muted-foreground">
         {intake

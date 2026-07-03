@@ -8,6 +8,7 @@ import type { DrfPaginated } from "@/types/laboratory";
 
 export async function fetchAdminUsers(params: {
   page?: number;
+  page_size?: number;
   search?: string;
   user_type?: string;
   /** e.g. `analyst` — matches backend `role__role_name` */
@@ -16,6 +17,7 @@ export async function fetchAdminUsers(params: {
 }): Promise<DrfPaginated<AdminUserRow>> {
   const query: Record<string, string | number> = {};
   if (params.page && params.page > 0) query.page = params.page;
+  if (params.page_size && params.page_size > 0) query.page_size = params.page_size;
   if (params.search?.trim()) query.search = params.search.trim();
   if (params.user_type) query.user_type = params.user_type;
   if (params.role_name) query.role__role_name = params.role_name;
@@ -45,7 +47,8 @@ export type CreateAdminUserBody = {
   phone?: string;
   user_type: "internal" | "external";
   role?: string | null;
-  nationality?: string;
+  department?: string | null;
+  country?: string;
   organization_name?: string;
   organization_type?: string;
 };
@@ -77,7 +80,8 @@ export type UpdateAdminUserBody = Partial<{
   phone: string;
   user_type: "internal" | "external";
   role: string | null;
-  nationality: string;
+  department: string | null;
+  country?: string;
   organization_name: string;
   organization_type: string;
   is_active: boolean;

@@ -1,16 +1,13 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertCircle,
-  ChevronLeft,
-  ChevronRight,
   Loader2,
-  Search,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { TablePaginationFooter } from "@/components/data-table/table-pagination-footer";
+import { TableToolbar } from "@/components/data-table/table-toolbar";
 import { Label } from "@/components/ui/label";
 import {
   fetchJobOrder,
@@ -24,7 +21,9 @@ import {
   type JobOrderSortState,
 } from "@/features/jobs/job-order-list-sort";
 import { SortableJobTableHead } from "@/features/jobs/sortable-job-table-head";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { getApiErrorMessage } from "@/lib/api-error";
+import type { TablePageSize } from "@/lib/table-list-utils";
 import {
   JOB_PRIORITY_OPTIONS,
   JOB_STATUS_OPTIONS,
@@ -51,29 +50,26 @@ export function StaffJobsSection({
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedJobId = searchParams.get("job");
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<TablePageSize>(LABORATORY_PAGE_SIZE);
   const [searchInput, setSearchInput] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const debouncedSearch = useDebouncedValue(searchInput);
   const [statusFilter, setStatusFilter] = useState("");
   const [priorityFilter, setPriorityFilter] = useState("");
   const [sort, setSort] = useState<JobOrderSortState>(DEFAULT_JOB_ORDER_SORT);
 
-  useEffect(() => {
-    const t = window.setTimeout(() => setDebouncedSearch(searchInput), 400);
-    return () => window.clearTimeout(t);
-  }, [searchInput]);
-
-  useEffect(() => setPage(1), [debouncedSearch, statusFilter, priorityFilter, sort]);
+  useEffect(() => setPage(1), [debouncedSearch, statusFilter, priorityFilter, sort, pageSize]);
 
   const listParams = useMemo(() => {
     const p: Parameters<typeof fetchJobOrders>[0] = {
       page,
+      page_size: pageSize,
       ordering: toOrderingParam(sort),
     };
     if (debouncedSearch) p.search = debouncedSearch;
     if (statusFilter) p.current_status = statusFilter;
     if (priorityFilter) p.priority = priorityFilter;
     return p;
-  }, [page, debouncedSearch, statusFilter, priorityFilter, sort]);
+  }, [page, pageSize, debouncedSearch, statusFilter, priorityFilter, sort]);
 
   const handleSort = useCallback((key: JobOrderSortKey) => {
     setSort((prev) => toggleSortState(prev, key));
@@ -119,10 +115,6 @@ export function StaffJobsSection({
     return listData?.results.find((j) => j.id === selectedJobId) ?? null;
   }, [selectedJobId, detailJob, listData]);
 
-  const totalPages = listData
-    ? Math.max(1, Math.ceil(listData.count / LABORATORY_PAGE_SIZE))
-    : 1;
-
   return (
     <div className="flex min-h-[min(80vh,760px)] flex-col gap-6 lg:flex-row">
       <div className="min-w-0 flex-1 space-y-4">
@@ -140,17 +132,17 @@ export function StaffJobsSection({
           </p>
         )}
 
-        <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 shadow-sm sm:flex-row sm:items-end">
-          <div className="relative min-w-0 flex-1">
-            <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              className="pl-9"
-              placeholder="Search descriptions…"
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-            />
-          </div>
-          <div className="grid gap-2 sm:grid-cols-2">
+        <TableToolbar
+          searchPlaceholder="Search descriptions…"
+          searchValue={searchInput}
+          onSearchChange={setSearchInput}
+          pageSize={pageSize}
+          onPageSizeChange={(size) => {
+            setPageSize(size);
+            setPage(1);
+          }}
+        >
+          <div className="grid w-full gap-2 sm:grid-cols-2 lg:w-auto">
             <div className="space-y-1">
               <Label className="text-xs">Status</Label>
               <select
@@ -182,7 +174,7 @@ export function StaffJobsSection({
               </select>
             </div>
           </div>
-        </div>
+        </TableToolbar>
 
         <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
           {isLoading ? (
@@ -277,42 +269,13 @@ export function StaffJobsSection({
             </div>
           )}
           {listData && listData.count > 0 ? (
-            <div className="flex flex-col items-center justify-between gap-3 border-t px-4 py-3 sm:flex-row">
-              <p className="text-xs text-muted-foreground">
-                {isFetching && !isLoading ? (
-                  "Updating…"
-                ) : (
-                  <>
-                    {(page - 1) * LABORATORY_PAGE_SIZE + 1}–
-                    {Math.min(page * LABORATORY_PAGE_SIZE, listData.count)} of{" "}
-                    {listData.count}
-                  </>
-                )}
-              </p>
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  disabled={page <= 1}
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                >
-                  <ChevronLeft className="size-4" />
-                </Button>
-                <span className="text-xs text-muted-foreground">
-                  {page} / {totalPages}
-                </span>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  disabled={page >= totalPages}
-                  onClick={() => setPage((p) => p + 1)}
-                >
-                  <ChevronRight className="size-4" />
-                </Button>
-              </div>
-            </div>
+            <TablePaginationFooter
+              page={page}
+              pageSize={pageSize}
+              count={listData.count}
+              onPageChange={setPage}
+              isFetching={isFetching && !isLoading}
+            />
           ) : null}
         </div>
       </div>

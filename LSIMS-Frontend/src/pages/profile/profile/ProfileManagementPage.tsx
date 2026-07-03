@@ -11,7 +11,6 @@ import {
   profileFormSchema,
   type ProfileFormValues,
 } from "@/schemas/profile";
-import { StaffRoleBanner } from "@/pages/staff/lims-extensions/staff-role-banner";
 import { useAuthStore } from "@/stores/auth-store";
 
 import { ProfileAccountSection } from "./profile-account-section";

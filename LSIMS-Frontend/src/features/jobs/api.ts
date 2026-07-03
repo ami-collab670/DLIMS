@@ -1,8 +1,9 @@
 import { apiClient } from "@/api/client";
-import type { DrfPaginated, JobOrder } from "@/types/laboratory";
+import type { DrfPaginated, JobOrder, JobResultSummary } from "@/types/laboratory";
 
 export type JobOrderListParams = {
   page?: number;
+  page_size?: number;
   search?: string;
   current_status?: string;
   priority?: string;
@@ -15,6 +16,7 @@ export type JobOrderListParams = {
 function buildListParams(p: JobOrderListParams): Record<string, string | number> {
   const out: Record<string, string | number> = {};
   if (p.page != null && p.page > 0) out.page = p.page;
+  if (p.page_size != null && p.page_size > 0) out.page_size = p.page_size;
   if (p.search?.trim()) out.search = p.search.trim();
   if (p.current_status) out.current_status = p.current_status;
   if (p.priority) out.priority = p.priority;
@@ -63,11 +65,11 @@ export async function createClientJobRequest(
   return data;
 }
 
-/** Receptionist intake — job starts in `received`. */
+/** Receptionist intake — defaults to `pending_finance` until Finance clears payment. */
 export type CreateStaffJobBody = {
   /** Client account email (API accepts legacy user UUID as well). */
   client: string;
-  current_status: "received";
+  current_status?: "pending_finance" | "received";
   priority: string;
   description: string;
 };
@@ -108,18 +110,19 @@ export type CancelJobOrderOptions = {
   cancellation_reason?: string;
 };
 
-/** Soft-cancel with optional reason (PATCH) or bare DELETE when no reason. */
+/** Soft-cancel via DELETE (read-only cancellation fields on PATCH). */
 export async function cancelJobOrder(
   id: string,
-  options: CancelJobOrderOptions = {},
+  _options: CancelJobOrderOptions = {},
 ): Promise<void> {
-  const reason = options.cancellation_reason?.trim();
-  if (reason) {
-    await patchJobOrder(id, {
-      is_cancelled: true,
-      cancellation_reason: reason,
-    });
-    return;
-  }
   await softCancelJobOrder(id);
+}
+
+export async function fetchJobResultSummary(
+  jobId: string,
+): Promise<JobResultSummary> {
+  const { data } = await apiClient.get<JobResultSummary>(
+    `/api/laboratory/jobs/${jobId}/result-summary/`,
+  );
+  return data;
 }

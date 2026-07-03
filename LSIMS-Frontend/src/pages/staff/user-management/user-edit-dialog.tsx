@@ -10,6 +10,7 @@ import {
   type UpdateAdminUserBody,
   fetchAdminUser,
 } from "@/features/accounts/admin-api";
+import { fetchDepartments } from "@/features/accounts/departments-api";
 import { fetchRoles } from "@/features/accounts/roles-api";
 import { cn } from "@/lib/utils";
 import type { AdminUserRow } from "@/types/account-admin";
@@ -41,6 +42,12 @@ export function UserEditDialog({ user, onClose, onSave, isPending }: Props) {
     queryFn: () => fetchRoles(),
   });
 
+  const { data: departmentsData } = useQuery({
+    queryKey: ["admin-departments"],
+    queryFn: () => fetchDepartments(),
+  });
+  const departments = departmentsData?.results ?? [];
+
   const { data: freshUser } = useQuery({
     queryKey: ["admin-user", user.id],
     queryFn: () => fetchAdminUser(user.id),
@@ -59,6 +66,7 @@ export function UserEditDialog({ user, onClose, onSave, isPending }: Props) {
     user.user_type,
   );
   const [roleId, setRoleId] = useState(user.role ?? "");
+  const [departmentId, setDepartmentId] = useState(user.department ?? "");
   const [nationality, setNationality] = useState(user.nationality ?? "");
   const [organizationName, setOrganizationName] = useState(
     user.organization_name ?? "",
@@ -78,6 +86,7 @@ export function UserEditDialog({ user, onClose, onSave, isPending }: Props) {
     setPhone(activeUser.phone ?? "");
     setUserType(activeUser.user_type);
     setRoleId(activeUser.role ?? "");
+    setDepartmentId(activeUser.department ?? "");
     setNationality(activeUser.nationality ?? "");
     setOrganizationName(activeUser.organization_name ?? "");
     setOrganizationType(activeUser.organization_type ?? "");
@@ -130,7 +139,9 @@ export function UserEditDialog({ user, onClose, onSave, isPending }: Props) {
       phone: phone.trim() || undefined,
       user_type: userType,
       role: userType === "internal" ? roleId : null,
-      nationality: nationality.trim() || undefined,
+      department:
+        userType === "internal" && departmentId ? departmentId : null,
+      country: nationality.trim() || undefined,
       organization_name: organizationName.trim() || undefined,
       organization_type: organizationType.trim() || undefined,
       is_active: isActive,
@@ -248,24 +259,42 @@ export function UserEditDialog({ user, onClose, onSave, isPending }: Props) {
             </select>
           </div>
           {userType === "internal" ? (
-            <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor="e-role">Role</Label>
-              <select
-                id="e-role"
-                required
-                className={selectClass}
-                value={roleId}
-                onChange={(e) => setRoleId(e.target.value)}
-                disabled={rolesLoading}
-              >
-                <option value="">Select role…</option>
-                {roles.map((r) => (
-                  <option key={r.id} value={r.id}>
-                    {roleOptionLabel(r)}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <>
+              <div className="space-y-2 sm:col-span-2">
+                <Label htmlFor="e-role">Role</Label>
+                <select
+                  id="e-role"
+                  required
+                  className={selectClass}
+                  value={roleId}
+                  onChange={(e) => setRoleId(e.target.value)}
+                  disabled={rolesLoading}
+                >
+                  <option value="">Select role…</option>
+                  {roles.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {roleOptionLabel(r)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-2 sm:col-span-2">
+                <Label htmlFor="e-dept">Department</Label>
+                <select
+                  id="e-dept"
+                  className={selectClass}
+                  value={departmentId}
+                  onChange={(e) => setDepartmentId(e.target.value)}
+                >
+                  <option value="">No department</option>
+                  {departments.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </>
           ) : null}
           <div className="space-y-2 sm:col-span-2">
             <Label htmlFor="e-org">Organization</Label>

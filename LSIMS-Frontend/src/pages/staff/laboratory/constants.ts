@@ -1,7 +1,3 @@
-import { JOB_STATUS_OPTIONS } from "@/lib/job-order-labels";
-
-export const LABORATORY_PAGE_SIZE = 20;
-
-export const SAMPLE_STATUS_OPTIONS = JOB_STATUS_OPTIONS;
+export { DEFAULT_TABLE_PAGE_SIZE as LABORATORY_PAGE_SIZE } from "@/lib/table-list-utils";
 
 export type LaboratoryTabId = "jobs" | "analyst" | "assignments";

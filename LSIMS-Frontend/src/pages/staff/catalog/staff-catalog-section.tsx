@@ -1,40 +1,62 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import { TablePaginationFooter } from "@/components/data-table/table-pagination-footer";
+import { SortableTableHead } from "@/components/data-table/sortable-table-head";
+import { TableToolbar } from "@/components/data-table/table-toolbar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { fetchDepartments } from "@/features/accounts/departments-api";
 import {
   createTestCatalogItem,
   fetchTestCatalog,
 } from "@/features/laboratory/staff-api";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { getApiErrorMessage } from "@/lib/api-error";
+import {
+  sortRowsClientSide,
+  type SortState,
+  type TablePageSize,
+} from "@/lib/table-list-utils";
 import type { TestCatalogItem } from "@/types/laboratory";
 
 import { CATALOG_PAGE_SIZE } from "./catalog-page-constants";
 import { CatalogRow } from "./catalog-row";
 
+type CatalogSortKey = "test_code" | "test_name" | "unit" | "price" | "department" | "is_active";
+
+const DEFAULT_CATALOG_SORT: SortState<CatalogSortKey> = {
+  key: "test_code",
+  direction: "asc",
+};
+
 export function StaffCatalogSection({ canWrite }: { canWrite: boolean }) {
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<TablePageSize>(CATALOG_PAGE_SIZE);
   const [search, setSearch] = useState("");
-  const [debounced, setDebounced] = useState("");
-
-  useEffect(() => {
-    const t = window.setTimeout(() => setDebounced(search), 350);
-    return () => clearTimeout(t);
-  }, [search]);
+  const debounced = useDebouncedValue(search);
+  const [sort, setSort] = useState(DEFAULT_CATALOG_SORT);
 
   const { data, isLoading, isError, error } = useQuery({
-    queryKey: ["test-catalog", page, debounced],
+    queryKey: ["test-catalog", page, pageSize, debounced],
     queryFn: () =>
       fetchTestCatalog({
         page,
+        page_size: pageSize,
         search: debounced || undefined,
       }),
   });
+
+  const { data: departmentsData } = useQuery({
+    queryKey: ["departments", "catalog-form"],
+    queryFn: () => fetchDepartments({ page: 1 }),
+    enabled: canWrite,
+  });
+  const departments = departmentsData?.results ?? [];
 
   const [form, setForm] = useState({
     test_name: "",
@@ -42,6 +64,7 @@ export function StaffCatalogSection({ canWrite }: { canWrite: boolean }) {
     unit: "",
     price: "0",
     description: "",
+    department: "",
   });
 
   const createMut = useMutation({
@@ -52,25 +75,60 @@ export function StaffCatalogSection({ canWrite }: { canWrite: boolean }) {
         unit: form.unit.trim(),
         price: form.price,
         description: form.description.trim() || undefined,
+        department: form.department.trim() || null,
         is_active: true,
       }),
     onSuccess: () => {
       toast.success("Test added.");
-      setForm({ test_name: "", test_code: "", unit: "", price: "0", description: "" });
+      setForm({
+        test_name: "",
+        test_code: "",
+        unit: "",
+        price: "0",
+        description: "",
+        department: "",
+      });
       queryClient.invalidateQueries({ queryKey: ["test-catalog"] });
     },
     onError: (e) => toast.error(getApiErrorMessage(e)),
   });
 
-  const totalPages = data
-    ? Math.max(1, Math.ceil(data.count / CATALOG_PAGE_SIZE))
-    : 1;
+  const handleSort = useCallback((key: CatalogSortKey) => {
+    setSort((prev) =>
+      prev.key === key
+        ? { key, direction: prev.direction === "asc" ? "desc" : "asc" }
+        : { key, direction: "asc" },
+    );
+  }, []);
+
+  const rows = useMemo(() => {
+    const base = data?.results ?? [];
+    return sortRowsClientSide(base, sort, (row, key) => {
+      const item = row as TestCatalogItem;
+      switch (key as CatalogSortKey) {
+        case "test_code":
+          return item.test_code;
+        case "test_name":
+          return item.test_name;
+        case "unit":
+          return item.unit;
+        case "price":
+          return Number(item.price);
+        case "department":
+          return item.department ?? "";
+        case "is_active":
+          return item.is_active ? 1 : 0;
+        default:
+          return "";
+      }
+    });
+  }, [data?.results, sort]);
 
   return (
     <div className="space-y-4">
       {!canWrite ? (
         <p className="text-sm text-muted-foreground">
-          Test catalog edits require an administrator (or superuser).
+          Test catalog edits require admin, superuser, or department manager (qc_manager) role.
         </p>
       ) : (
         <form
@@ -107,6 +165,23 @@ export function StaffCatalogSection({ canWrite }: { canWrite: boolean }) {
             value={form.price}
             onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))}
           />
+          <select
+            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm md:col-span-2"
+            value={form.department}
+            onChange={(e) => setForm((f) => ({ ...f, department: e.target.value }))}
+          >
+            <option value="">Department (optional for admin)</option>
+            {departments.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.name}
+              </option>
+            ))}
+          </select>
+          {departments.length === 0 ? (
+            <p className="md:col-span-2 text-xs text-muted-foreground">
+              No departments loaded — qc_manager accounts use their profile department automatically.
+            </p>
+          ) : null}
           <Textarea
             className="md:col-span-2"
             placeholder="Description"
@@ -122,16 +197,19 @@ export function StaffCatalogSection({ canWrite }: { canWrite: boolean }) {
         </form>
       )}
 
-      <div className="flex gap-2">
-        <Input
-          placeholder="Search tests…"
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            setPage(1);
-          }}
-        />
-      </div>
+      <TableToolbar
+        searchPlaceholder="Search tests…"
+        searchValue={search}
+        onSearchChange={(v) => {
+          setSearch(v);
+          setPage(1);
+        }}
+        pageSize={pageSize}
+        onPageSizeChange={(size) => {
+          setPageSize(size);
+          setPage(1);
+        }}
+      />
 
       <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
         {isLoading ? (
@@ -145,16 +223,47 @@ export function StaffCatalogSection({ canWrite }: { canWrite: boolean }) {
             <table className="w-full min-w-[600px] text-left text-sm">
               <thead>
                 <tr className="border-b bg-muted/40">
-                  <th className="px-4 py-2 font-medium">Code</th>
-                  <th className="px-4 py-2 font-medium">Name</th>
-                  <th className="px-4 py-2 font-medium">Unit</th>
-                  <th className="px-4 py-2 font-medium">Price</th>
-                  <th className="px-4 py-2 font-medium">Active</th>
+                  <SortableTableHead
+                    label="Code"
+                    sortKey="test_code"
+                    sort={sort}
+                    onSort={handleSort}
+                  />
+                  <SortableTableHead
+                    label="Name"
+                    sortKey="test_name"
+                    sort={sort}
+                    onSort={handleSort}
+                  />
+                  <SortableTableHead
+                    label="Unit"
+                    sortKey="unit"
+                    sort={sort}
+                    onSort={handleSort}
+                  />
+                  <SortableTableHead
+                    label="Price"
+                    sortKey="price"
+                    sort={sort}
+                    onSort={handleSort}
+                  />
+                  <SortableTableHead
+                    label="Department"
+                    sortKey="department"
+                    sort={sort}
+                    onSort={handleSort}
+                  />
+                  <SortableTableHead
+                    label="Active"
+                    sortKey="is_active"
+                    sort={sort}
+                    onSort={handleSort}
+                  />
                   {canWrite ? <th className="px-4 py-2 font-medium" /> : null}
                 </tr>
               </thead>
               <tbody>
-                {data?.results.map((t: TestCatalogItem) => (
+                {rows.map((t: TestCatalogItem) => (
                   <CatalogRow
                     key={t.id}
                     test={t}
@@ -169,31 +278,12 @@ export function StaffCatalogSection({ canWrite }: { canWrite: boolean }) {
           </div>
         )}
         {data && data.count > 0 ? (
-          <div className="flex items-center justify-between border-t px-4 py-2 text-xs text-muted-foreground">
-            <span>
-              Page {page}/{totalPages} — {data.count} tests
-            </span>
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={page <= 1}
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-              >
-                Prev
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={page >= totalPages}
-                onClick={() => setPage((p) => p + 1)}
-              >
-                Next
-              </Button>
-            </div>
-          </div>
+          <TablePaginationFooter
+            page={page}
+            pageSize={pageSize}
+            count={data.count}
+            onPageChange={setPage}
+          />
         ) : null}
       </div>
     </div>

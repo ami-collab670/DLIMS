@@ -44,6 +44,9 @@ export function CatalogRow({
       <td className="px-4 py-2">{test.test_name}</td>
       <td className="px-4 py-2">{test.unit}</td>
       <td className="px-4 py-2 tabular-nums">{test.price}</td>
+      <td className="px-4 py-2 text-xs text-muted-foreground">
+        {test.department ?? "—"}
+      </td>
       <td className="px-4 py-2">
         {canWrite ? (
           <label className="inline-flex items-center gap-2 text-xs">

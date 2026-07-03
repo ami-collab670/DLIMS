@@ -9,11 +9,13 @@ import type {
 
 export async function fetchTestCatalog(params?: {
   page?: number;
+  page_size?: number;
   search?: string;
   is_active?: boolean;
 }): Promise<DrfPaginated<TestCatalogItem>> {
   const query: Record<string, string | number> = {};
   if (params?.page && params.page > 0) query.page = params.page;
+  if (params?.page_size && params.page_size > 0) query.page_size = params.page_size;
   if (params?.search?.trim()) query.search = params.search.trim();
   if (typeof params?.is_active === "boolean")
     query.is_active = params.is_active ? "true" : "false";
@@ -31,6 +33,7 @@ export async function createTestCatalogItem(body: {
   description?: string;
   unit: string;
   price: string;
+  department?: string | null;
   is_active?: boolean;
 }): Promise<TestCatalogItem> {
   const { data } = await apiClient.post<TestCatalogItem>(
@@ -71,12 +74,14 @@ export async function deleteTestCatalogItem(id: string): Promise<void> {
 
 export async function fetchSamples(params?: {
   page?: number;
+  page_size?: number;
   search?: string;
   job?: string;
   sample_status?: string;
 }): Promise<DrfPaginated<SampleRecord>> {
   const query: Record<string, string | number> = {};
   if (params?.page && params.page > 0) query.page = params.page;
+  if (params?.page_size && params.page_size > 0) query.page_size = params.page_size;
   if (params?.search?.trim()) query.search = params.search.trim();
   if (params?.job) query.job = params.job;
   if (params?.sample_status) query.sample_status = params.sample_status;
@@ -186,4 +191,18 @@ export async function assignTestToSample(body: {
 
 export async function removeSampleTestAssignment(id: string): Promise<void> {
   await apiClient.delete(`/api/laboratory/sample-tests/${id}/`);
+}
+
+export async function assignSampleAnalyst(
+  sampleId: string,
+  body: {
+    assigned_analyst: string;
+    reassigned_reason?: string;
+  },
+): Promise<SampleRecord> {
+  const { data } = await apiClient.post<SampleRecord>(
+    `/api/laboratory/samples/${sampleId}/assign-analyst/`,
+    body,
+  );
+  return data;
 }

@@ -1,6 +1,7 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Loader2, Plus } from "lucide-react";
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -9,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { fetchLabClients } from "@/features/accounts/lab-clients-api";
 import { createStaffJob } from "@/features/jobs/api";
 import { getApiErrorMessage } from "@/lib/api-error";
-import { JOB_PRIORITY_OPTIONS } from "@/lib/job-order-labels";
+import { JOB_PRIORITY_OPTIONS, shortJobId } from "@/lib/job-order-labels";
 import type { JobOrder } from "@/types/laboratory";
 
 export function StaffJobIntakeForm({
@@ -20,6 +21,7 @@ export function StaffJobIntakeForm({
   const [clientEmail, setClientEmail] = useState("");
   const [description, setDescription] = useState("");
   const [priority, setPriority] = useState("normal");
+  const [lastCreated, setLastCreated] = useState<JobOrder | null>(null);
 
   const { data: clients = [] } = useQuery({
     queryKey: ["lab-clients-picker"],
@@ -29,7 +31,8 @@ export function StaffJobIntakeForm({
   const mut = useMutation({
     mutationFn: createStaffJob,
     onSuccess: (job) => {
-      toast.success("Job order created.");
+      toast.success("Job order created — send to Finance for invoicing.");
+      setLastCreated(job);
       onCreated(job);
       setDescription("");
     },
@@ -47,7 +50,7 @@ export function StaffJobIntakeForm({
         }
         mut.mutate({
           client: clientEmail,
-          current_status: "received",
+          current_status: "pending_finance",
           priority,
           description: description.trim(),
         });
@@ -57,6 +60,11 @@ export function StaffJobIntakeForm({
         <Plus className="size-4" />
         New job order (intake)
       </div>
+      <p className="text-xs text-muted-foreground">
+        Jobs start in <code className="rounded bg-muted px-1">pending_finance</code>. After
+        creation, Finance creates an invoice and marks it paid (or approves a waiver) before
+        laboratory reception proceeds.
+      </p>
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="space-y-1">
           <Label>Client</Label>
@@ -102,6 +110,19 @@ export function StaffJobIntakeForm({
       <Button type="submit" disabled={mut.isPending}>
         {mut.isPending ? <Loader2 className="size-4 animate-spin" /> : "Create job"}
       </Button>
+      {lastCreated ? (
+        <div className="rounded-md border border-dashed bg-muted/20 px-3 py-2 text-sm">
+          <p>
+            Created {shortJobId(lastCreated.id)} — next step:{" "}
+            <Link
+              to={`/staff/finance?job=${lastCreated.id}`}
+              className="text-primary underline-offset-4 hover:underline"
+            >
+              Create invoice in Finance
+            </Link>
+          </p>
+        </div>
+      ) : null}
     </form>
   );
 }

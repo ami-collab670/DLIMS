@@ -1,5 +1,6 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -7,16 +8,16 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { fetchRoles } from "@/features/accounts/roles-api";
 import { cancelJobOrder, patchJobOrder } from "@/features/jobs/api";
+import { fetchFinancialRecords } from "@/features/laboratory/financial-records-api";
+import { laboratoryQueryKeys } from "@/features/laboratory/laboratory-query-keys";
 import { getApiErrorMessage } from "@/lib/api-error";
 import {
   JOB_PRIORITY_OPTIONS,
-  JOB_STATUS_OPTIONS,
+  JOB_STATUS_LABEL,
   shortJobId,
 } from "@/lib/job-order-labels";
 import { resolveRoleLabel } from "@/lib/resolve-role-label";
 import type { JobOrder } from "@/types/laboratory";
-
-import { roleOptionLabel } from "@/pages/staff/user-management/role-display";
 
 export function StaffJobDetailPanel({
   job,
@@ -29,40 +30,35 @@ export function StaffJobDetailPanel({
   manageJobs: boolean;
   onUpdated: () => void;
 }) {
-  const [status, setStatus] = useState(job.current_status);
   const [priority, setPriority] = useState(job.priority);
   const [desc, setDesc] = useState(job.description);
-  const [reason, setReason] = useState(job.status_reason);
-  const [blockedByRole, setBlockedByRole] = useState(job.blocked_by_role ?? "");
   const [showCancelForm, setShowCancelForm] = useState(false);
-  const [cancellationReason, setCancellationReason] = useState("");
 
   const rolesQuery = useQuery({
     queryKey: ["admin-roles"],
     queryFn: () => fetchRoles(),
-    enabled: manageJobs,
     staleTime: 60_000,
   });
   const roles = rolesQuery.data ?? [];
 
+  const { data: financialData } = useQuery({
+    queryKey: laboratoryQueryKeys.financialRecords({ job: job.id }),
+    queryFn: () => fetchFinancialRecords({ job: job.id }),
+    staleTime: 60_000,
+  });
+  const invoice = financialData?.results[0];
+
   useEffect(() => {
-    setStatus(job.current_status);
     setPriority(job.priority);
     setDesc(job.description);
-    setReason(job.status_reason);
-    setBlockedByRole(job.blocked_by_role ?? "");
     setShowCancelForm(false);
-    setCancellationReason("");
   }, [job]);
 
   const patchMut = useMutation({
     mutationFn: () =>
       patchJobOrder(job.id, {
-        current_status: status,
         priority,
         description: desc,
-        status_reason: reason,
-        blocked_by_role: blockedByRole || null,
       }),
     onSuccess: () => {
       toast.success("Job updated.");
@@ -72,10 +68,7 @@ export function StaffJobDetailPanel({
   });
 
   const cancelMut = useMutation({
-    mutationFn: () =>
-      cancelJobOrder(job.id, {
-        cancellation_reason: cancellationReason.trim() || undefined,
-      }),
+    mutationFn: () => cancelJobOrder(job.id),
     onSuccess: () => {
       toast.success("Job cancelled.");
       setShowCancelForm(false);
@@ -106,9 +99,45 @@ export function StaffJobDetailPanel({
           </dd>
         </div>
         <div>
+          <dt className="text-xs text-muted-foreground">Workflow status</dt>
+          <dd>{JOB_STATUS_LABEL[job.current_status]}</dd>
+        </div>
+        {job.status_reason?.trim() ? (
+          <div>
+            <dt className="text-xs text-muted-foreground">Status note</dt>
+            <dd className="text-muted-foreground">{job.status_reason}</dd>
+          </div>
+        ) : null}
+        <div>
           <dt className="text-xs text-muted-foreground">Samples</dt>
           <dd>{job.sample_count}</dd>
         </div>
+        <div>
+          <dt className="text-xs text-muted-foreground">Invoice</dt>
+          <dd>
+            {invoice ? (
+              <span className="font-mono text-xs">
+                {invoice.invoice_no} · {invoice.payment_status} · paid {invoice.amount_paid} /{" "}
+                {invoice.amount_expected}
+                {!invoice.payment_required ? " · waived" : ""}
+              </span>
+            ) : (
+              <span className="text-muted-foreground">No invoice yet</span>
+            )}
+          </dd>
+        </div>
+        {!job.is_cancelled ? (
+          <div>
+            <dt className="text-xs text-muted-foreground">Finance action</dt>
+            <dd>
+              <Button type="button" size="sm" variant="outline" asChild>
+                <Link to={`/staff/finance?job=${job.id}`}>
+                  {invoice ? "View / edit invoice" : "Create invoice"}
+                </Link>
+              </Button>
+            </dd>
+          </div>
+        ) : null}
         {blockedLabel ? (
           <div>
             <dt className="text-xs text-muted-foreground">Blocked by role</dt>
@@ -125,22 +154,10 @@ export function StaffJobDetailPanel({
 
       {manageJobs && !job.is_cancelled ? (
         <div className="mt-4 space-y-3 border-t pt-4">
-          <div className="space-y-1">
-            <Label>Status</Label>
-            <select
-              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
-              value={status}
-              onChange={(e) =>
-                setStatus(e.target.value as JobOrder["current_status"])
-              }
-            >
-              {JOB_STATUS_OPTIONS.map(({ value, label }) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </div>
+          <p className="text-xs text-muted-foreground">
+            Workflow status, role holds, and cancellation reason are read-only on PATCH. Finance
+            clears jobs via invoices; cancel uses DELETE only.
+          </p>
           <div className="space-y-1">
             <Label>Priority</Label>
             <select
@@ -158,35 +175,11 @@ export function StaffJobDetailPanel({
             </select>
           </div>
           <div className="space-y-1">
-            <Label>Role hold (optional)</Label>
-            <select
-              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
-              value={blockedByRole}
-              onChange={(e) => setBlockedByRole(e.target.value)}
-              disabled={rolesQuery.isLoading}
-            >
-              <option value="">None — no role hold</option>
-              {roles.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {roleOptionLabel(r)}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="space-y-1">
             <Label>Description</Label>
             <Textarea
               rows={4}
               value={desc}
               onChange={(e) => setDesc(e.target.value)}
-            />
-          </div>
-          <div className="space-y-1">
-            <Label>Status note</Label>
-            <Textarea
-              rows={2}
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
             />
           </div>
           <div className="flex flex-wrap gap-2">
@@ -209,13 +202,9 @@ export function StaffJobDetailPanel({
           </div>
           {showCancelForm ? (
             <div className="space-y-2 rounded-md border border-destructive/30 bg-destructive/5 p-3">
-              <Label>Cancellation reason (optional)</Label>
-              <Textarea
-                rows={2}
-                value={cancellationReason}
-                onChange={(e) => setCancellationReason(e.target.value)}
-                placeholder="Why is this job being cancelled?"
-              />
+              <p className="text-sm">
+                Soft-cancel this job via DELETE? Cancellation reason cannot be sent on PATCH.
+              </p>
               <div className="flex flex-wrap gap-2">
                 <Button
                   type="button"
@@ -228,10 +217,7 @@ export function StaffJobDetailPanel({
                 <Button
                   type="button"
                   variant="ghost"
-                  onClick={() => {
-                    setShowCancelForm(false);
-                    setCancellationReason("");
-                  }}
+                  onClick={() => setShowCancelForm(false)}
                 >
                   Back
                 </Button>

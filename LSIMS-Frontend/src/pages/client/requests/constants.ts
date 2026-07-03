@@ -1,1 +1,1 @@
-export const CLIENT_REQUESTS_PAGE_SIZE = 20;
+export { DEFAULT_TABLE_PAGE_SIZE as CLIENT_REQUESTS_PAGE_SIZE } from "@/lib/table-list-utils";

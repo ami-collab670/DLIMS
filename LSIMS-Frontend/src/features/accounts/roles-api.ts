@@ -6,8 +6,10 @@ import type { DrfPaginated } from "@/types/laboratory";
 export type RoleName =
   | "admin"
   | "receptionist"
+  | "lab_technician"
   | "analyst"
   | "qc_manager"
+  | "lab_director"
   | "finance"
   | "procurement"
   | "ministry_coordinator"

@@ -85,19 +85,28 @@ There is **no native `fetch`** in application source – all HTTP goes through A
 
 | **Module File** | **Domain** |
 |---|---|
-| `src/features/auth/api.ts` | Login, register, profile GET |
-| `src/features/profile/api.ts` | Profile PATCH/PUT; password via admin API |
+| `src/features/auth/api.ts` | Login, register, profile GET, password reset OTP |
+| `src/features/profile/api.ts` | Profile PATCH/PUT; self-service `changeOwnPassword` |
 | `src/features/accounts/admin-api.ts` | Users CRUD, change-password |
+| `src/features/accounts/departments-api.ts` | Departments CRUD |
 | `src/features/accounts/roles-api.ts` | Roles CRUD |
 | `src/features/accounts/lab-clients-api.ts` | Client picker list |
 | `src/features/accounts/lab-analysts-api.ts` | Analyst picker list |
-| `src/features/jobs/api.ts` | Job orders |
-| `src/features/laboratory/staff-api.ts` | Tests, samples, sample-tests |
+| `src/features/jobs/api.ts` | Job orders, result summary |
+| `src/features/laboratory/staff-api.ts` | Tests, samples, sample-tests, assign-analyst |
+| `src/features/laboratory/financial-records-api.ts` | Financial records CRUD |
+| `src/features/laboratory/preparation-records-api.ts` | Preparation CRUD + start/complete |
+| `src/features/laboratory/analysis-results-api.ts` | Analysis CRUD + submit/approve/reject |
+| `src/features/laboratory/calibration-records-api.ts` | Calibration CRUD |
+| `src/features/laboratory/qc-decisions-api.ts` | QC decisions (read-only) |
+| `src/features/laboratory/complaints-api.ts` | Complaints CRUD + resolve/reject |
+| `src/features/laboratory/discount-approvals-api.ts` | Discount CRUD + approve/reject |
+| `src/features/laboratory/priority-alerts-api.ts` | Priority alerts list |
+| `src/features/laboratory/laboratory-query-keys.ts` | Shared React Query key factories for lab workflows |
 | `src/features/notifications/api.ts` | Inbox notifications |
 
 **Unused modules (not imported by UI):**
 
-- `src/features/laboratory/laboratory-samples-api.ts` – duplicate of samples functions in `staff-api.ts`
 - `src/features/laboratory/test-catalog-api.ts` – wrapper over `fetchTestCatalog`; not imported
 
 ---
@@ -113,6 +122,8 @@ Paths are relative to `VITE_API_BASE_URL`. Query parameters are noted where the 
 | POST | `/api/auth/token/` | `loginRequest` | `TokenPair` |
 | POST | `/api/auth/register/` | `registerRequest` | `RegisterResponse` |
 | POST | `/api/auth/token/refresh/` | `refreshAccessToken` | `{ access: string }` |
+| POST | `/api/auth/password-reset-request/` | `requestPasswordReset` | `{ detail: string }` |
+| POST | `/api/auth/password-reset-confirm/` | `confirmPasswordReset` | `{ detail: string }` |
 | GET | `/api/accounts/profile/` | `fetchProfile` | `AuthUser` |
 
 ### **5.2 Profile**
@@ -121,7 +132,8 @@ Paths are relative to `VITE_API_BASE_URL`. Query parameters are noted where the 
 |---|---|---|---|
 | PATCH | `/api/accounts/profile/` | `updateProfile` | `AuthUser` |
 | PUT | `/api/accounts/profile/` | `replaceProfile` *(exported, unused in UI)* | `AuthUser` |
-| POST | `/api/accounts/users/:userId/change-password/` | `changeOwnPasswordAsAdmin` → `adminChangeUserPassword` | `ApiDetailResponse` |
+| POST | `/api/accounts/profile/change-password/` | `changeOwnPassword` | `{ detail: string }` |
+| POST | `/api/accounts/users/:userId/change-password/` | `changeOwnPasswordAsAdmin` → `adminChangeUserPassword` *(admin editing another user only)* | `ApiDetailResponse` |
 
 ### **5.3 Accounts – Users**
 
@@ -150,24 +162,35 @@ Helper wrappers (same users endpoint, filtered):
 | PUT | `/api/accounts/roles/:id/` | `replaceRole` *(unused in UI)* | `RoleRecord` |
 | DELETE | `/api/accounts/roles/:id/` | `deleteRole` | — |
 
-### **5.5 Accounts – Lab Pickers**
+### **5.5 Accounts – Departments**
+
+| **Method** | **Endpoint** | **Function** | **Response Type** |
+|---|---|---|---|
+| GET | `/api/accounts/departments/` | `fetchDepartments` | `DrfPaginated<DepartmentRecord>` |
+| GET | `/api/accounts/departments/:id/` | `fetchDepartment` | `DepartmentRecord` |
+| POST | `/api/accounts/departments/` | `createDepartment` | `DepartmentRecord` |
+| PATCH | `/api/accounts/departments/:id/` | `patchDepartment` | `DepartmentRecord` |
+| DELETE | `/api/accounts/departments/:id/` | `deleteDepartment` | — |
+
+### **5.6 Accounts – Lab Pickers**
 
 | **Method** | **Endpoint** | **Function** | **Response Type** |
 |---|---|---|---|
 | GET | `/api/accounts/clients/` | `fetchLabClients` | `AdminUserRow[]` |
 | GET | `/api/accounts/analysts/` | `fetchLabAnalysts` | `AdminUserRow[]` |
 
-### **5.6 Laboratory – Job Orders**
+### **5.7 Laboratory – Job Orders**
 
 | **Method** | **Endpoint** | **Function** | **Query Params** | **Response Type** |
 |---|---|---|---|---|
 | GET | `/api/laboratory/jobs/` | `fetchJobOrders` | `page`, `search`, `current_status`, `priority`, `is_cancelled`, `ordering` | `DrfPaginated<JobOrder>` |
 | GET | `/api/laboratory/jobs/:id/` | `fetchJobOrder` | — | `JobOrder` |
+| GET | `/api/laboratory/jobs/:id/result-summary/` | `fetchJobResultSummary` | — | `JobResultSummary` |
 | POST | `/api/laboratory/jobs/` | `createClientJobRequest`, `createStaffJob` | — | `JobOrder` |
 | PATCH | `/api/laboratory/jobs/:id/` | `patchJobOrder`, `cancelJobOrder` | — | `JobOrder` |
 | DELETE | `/api/laboratory/jobs/:id/` | `softCancelJobOrder`, `cancelJobOrder` | — | — |
 
-### **5.7 Laboratory – Test Catalog**
+### **5.8 Laboratory – Test Catalog**
 
 | **Method** | **Endpoint** | **Function** | **Query Params** | **Response Type** |
 |---|---|---|---|---|
@@ -177,17 +200,18 @@ Helper wrappers (same users endpoint, filtered):
 | PATCH | `/api/laboratory/tests/:id/` | `patchTestCatalogItem` | — | `TestCatalogItem` |
 | DELETE | `/api/laboratory/tests/:id/` | `deleteTestCatalogItem` | — | — |
 
-### **5.8 Laboratory – Samples**
+### **5.9 Laboratory – Samples**
 
 | **Method** | **Endpoint** | **Function** | **Query Params** | **Response Type** |
 |---|---|---|---|---|
 | GET | `/api/laboratory/samples/` | `fetchSamples` | `page`, `search`, `job`, `sample_status` | `DrfPaginated<SampleRecord>` |
 | GET | `/api/laboratory/samples/:id/` | `fetchSample` | — | `SampleRecord` |
 | POST | `/api/laboratory/samples/` | `createSample` | — | `SampleCreateResponse` |
+| POST | `/api/laboratory/samples/:id/assign-analyst/` | `assignSampleAnalyst` | body: `{ assigned_analyst, reassigned_reason? }` | `SampleRecord` |
 | PATCH | `/api/laboratory/samples/:id/` | `patchSample` | — | `SampleRecord` |
 | DELETE | `/api/laboratory/samples/:id/` | `deleteSampleHard` | — | — |
 
-### **5.9 Laboratory – Sample Tests**
+### **5.10 Laboratory – Sample Tests**
 
 | **Method** | **Endpoint** | **Function** | **Query Params** | **Response Type** |
 |---|---|---|---|---|
@@ -196,7 +220,20 @@ Helper wrappers (same users endpoint, filtered):
 | POST | `/api/laboratory/sample-tests/` | `assignTestToSample` | body: `{ sample, test }` | `SampleTestRow` |
 | DELETE | `/api/laboratory/sample-tests/:id/` | `removeSampleTestAssignment` | — | — |
 
-### **5.10 Notifications**
+### **5.11 Sprint 4 Laboratory Resources**
+
+| **Resource** | **Base path** | **Module** | **Custom actions** |
+|---|---|---|---|
+| Financial records | `/api/laboratory/financial-records/` | `financial-records-api.ts` | — |
+| Preparation records | `/api/laboratory/preparation-records/` | `preparation-records-api.ts` | `POST …/:id/start/`, `POST …/:id/complete/` |
+| Analysis results | `/api/laboratory/analysis-results/` | `analysis-results-api.ts` | `POST …/:id/submit/`, `approve/`, `reject/` |
+| Calibration records | `/api/laboratory/calibration-records/` | `calibration-records-api.ts` | — |
+| QC decisions | `/api/laboratory/qc-decisions/` | `qc-decisions-api.ts` | read-only |
+| Complaints | `/api/laboratory/complaints/` | `complaints-api.ts` | `POST …/:id/resolve/`, `reject/` |
+| Discount approvals | `/api/laboratory/discount-approvals/` | `discount-approvals-api.ts` | `POST …/:id/approve/`, `reject/` |
+| Priority alerts | `/api/laboratory/priority-alerts/` | `priority-alerts-api.ts` | list only |
+
+### **5.12 Notifications**
 
 Base path: `/api/notifications/inbox`
 
@@ -213,33 +250,17 @@ Base path: `/api/notifications/inbox`
 
 Notification list query params: `page`, `unread` (`"0"` \| `"1"`), `kind`.
 
-### **5.11 Referenced but Not Called via Axios**
+### **5.13 Referenced but Not Called via Axios**
 
 | **Reference** | **Notes** |
 |---|---|
 | `/api/docs/` | Linked in profile/compliance cards for browser navigation only |
-| Forgot-password page | Documents `POST /api/accounts/users/:id/change-password/`; no dedicated reset API call |
 
 ---
 
-## **6 Backend Sprint 3 Endpoints NOT Yet Used by Frontend**
+## **6 Backend Coverage Status**
 
-These endpoints exist in the backend Sprint 3 report but have **no frontend integration** yet:
-
-| **Method** | **Endpoint** | **Backend Purpose** |
-|---|---|---|
-| GET | `/api/accounts/departments/` | List departments |
-| POST | `/api/accounts/departments/` | Create department |
-| GET | `/api/accounts/departments/:id/` | Retrieve department |
-| PUT/PATCH | `/api/accounts/departments/:id/` | Update department |
-| DELETE | `/api/accounts/departments/:id/` | Delete department |
-| POST | `/api/auth/password-reset-request/` | Request password reset OTP |
-| POST | `/api/auth/password-reset-confirm/` | Confirm OTP and set new password |
-| GET | `/api/laboratory/financial-records/` | List financial records |
-| POST | `/api/laboratory/financial-records/` | Create financial record |
-| GET | `/api/laboratory/financial-records/:invoice_no/` | Retrieve financial record |
-| PUT/PATCH | `/api/laboratory/financial-records/:invoice_no/` | Update payment information |
-| DELETE | `/api/laboratory/financial-records/:invoice_no/` | Delete financial record |
+All REST endpoints exposed by `LSIMS-Backend/LSIMS-main` have matching functions under `LSIMS-Frontend/src/features/`. Staff and client pages wire laboratory workflows (finance, preparation, analysis/QC, calibrations, complaints, discounts, priority alerts) plus auth password reset and profile change-password.
 
 ---
 
@@ -249,8 +270,8 @@ These endpoints exist in the backend Sprint 3 report but have **no frontend inte
 |---|---|
 | `src/types/auth.ts` | `AuthUser`, `TokenPair`, `RegisterResponse` |
 | `src/types/user.ts` | `RoleDetail` (nested in profile) |
-| `src/types/laboratory.ts` | `JobOrder`, `JobOrderStatus`, `SampleRecord`, `TestCatalogItem`, `SampleTestRow`, `DrfPaginated<T>` |
-| `src/types/account-admin.ts` | `AdminUserRow`, `RoleRecord` |
+| `src/types/laboratory.ts` | `JobOrder`, `SampleRecord`, `TestCatalogItem`, workflow entities (`FinancialRecord`, `AnalysisResult`, …), `DrfPaginated<T>` |
+| `src/types/account-admin.ts` | `AdminUserRow`, `RoleRecord`, `DepartmentRecord` |
 | `src/types/notification.ts` | `NotificationKind`, `NotificationRecord` |
 | `src/types/api-responses.ts` | `ApiDetailResponse`, `AdminUserCreateResponse`, `SampleCreateResponse` |
 
@@ -294,6 +315,21 @@ notificationKeys.detail(id)    // ["notifications", "detail", id]
 notificationKeys.unreadCount   // ["notifications", "unread-count"]
 ```
 
+**Laboratory workflows** – `src/features/laboratory/laboratory-query-keys.ts`:
+
+```typescript
+laboratoryQueryKeys.financialRecords(params)
+laboratoryQueryKeys.preparationRecords(params)
+laboratoryQueryKeys.analysisResults(params)
+laboratoryQueryKeys.calibrationRecords(params)
+laboratoryQueryKeys.qcDecisions(params)
+laboratoryQueryKeys.complaints(params)
+laboratoryQueryKeys.discountApprovals(params)
+laboratoryQueryKeys.priorityAlerts()
+laboratoryQueryKeys.jobResultSummary(jobId)
+laboratoryQueryKeys.departments(params)
+```
+
 **Staff dashboard** – `src/pages/staff/dashboard-home/dashboard-api-keys.ts`:
 
 ```typescript
@@ -316,11 +352,19 @@ dashboardKeys.catalogActive       // ["staff-dashboard", "catalog", "active-coun
 | `["client-job-orders", params]` | Client requests list |
 | `["staff-samples", ...]` | Reception sample list |
 | `["staff-analyst", "list" \| "detail", ...]` | Analyst workspace |
-| `["test-catalog", page, search]` | Catalog admin |
+| `["test-catalog", page, search]` | Catalog admin (sidebar **Test catalog** — not under Laboratory tabs) |
 | `["sample-tests", page]` | Test assignments |
-| `["lims-finance-awaiting"]` | Finance awaiting queue |
-| `["lims-finance-hold-jobs"]` | Finance hold queue |
-| `["lab-clients-picker"]`, `["lab-analysts"]` | Intake pickers |
+| `["lims-finance-awaiting"]` | Finance invoices — jobs awaiting payment record |
+| `["admin-departments"]` | Departments management |
+| `["financial-records"]` | Finance **Invoices** tab |
+| `["discount-approvals"]` | Finance **Discount approvals** tab |
+| `["analysis-results"]` | Results/QC workflows |
+| `["qc-decisions"]` | QC history |
+| `["preparation-records"]` | Analyst prep bench |
+| `["calibration-records"]` | Instruments page |
+| `["complaints"]` | Compliance page |
+| `["priority-alerts"]` | Dashboard/scheduling alerts |
+| `["job-result-summary", jobId]` | Staff/client results |
 
 Mutations typically invalidate parent keys (e.g. `["staff-job-orders"]`, `notificationKeys.all`) after success.
 
@@ -363,7 +407,27 @@ For raw API exploration without the frontend, use backend Swagger at `https://ls
 
 ---
 
-## **10 Related Documentation**
+## **11 Workflow UI Conventions (Sprint 4 alignment)**
+
+The frontend no longer PATCHes read-only job fields. Use these API-driven flows instead:
+
+| **Goal** | **Correct API path** | **Frontend surface** |
+|---|---|---|
+| Clear job for laboratory | `POST/PATCH /api/laboratory/financial-records/` with `payment_status: paid` (or director-approved discount waiver) | Finance → **Invoices** tab (Legacy job-queue tab removed) |
+| Client request | `POST /api/laboratory/jobs/` with description + priority (+ optional samples) | Client **My requests** wizard (static ETB menu pricing) |
+| Staff intake | `POST /api/laboratory/jobs/` with `current_status: pending_finance` | Laboratory → job intake form (receptionist on behalf of client) |
+| QC complete | `POST /api/laboratory/analysis-results/:id/approve/` | QC hub → submitted results |
+| Cancel job | `DELETE /api/laboratory/jobs/:id/` (soft cancel) | Job detail → confirm cancel |
+| Assign analyst | `POST /api/laboratory/samples/:id/assign-analyst/` | Sample detail panels |
+| Client results | Job list only until client-safe results endpoint exists | `/client/results` |
+
+**Read-only on job PATCH:** `current_status`, `status_reason`, `blocked_by_role`, `is_cancelled`, `cancellation_reason`.
+
+**React Query invalidation after invoice paid:** `financial-records`, `staff-job-orders`, `staff-samples`, `staff-analyst`, `client-job-orders`, `staff-dashboard` keys, and `staff-job-order` for the affected job.
+
+---
+
+## **12 Related Documentation**
 
 | **Document** | **Purpose** |
 |---|---|

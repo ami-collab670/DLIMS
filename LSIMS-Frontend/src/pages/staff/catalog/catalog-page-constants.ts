@@ -1,2 +1,1 @@
-/** Matches DRF pagination default for `/api/laboratory/tests/` in this UI. */
-export const CATALOG_PAGE_SIZE = 20;
+export { DEFAULT_TABLE_PAGE_SIZE as CATALOG_PAGE_SIZE } from "@/lib/table-list-utils";

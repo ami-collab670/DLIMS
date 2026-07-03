@@ -1,9 +1,20 @@
 import { Loader2, Pencil, ShieldAlert } from "lucide-react";
+import { useCallback, useMemo, useState } from "react";
 
+import { TablePaginationFooter } from "@/components/data-table/table-pagination-footer";
+import { SortableTableHead } from "@/components/data-table/sortable-table-head";
 import { Button } from "@/components/ui/button";
 import { getApiErrorMessage } from "@/lib/api-error";
+import { sortRowsClientSide, type SortState, type TablePageSize } from "@/lib/table-list-utils";
 import type { AdminUserRow } from "@/types/account-admin";
 import type { DrfPaginated } from "@/types/laboratory";
+
+type UserSortKey = "email" | "name" | "user_type" | "role" | "is_active";
+
+const DEFAULT_USER_SORT: SortState<UserSortKey> = {
+  key: "email",
+  direction: "asc",
+};
 
 export function UserManagementTable({
   listData,
@@ -11,7 +22,8 @@ export function UserManagementTable({
   isError,
   error,
   page,
-  totalPages,
+  pageSize,
+  totalPages: _totalPages,
   onPageChange,
   onEdit,
   onDeactivate,
@@ -23,6 +35,7 @@ export function UserManagementTable({
   isError: boolean;
   error: unknown;
   page: number;
+  pageSize: TablePageSize;
   totalPages: number;
   onPageChange: (page: number) => void;
   onEdit: (user: AdminUserRow) => void;
@@ -30,6 +43,38 @@ export function UserManagementTable({
   onReactivate: (user: AdminUserRow) => void;
   actionDisabled: boolean;
 }) {
+  const [sort, setSort] = useState(DEFAULT_USER_SORT);
+
+  const handleSort = useCallback((key: UserSortKey) => {
+    setSort((prev) =>
+      prev.key === key
+        ? { key, direction: prev.direction === "asc" ? "desc" : "asc" }
+        : { key, direction: "asc" },
+    );
+  }, []);
+
+  // Users API has no ordering param — sort current page only.
+  const rows = useMemo(() => {
+    const base = listData?.results ?? [];
+    return sortRowsClientSide(base, sort, (row, key) => {
+      const u = row as AdminUserRow;
+      switch (key as UserSortKey) {
+        case "email":
+          return u.email;
+        case "name":
+          return [u.first_name, u.last_name].filter(Boolean).join(" ");
+        case "user_type":
+          return u.user_type;
+        case "role":
+          return u.role_detail?.display_name ?? "";
+        case "is_active":
+          return u.is_active ? 1 : 0;
+        default:
+          return "";
+      }
+    });
+  }, [listData?.results, sort]);
+
   return (
     <>
       <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
@@ -47,16 +92,41 @@ export function UserManagementTable({
             <table className="w-full min-w-[720px] text-left text-sm">
               <thead>
                 <tr className="border-b border-border bg-muted/40">
-                  <th className="px-4 py-3 font-medium">Email</th>
-                  <th className="px-4 py-3 font-medium">Name</th>
-                  <th className="px-4 py-3 font-medium">Type</th>
-                  <th className="px-4 py-3 font-medium">Role</th>
-                  <th className="px-4 py-3 font-medium">Active</th>
+                  <SortableTableHead
+                    label="Email"
+                    sortKey="email"
+                    sort={sort}
+                    onSort={handleSort}
+                  />
+                  <SortableTableHead
+                    label="Name"
+                    sortKey="name"
+                    sort={sort}
+                    onSort={handleSort}
+                  />
+                  <SortableTableHead
+                    label="Type"
+                    sortKey="user_type"
+                    sort={sort}
+                    onSort={handleSort}
+                  />
+                  <SortableTableHead
+                    label="Role"
+                    sortKey="role"
+                    sort={sort}
+                    onSort={handleSort}
+                  />
+                  <SortableTableHead
+                    label="Active"
+                    sortKey="is_active"
+                    sort={sort}
+                    onSort={handleSort}
+                  />
                   <th className="min-w-[9rem] px-4 py-3 font-medium" />
                 </tr>
               </thead>
               <tbody>
-                {listData?.results.map((u: AdminUserRow) => (
+                {rows.map((u: AdminUserRow) => (
                   <tr key={u.id} className="border-b border-border">
                     <td className="px-4 py-3">
                       <div className="flex flex-col gap-1">
@@ -126,35 +196,15 @@ export function UserManagementTable({
             </table>
           </div>
         )}
+        {listData && listData.count > 0 ? (
+          <TablePaginationFooter
+            page={page}
+            pageSize={pageSize}
+            count={listData.count}
+            onPageChange={onPageChange}
+          />
+        ) : null}
       </div>
-
-      {listData && listData.count > 0 ? (
-        <div className="flex items-center justify-between text-xs text-muted-foreground">
-          <span>
-            Page {page} of {totalPages} ({listData.count} users)
-          </span>
-          <div className="flex gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={page <= 1}
-              onClick={() => onPageChange(Math.max(1, page - 1))}
-            >
-              Previous
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={page >= totalPages}
-              onClick={() => onPageChange(page + 1)}
-            >
-              Next
-            </Button>
-          </div>
-        </div>
-      ) : null}
     </>
   );
 }

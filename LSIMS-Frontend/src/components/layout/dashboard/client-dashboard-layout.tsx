@@ -1,4 +1,4 @@
-import { Bell, ClipboardList, FileText, Home, User } from "lucide-react";
+import { FileText, Home, User } from "lucide-react";
 import { NavLink, Outlet } from "react-router-dom";
 
 import { NotificationBell } from "@/components/notifications/notification-bell";
@@ -10,8 +10,7 @@ import { useAuthStore } from "@/stores/auth-store";
 const navItems = [
   { to: "/client", label: "Home", icon: Home, end: true },
   { to: "/client/requests", label: "My requests", icon: FileText, end: false },
-  // { to: "/client/results", label: "My samples", icon: ClipboardList, end: false },
-  // { to: "/client/notifications", label: "Notifications", icon: Bell, end: false },
+  { to: "/client/results", label: "My results", icon: FileText, end: false },
   { to: "/client/profile", label: "Profile & settings", icon: User, end: false },
 ];
 

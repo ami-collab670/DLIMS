@@ -15,6 +15,30 @@ export function isStaffAnalyst(user: AuthUser | null): boolean {
   return roleName(user) === "analyst";
 }
 
+/** Lab preparation technician — prep bench workflows. */
+export function isStaffLabTechnician(user: AuthUser | null): boolean {
+  if (!user?.is_active) return false;
+  return roleName(user) === "lab_technician";
+}
+
+/** Department manager / QC manager — catalog writes for own department. */
+export function isQcManager(user: AuthUser | null): boolean {
+  if (!user?.is_active) return false;
+  return roleName(user) === "qc_manager";
+}
+
+/** Finance role — invoices and discount requests. */
+export function isFinance(user: AuthUser | null): boolean {
+  if (!user?.is_active) return false;
+  return roleName(user) === "finance";
+}
+
+/** Lab director — discount approval reviews. */
+export function isLabDirector(user: AuthUser | null): boolean {
+  if (!user?.is_active) return false;
+  return roleName(user) === "lab_director";
+}
+
 /** LSIMS admin role or Django superuser — user management, test catalog writes. */
 export function isStaffAdmin(user: AuthUser | null): boolean {
   if (!user?.is_active) return false;
@@ -29,7 +53,7 @@ export function canIntakeSamples(user: AuthUser | null): boolean {
   );
 }
 
-/** Patch jobs, patch/delete samples, manage sample-test links. */
+/** Patch jobs (description/priority only), patch/delete samples, manage sample-test links. */
 export function canManageJobsAndSamples(user: AuthUser | null): boolean {
   if (!user?.is_active) return false;
   const r = roleName(user);
@@ -38,7 +62,34 @@ export function canManageJobsAndSamples(user: AuthUser | null): boolean {
   );
 }
 
-/** Create/edit catalog tests (admin or superuser only per backend). */
+/** Create/edit catalog tests (admin, superuser, or department qc_manager). */
 export function canManageTestCatalog(user: AuthUser | null): boolean {
-  return isStaffAdmin(user);
+  if (!user?.is_active) return false;
+  return Boolean(
+    user.is_superuser === true ||
+      roleName(user) === "admin" ||
+      roleName(user) === "qc_manager",
+  );
+}
+
+/** Request a discount/waiver (finance, reception, admin). */
+export function canRequestDiscountApproval(user: AuthUser | null): boolean {
+  if (!user?.is_active) return false;
+  const r = roleName(user);
+  return Boolean(
+    user.is_superuser === true ||
+      r === "admin" ||
+      r === "finance" ||
+      r === "receptionist",
+  );
+}
+
+/** Approve or reject discount requests (lab director or admin). */
+export function canApproveDiscountApproval(user: AuthUser | null): boolean {
+  if (!user?.is_active) return false;
+  return Boolean(
+    user.is_superuser === true ||
+      roleName(user) === "admin" ||
+      roleName(user) === "lab_director",
+  );
 }
