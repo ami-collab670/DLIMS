@@ -64,7 +64,33 @@ Acceptance checklist for the demo
   - Log in with the created admin account.
   - Open Admin flows (Users, Roles) and perform simple create/edit operations.
 
+Seed demo data via API
+
+After the stack is running and an admin account exists, populate the database with
+full demo workflows (departments, staff, clients, test catalog, jobs, samples,
+finance, preparation, analysis, QC, complaints, discounts, notifications):
+
+```powershell
+# Full demo seed (default counts)
+.\scripts\seed-api.ps1
+
+# Create 10 complete end-to-end laboratory workflows
+.\scripts\seed-api.ps1 -Batch 10
+
+# Custom entity counts
+.\scripts\seed-api.ps1 -Clients 5 -Jobs 20 -SamplesPerJob 2 -Tests 6
+
+# Preview planned API calls without writing data
+.\scripts\seed-api.ps1 -DryRun
+```
+
+Default seeded staff password: `SeedPass123!` (clients use the same).
+Override API URL or admin credentials with `-ApiUrl`, `-AdminEmail`, `-AdminPassword`.
+
+Sample logins after seeding:
+- Admin: `admin@ministry.gov` / `AdminPass123!` (or your setup credentials)
+- Receptionist: `seed-receptionist@ministry.gov` / `SeedPass123!`
+- Client: `seed-client1@minerals.com` / `SeedPass123!`
+
 Security reminder
 - The demo runs with development settings (DEBUG=True by default in the provided .env.example and the Django runserver). These settings are NOT secure for production use. Do not expose this demo to public internet without proper hardening.
-
-If you want, I can also add a small demo-start.sh script that automates these steps (waits for DB health, seeds roles, creates an admin), and open a PR with both files.
