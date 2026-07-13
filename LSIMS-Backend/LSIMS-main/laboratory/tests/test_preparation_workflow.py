@@ -184,7 +184,7 @@ class PreparationWorkflowTests(BaseTestCase):
         )
         self.assertEqual(record.notes, "Ready for analysis.")
         self.assertIsNotNone(record.completed_at)
-        self.assertEqual(sample.sample_status, Sample.SampleStatus.PENDING_ANALYSIS)
+        self.assertEqual(sample.sample_status, Sample.SampleStatus.IN_ANALYSIS)
         self.assertEqual(sample.job.current_status, JobOrder.Status.IN_ANALYSIS)
 
     def test_unassigned_lab_technician_cannot_complete_assigned_preparation(self):

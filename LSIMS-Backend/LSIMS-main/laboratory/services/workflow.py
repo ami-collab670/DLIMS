@@ -241,7 +241,7 @@ def complete_preparation(
         )
 
         sample = preparation_record.sample
-        sample.sample_status = Sample.SampleStatus.PENDING_ANALYSIS
+        sample.sample_status = Sample.SampleStatus.IN_ANALYSIS
         sample.save(update_fields=["sample_status", "updated_at"])
 
         job = sample.job
@@ -443,7 +443,7 @@ def _decide_analysis_result(analysis_result, user, *, decision, reason=""):
                     "updated_at",
                 ]
             )
-            sample.sample_status = Sample.SampleStatus.PENDING_ANALYSIS
+            sample.sample_status = Sample.SampleStatus.IN_ANALYSIS
             sample.save(update_fields=["sample_status", "updated_at"])
             if job.current_status == JobOrder.Status.QC:
                 transition_job(

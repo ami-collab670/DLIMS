@@ -1,211 +1,163 @@
 /**
- * Client-facing service catalog (indicative pricing in ETB).
- * Structure matches the laboratory’s published menus; backend job order stores a text summary.
+ * Client-facing service catalog utilities.
+ * Data is loaded from GET /api/laboratory/tests/; job orders store a text summary.
  */
 
-export type ServiceCatalogItem = {
-  name: string;
-  price: number;
+import type { DepartmentRecord } from "@/types/account-admin";
+import type { TestCatalogItem } from "@/types/laboratory";
+
+export const GENERAL_SERVICES_LABEL = "General services";
+
+export type ClientCatalogTest = TestCatalogItem & {
+  departmentName: string;
+  priceNumber: number;
 };
 
-export type ServiceCatalogCategory = {
-  category: string;
-  items: ServiceCatalogItem[];
+export type ClientCatalogGroup = {
+  departmentId: string | null;
+  departmentName: string;
+  tests: ClientCatalogTest[];
 };
 
-export type ClientServiceCatalog = {
-  geochemical_services: ServiceCatalogCategory[];
-  mineralogy_services: ServiceCatalogCategory[];
-  physical_and_geotechnical_analysis: ServiceCatalogCategory[];
-  mineral_processing_services: ServiceCatalogCategory[];
-};
+export type ClientCatalogIndex = Map<string, ClientCatalogTest>;
 
-export const CLIENT_SERVICE_CATALOG: ClientServiceCatalog = {
-  geochemical_services: [
-    {
-      category: "Sample Preparation",
-      items: [
-        { name: "Geo-chemical sample preparation", price: 45.0 },
-        { name: "Soil sample preparation", price: 35.0 },
-        { name: "Clay sample preparation", price: 50.0 },
-        { name: "Tantalum sample preparation", price: 120.0 },
-      ],
-    },
-    {
-      category: "Select Sample Analysis",
-      items: [
-        { name: "Complete select analysis", price: 250.0 },
-        { name: "Chlorine analysis", price: 65.0 },
-        { name: "Iron-oxide analysis", price: 55.0 },
-        { name: "Beryllium analysis", price: 85.0 },
-        { name: "Sulfur oxide analysis", price: 70.0 },
-        { name: "XRF major element analysis", price: 140.0 },
-        { name: "XRF trace element analysis", price: 160.0 },
-        { name: "EDXRF precious minerals analysis", price: 210.0 },
-      ],
-    },
-    {
-      category: "Hydrocarbon Analysis",
-      items: [
-        { name: "Proximate analysis", price: 180.0 },
-        { name: "Ultimate analysis", price: 225.0 },
-        { name: "Distillation analysis", price: 310.0 },
-        { name: "Sulfur analysis", price: 60.0 },
-        { name: "Organic carbon analysis", price: 95.0 },
-        { name: "Kerogen analysis", price: 450.0 },
-        { name: "Graphitic carbon analysis", price: 110.0 },
-        { name: "Calorific value", price: 130.0 },
-        { name: "Total analysis", price: 500.0 },
-        { name: "Specific gravity measure analysis", price: 75.0 },
-        { name: "Dry density", price: 40.0 },
-      ],
-    },
-    {
-      category: "Gold & Silver Analysis",
-      items: [
-        { name: "Gold chemical analysis", price: 45.0 },
-        { name: "Gold fire assay analysis", price: 55.0 },
-        { name: "Silver analysis", price: 40.0 },
-        { name: "Platinum analysis", price: 85.0 },
-        { name: "Palladium analysis", price: 85.0 },
-        { name: "Forensic analysis", price: 600.0 },
-        { name: "VGA vapor formation", price: 190.0 },
-      ],
-    },
-    {
-      category: "Trace Element & Base Metal",
-      items: [
-        { name: "Base metal analysis", price: 120.0 },
-        { name: "Lithium analysis", price: 95.0 },
-      ],
-    },
-    {
-      category: "Water Analysis",
-      items: [
-        { name: "Water physical analysis", price: 50.0 },
-        { name: "Water chemical analysis", price: 115.0 },
-        { name: "Trace metal analysis", price: 145.0 },
-      ],
-    },
-  ],
-  mineralogy_services: [
-    {
-      category: "Mineralogy Sample Preparation",
-      items: [
-        { name: "Standard thin section preparation", price: 65.0 },
-        { name: "Green mount thin section preparation", price: 85.0 },
-        { name: "Soil thin section preparation", price: 95.0 },
-        { name: "Polished section preparation", price: 75.0 },
-        { name: "Green mount polished section preparation", price: 105.0 },
-        { name: "Polished thin section preparation", price: 120.0 },
-        { name: "Dimension stone cut preparation", price: 200.0 },
-        { name: "Core sample slice preparation", price: 150.0 },
-      ],
-    },
-    {
-      category: "Mineralogy Analysis",
-      items: [
-        { name: "Petrography analysis", price: 350.0 },
-        { name: "Micro-photography", price: 120.0 },
-        { name: "Staining petrography for carbonates", price: 180.0 },
-        { name: "Heavy minerals analysis", price: 275.0 },
-        { name: "Jewelry minerals analysis", price: 400.0 },
-        { name: "XRD mineralogy analysis", price: 220.0 },
-        { name: "Heavy density magnetic identification", price: 195.0 },
-      ],
-    },
-  ],
-  physical_and_geotechnical_analysis: [
-    {
-      category: "Physical Tests",
-      items: [
-        { name: "Moisture content test", price: 25.0 },
-        { name: "Dry sieve grain size distribution test", price: 80.0 },
-        { name: "Wet sieve grain size distribution test", price: 110.0 },
-        { name: "Soil water absorption test", price: 55.0 },
-        { name: "Rock water absorption test", price: 65.0 },
-        { name: "PPT grain size distribution test", price: 140.0 },
-        { name: "Soil linear fire shrinkage test", price: 120.0 },
-        { name: "Linear dry shrinkage test", price: 90.0 },
-        { name: "Dry density tests", price: 45.0 },
-        { name: "Porosity test", price: 85.0 },
-        { name: "Specific gravity test", price: 70.0 },
-        { name: "Color test", price: 15.0 },
-        { name: "Atterberg limit test", price: 130.0 },
-        { name: "Free swell test", price: 60.0 },
-        { name: "Soil bulk density test", price: 50.0 },
-        { name: "Rock bulk density test", price: 55.0 },
-      ],
-    },
-    {
-      category: "Geotechnical Tests",
-      items: [
-        { name: "Soil uniaxial compressive strength test", price: 320.0 },
-        { name: "Soil consolidation property test", price: 450.0 },
-        { name: "Direct shear strength test", price: 280.0 },
-      ],
-    },
-  ],
-  mineral_processing_services: [
-    {
-      category: "Processing & Testing",
-      items: [
-        { name: "Comminution process", price: 500.0 },
-        { name: "Gravity separation analysis", price: 350.0 },
-        { name: "Magnetic separation", price: 250.0 },
-        { name: "Froth floatation", price: 600.0 },
-        { name: "Leaching test", price: 750.0 },
-      ],
-    },
-  ],
-};
+export type DepartmentFilter = "all" | string;
 
-export type CatalogSectionMeta = {
-  key: keyof ClientServiceCatalog;
-  title: string;
-};
-
-export const CATALOG_SECTIONS: CatalogSectionMeta[] = [
-  { key: "geochemical_services", title: "Geochemical services" },
-  { key: "mineralogy_services", title: "Mineralogy services" },
-  { key: "physical_and_geotechnical_analysis", title: "Physical & geotechnical" },
-  { key: "mineral_processing_services", title: "Mineral processing" },
-];
-
-export function itemKey(
-  sectionKey: keyof ClientServiceCatalog,
-  category: string,
-  name: string,
-): string {
-  return `${sectionKey}::${category}::${name}`;
-}
-
-export function parseItemKey(key: string): {
-  sectionKey: keyof ClientServiceCatalog;
-  category: string;
-  name: string;
-} | null {
-  const parts = key.split("::");
-  if (parts.length < 3) return null;
-  const [sectionKey, ...rest] = parts;
-  const name = rest.pop()!;
-  const category = rest.join("::");
-  if (!(sectionKey in CLIENT_SERVICE_CATALOG)) return null;
+function toClientCatalogTest(
+  test: TestCatalogItem,
+  departmentName: string,
+): ClientCatalogTest {
   return {
-    sectionKey: sectionKey as keyof ClientServiceCatalog,
-    category,
-    name,
+    ...test,
+    departmentName,
+    priceNumber: Number(test.price) || 0,
   };
 }
 
-export function lookupItemPrice(key: string): number | null {
-  const parsed = parseItemKey(key);
-  if (!parsed) return null;
-  const groups = CLIENT_SERVICE_CATALOG[parsed.sectionKey];
-  for (const g of groups) {
-    if (g.category !== parsed.category) continue;
-    const item = g.items.find((i) => i.name === parsed.name);
-    if (item) return item.price;
+export function buildClientCatalog(
+  tests: TestCatalogItem[],
+  departments: DepartmentRecord[],
+): { groups: ClientCatalogGroup[]; index: ClientCatalogIndex } {
+  const deptNameById = new Map(departments.map((d) => [d.id, d.name]));
+  const index: ClientCatalogIndex = new Map();
+
+  const bucket = new Map<string | null, ClientCatalogTest[]>();
+
+  for (const test of tests) {
+    const departmentName = test.department
+      ? (deptNameById.get(test.department) ?? GENERAL_SERVICES_LABEL)
+      : GENERAL_SERVICES_LABEL;
+    const entry = toClientCatalogTest(test, departmentName);
+    index.set(test.id, entry);
+
+    const key = test.department;
+    const list = bucket.get(key) ?? [];
+    list.push(entry);
+    bucket.set(key, list);
   }
-  return null;
+
+  const groups: ClientCatalogGroup[] = [];
+
+  for (const dept of departments) {
+    const deptTests = bucket.get(dept.id);
+    if (!deptTests?.length) continue;
+    deptTests.sort((a, b) => a.test_code.localeCompare(b.test_code));
+    groups.push({
+      departmentId: dept.id,
+      departmentName: dept.name,
+      tests: deptTests,
+    });
+  }
+
+  const unassigned = bucket.get(null) ?? [];
+  if (unassigned.length) {
+    unassigned.sort((a, b) => a.test_code.localeCompare(b.test_code));
+    groups.push({
+      departmentId: null,
+      departmentName: GENERAL_SERVICES_LABEL,
+      tests: unassigned,
+    });
+  }
+
+  for (const [deptId, deptTests] of bucket) {
+    if (deptId == null || deptNameById.has(deptId)) continue;
+    deptTests.sort((a, b) => a.test_code.localeCompare(b.test_code));
+    groups.push({
+      departmentId: deptId,
+      departmentName: GENERAL_SERVICES_LABEL,
+      tests: deptTests,
+    });
+  }
+
+  groups.sort((a, b) => a.departmentName.localeCompare(b.departmentName));
+
+  return { groups, index };
+}
+
+function matchesQuery(test: ClientCatalogTest, query: string): boolean {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+  return (
+    test.test_name.toLowerCase().includes(q) ||
+    test.test_code.toLowerCase().includes(q) ||
+    test.description.toLowerCase().includes(q) ||
+    test.unit.toLowerCase().includes(q) ||
+    test.departmentName.toLowerCase().includes(q)
+  );
+}
+
+export function filterClientCatalog(
+  groups: ClientCatalogGroup[],
+  query: string,
+  departmentId: DepartmentFilter,
+): ClientCatalogGroup[] {
+  return groups
+    .filter((g) => {
+      if (departmentId === "all") return true;
+      if (departmentId === "general") return g.departmentId == null;
+      return g.departmentId === departmentId;
+    })
+    .map((g) => ({
+      ...g,
+      tests: g.tests.filter((t) => matchesQuery(t, query)),
+    }))
+    .filter((g) => g.tests.length > 0);
+}
+
+export function lookupTestPrice(
+  id: string,
+  index: ClientCatalogIndex,
+): number {
+  return index.get(id)?.priceNumber ?? 0;
+}
+
+export function sumSelectedPrices(
+  ids: Iterable<string>,
+  index: ClientCatalogIndex,
+): number {
+  let total = 0;
+  for (const id of ids) {
+    total += lookupTestPrice(id, index);
+  }
+  return total;
+}
+
+export function formatCatalogLine(test: ClientCatalogTest): string {
+  const unitSuffix = test.unit ? ` (${test.unit})` : "";
+  return `- [${test.test_code} · ${test.departmentName}] ${test.test_name} — ${test.priceNumber.toFixed(2)} ETB${unitSuffix}`;
+}
+
+export function getDepartmentFilterOptions(
+  groups: ClientCatalogGroup[],
+): { id: DepartmentFilter; label: string }[] {
+  const options: { id: DepartmentFilter; label: string }[] = [
+    { id: "all", label: "All" },
+  ];
+  for (const g of groups) {
+    options.push({
+      id: g.departmentId ?? "general",
+      label: g.departmentName,
+    });
+  }
+  return options;
 }

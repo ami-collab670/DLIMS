@@ -1,9 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  Copy,
-  Dice5,
-  FilePlus2,
-} from "lucide-react";import { useEffect, useMemo, useState } from "react";
+import { Copy, Dice5, FilePlus2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
@@ -13,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { createClientJobRequest } from "@/features/jobs/api";
-import { fetchActiveTestCatalog } from "@/features/laboratory/test-catalog-api";
+import { fetchClientServiceCatalog } from "@/features/laboratory/test-catalog-api";
 import { getApiErrorMessage } from "@/lib/api-error";
 import { qrTextToDataUrl } from "@/lib/qr-data-url";
 import {
@@ -27,13 +24,13 @@ import {
 } from "@/schemas/job-request";
 import type { JobOrder } from "@/types/laboratory";
 
+import { ClientServiceCatalogPicker } from "./client-service-catalog-picker";
 import {
-  CATALOG_SECTIONS,
-  CLIENT_SERVICE_CATALOG,
-  itemKey,
-  lookupItemPrice,
-  parseItemKey,
-  type ClientServiceCatalog,
+  buildClientCatalog,
+  formatCatalogLine,
+  sumSelectedPrices,
+  type ClientCatalogIndex,
+  type ClientCatalogTest,
 } from "./service-catalog";
 
 const MAX_SAMPLES = 50;
@@ -110,28 +107,20 @@ function randomConfirmationCode(): string {
   return Array.from(arr, (x) => chars[x % chars.length]).join("");
 }
 
-function sumKeys(keys: string[]): number {
-  return keys.reduce((s, k) => s + (lookupItemPrice(k) ?? 0), 0);
-}
-
-/** Lines for one block of catalog keys (sorted). */
-function linesForSelectedKeys(sortedKeys: string[]): string[] {
+function linesForSelectedIds(
+  sortedIds: string[],
+  index: ClientCatalogIndex,
+): string[] {
   const lines: string[] = [];
-  if (!sortedKeys.length) {
+  if (!sortedIds.length) {
     lines.push("(No catalog lines — staff to confirm scope.)");
     return lines;
   }
   lines.push("Selected services (indicative ETB pricing):");
-  for (const key of sortedKeys) {
-    const parsed = parseItemKey(key);
-    const price = lookupItemPrice(key);
-    if (!parsed || price == null) continue;
-    const sectionTitle =
-      CATALOG_SECTIONS.find((s) => s.key === parsed.sectionKey)?.title ??
-      parsed.sectionKey;
-    lines.push(
-      `- [${sectionTitle} › ${parsed.category}] ${parsed.name} — ${price.toFixed(2)} ETB`,
-    );
+  for (const id of sortedIds) {
+    const test = index.get(id);
+    if (!test) continue;
+    lines.push(formatCatalogLine(test));
   }
   return lines;
 }
@@ -145,7 +134,8 @@ function buildJobDescription(input: {
   sampleNames: string[];
   globalNotes: string;
   perSampleNotes: string[];
-  selectionGroups: { label: string; keys: string[] }[];
+  selectionGroups: { label: string; ids: string[] }[];
+  catalogIndex: ClientCatalogIndex;
 }): string {
   const lines: string[] = [];
   lines.push(`Client reference ID: ${input.referenceId.trim()}`);
@@ -166,36 +156,41 @@ function buildJobDescription(input: {
   }
   lines.push("");
 
-  if (
-    input.sampleCount === 1 ||
-    input.multiSampleMode === "uniform"
-  ) {
-    const keys = [...(input.selectionGroups[0]?.keys ?? [])].sort();
-    lines.push(...linesForSelectedKeys(keys));
+  if (input.sampleCount === 1 || input.multiSampleMode === "uniform") {
+    const ids = [...(input.selectionGroups[0]?.ids ?? [])].sort((a, b) => {
+      const codeA = input.catalogIndex.get(a)?.test_code ?? a;
+      const codeB = input.catalogIndex.get(b)?.test_code ?? b;
+      return codeA.localeCompare(codeB);
+    });
+    lines.push(...linesForSelectedIds(ids, input.catalogIndex));
     lines.push("");
     if (input.globalNotes.trim()) {
       lines.push("Additional notes (job):");
       lines.push(input.globalNotes.trim());
       lines.push("");
     }
-    const one = sumKeys(keys);
+    const one = sumSelectedPrices(ids, input.catalogIndex);
     lines.push(
       `Indicative subtotal per sample: ${one.toFixed(2)} ETB × ${input.sampleCount} sample(s) = ${(one * input.sampleCount).toFixed(2)} ETB`,
     );
   } else {
     let grand = 0;
     for (let i = 0; i < input.sampleCount; i++) {
-      const keys = [...(input.selectionGroups[i]?.keys ?? [])].sort();
+      const ids = [...(input.selectionGroups[i]?.ids ?? [])].sort((a, b) => {
+        const codeA = input.catalogIndex.get(a)?.test_code ?? a;
+        const codeB = input.catalogIndex.get(b)?.test_code ?? b;
+        return codeA.localeCompare(codeB);
+      });
       const nm = input.sampleNames[i]?.trim() || `Sample ${i + 1}`;
       lines.push(`--- Sample ${i + 1}: ${nm} ---`);
-      lines.push(...linesForSelectedKeys(keys));
+      lines.push(...linesForSelectedIds(ids, input.catalogIndex));
       const note = input.perSampleNotes[i]?.trim();
       if (note) {
         lines.push("Sample-specific notes:");
         lines.push(note);
         lines.push("");
       }
-      grand += sumKeys(keys);
+      grand += sumSelectedPrices(ids, input.catalogIndex);
     }
     if (input.globalNotes.trim()) {
       lines.push("Additional notes (whole job):");
@@ -215,26 +210,34 @@ function buildJobDescription(input: {
 function buildQrPayload(input: {
   referenceId: string;
   confirmationCode: string;
-  selectedKeys: string[];
+  selectedIds: string[];
   sampleCount: number;
   multiSampleMode: MultiSampleMode;
+  catalogIndex: ClientCatalogIndex;
 }): string {
-  const items = input.selectedKeys
-    .map((k) => {
-      const parsed = parseItemKey(k);
-      const price = lookupItemPrice(k);
-      if (!parsed || price == null) return null;
+  const items = input.selectedIds
+    .map((id) => {
+      const test = input.catalogIndex.get(id);
+      if (!test) return null;
       return {
-        c: parsed.category,
-        n: parsed.name,
-        p: price,
+        id: test.id,
+        code: test.test_code,
+        n: test.test_name,
+        u: test.unit,
+        p: test.priceNumber,
       };
     })
-    .filter(Boolean) as { c: string; n: string; p: number }[];
+    .filter(Boolean) as {
+    id: string;
+    code: string;
+    n: string;
+    u: string;
+    p: number;
+  }[];
 
   const total = items.reduce((s, i) => s + i.p, 0);
   const payload = {
-    v: 2,
+    v: 3,
     r: input.referenceId.trim(),
     x: input.confirmationCode,
     nS: input.sampleCount,
@@ -246,7 +249,7 @@ function buildQrPayload(input: {
   let out = JSON.stringify(payload);
   if (out.length > 2000) {
     out = JSON.stringify({
-      v: 2,
+      v: 3,
       r: input.referenceId.trim(),
       x: input.confirmationCode,
       nS: input.sampleCount,
@@ -275,13 +278,40 @@ function resizeSets(prev: Set<string>[], count: number): Set<string>[] {
   );
 }
 
+function selectedTestsFromIds(
+  ids: Iterable<string>,
+  index: ClientCatalogIndex,
+): ClientCatalogTest[] {
+  return [...ids]
+    .map((id) => index.get(id))
+    .filter((t): t is ClientCatalogTest => t != null)
+    .sort((a, b) => a.test_code.localeCompare(b.test_code));
+}
+
 export function ClientNewJobRequestForm({ onCreated }: Props) {
   const queryClient = useQueryClient();
-  const { data: liveCatalog = [] } = useQuery({
-    queryKey: ["client-live-test-catalog"],
-    queryFn: fetchActiveTestCatalog,
+  const {
+    data: catalogData,
+    isLoading: catalogLoading,
+    isError: catalogError,
+    error: catalogErrorDetail,
+    refetch: refetchCatalog,
+  } = useQuery({
+    queryKey: ["client-service-catalog"],
+    queryFn: fetchClientServiceCatalog,
     staleTime: 120_000,
   });
+
+  const { groups: catalogGroups, index: catalogIndex } = useMemo(() => {
+    if (!catalogData) {
+      return {
+        groups: [] as ReturnType<typeof buildClientCatalog>["groups"],
+        index: new Map() as ClientCatalogIndex,
+      };
+    }
+    return buildClientCatalog(catalogData.tests, catalogData.departments);
+  }, [catalogData]);
+
   const [step, setStep] = useState(0);
   const [referenceId, setReferenceId] = useState("");
   const [sampleCount, setSampleCount] = useState(1);
@@ -305,46 +335,19 @@ export function ClientNewJobRequestForm({ onCreated }: Props) {
     },
   });
 
-  const selectedListUniform = useMemo(() => {
-    return [...selected]
-      .sort()
-      .map((k) => {
-        const parsed = parseItemKey(k);
-        const price = lookupItemPrice(k);
-        if (!parsed || price == null) return null;
-        return { key: k, ...parsed, price };
-      })
-      .filter(Boolean) as Array<{
-      key: string;
-      sectionKey: keyof ClientServiceCatalog;
-      category: string;
-      name: string;
-      price: number;
-    }>;
-  }, [selected]);
+  const selectedListUniform = useMemo(
+    () => selectedTestsFromIds(selected, catalogIndex),
+    [selected, catalogIndex],
+  );
 
   const selectedListActiveDistinct = useMemo(() => {
     const set = perSampleSelections[activeSampleIndex] ?? new Set<string>();
-    return [...set]
-      .sort()
-      .map((k) => {
-        const parsed = parseItemKey(k);
-        const price = lookupItemPrice(k);
-        if (!parsed || price == null) return null;
-        return { key: k, ...parsed, price };
-      })
-      .filter(Boolean) as Array<{
-      key: string;
-      sectionKey: keyof ClientServiceCatalog;
-      category: string;
-      name: string;
-      price: number;
-    }>;
-  }, [perSampleSelections, activeSampleIndex]);
+    return selectedTestsFromIds(set, catalogIndex);
+  }, [perSampleSelections, activeSampleIndex, catalogIndex]);
 
   const subtotalUniform = useMemo(
-    () => selectedListUniform.reduce((s, r) => s + r.price, 0),
-    [selectedListUniform],
+    () => sumSelectedPrices(selected, catalogIndex),
+    [selected, catalogIndex],
   );
 
   const indicativeTotal = useMemo(() => {
@@ -352,7 +355,7 @@ export function ClientNewJobRequestForm({ onCreated }: Props) {
       return subtotalUniform * sampleCount;
     }
     return perSampleSelections.reduce(
-      (sum, set) => sum + sumKeys([...set]),
+      (sum, set) => sum + sumSelectedPrices(set, catalogIndex),
       0,
     );
   }, [
@@ -360,11 +363,12 @@ export function ClientNewJobRequestForm({ onCreated }: Props) {
     multiSampleMode,
     subtotalUniform,
     perSampleSelections,
+    catalogIndex,
   ]);
 
   const catalogSelection =
     sampleCount >= 2 && multiSampleMode === "distinct"
-      ? perSampleSelections[activeSampleIndex] ?? new Set()
+      ? (perSampleSelections[activeSampleIndex] ?? new Set())
       : selected;
 
   const { mutate, isPending } = useMutation({
@@ -398,9 +402,7 @@ export function ClientNewJobRequestForm({ onCreated }: Props) {
     setSampleCount(n);
     setSampleNames((prev) => {
       const base = resizeStringArray(prev, n, "");
-      return base.map((s, i) =>
-        s.trim() ? s : `Sample ${i + 1}`,
-      );
+      return base.map((s, i) => (s.trim() ? s : `Sample ${i + 1}`));
     });
     setPerSampleNotes((prev) => resizeStringArray(prev, n, ""));
     setPerSampleSelections((prev) => resizeSets(prev, n));
@@ -413,10 +415,10 @@ export function ClientNewJobRequestForm({ onCreated }: Props) {
       sampleCount === 1 ? "uniform" : multiSampleMode;
     const selectionGroups =
       sampleCount === 1 || multiSampleMode === "uniform"
-        ? [{ label: "shared", keys: [...selected] }]
+        ? [{ label: "shared", ids: [...selected] }]
         : sampleNames.map((label, i) => ({
             label: label.trim() || `Sample ${i + 1}`,
-            keys: [...(perSampleSelections[i] ?? new Set())],
+            ids: [...(perSampleSelections[i] ?? new Set())],
           }));
 
     const description = buildJobDescription({
@@ -429,6 +431,7 @@ export function ClientNewJobRequestForm({ onCreated }: Props) {
       globalNotes: extraNotes,
       perSampleNotes,
       selectionGroups,
+      catalogIndex,
     });
 
     const samplesPayload = sampleNames.map((name, i) => ({
@@ -550,44 +553,39 @@ export function ClientNewJobRequestForm({ onCreated }: Props) {
     }
   };
 
-  const toggleItem = (
-    sectionKey: keyof ClientServiceCatalog,
-    category: string,
-    name: string,
-  ) => {
-    const k = itemKey(sectionKey, category, name);
+  const toggleItem = (testId: string) => {
     if (sampleCount >= 2 && multiSampleMode === "distinct") {
       setPerSampleSelections((prev) =>
         prev.map((s, idx) => {
           if (idx !== activeSampleIndex) return s;
           const n = new Set(s);
-          if (n.has(k)) n.delete(k);
-          else n.add(k);
+          if (n.has(testId)) n.delete(testId);
+          else n.add(testId);
           return n;
         }),
       );
     } else {
       setSelected((prev) => {
         const next = new Set(prev);
-        if (next.has(k)) next.delete(k);
-        else next.add(k);
+        if (next.has(testId)) next.delete(testId);
+        else next.add(testId);
         return next;
       });
     }
   };
 
   const qrValue = useMemo(() => {
-    const selectedKeys =
+    const selectedIds =
       sampleCount === 1 || multiSampleMode === "uniform"
         ? [...selected]
         : [...(perSampleSelections[0] ?? new Set())];
     return buildQrPayload({
       referenceId,
       confirmationCode,
-      selectedKeys,
+      selectedIds,
       sampleCount,
-      multiSampleMode:
-        sampleCount === 1 ? "uniform" : multiSampleMode,
+      multiSampleMode: sampleCount === 1 ? "uniform" : multiSampleMode,
+      catalogIndex,
     });
   }, [
     referenceId,
@@ -596,12 +594,20 @@ export function ClientNewJobRequestForm({ onCreated }: Props) {
     multiSampleMode,
     selected,
     perSampleSelections,
+    catalogIndex,
   ]);
 
   const reviewRows =
     sampleCount === 1 || multiSampleMode === "uniform"
       ? selectedListUniform
       : selectedListActiveDistinct;
+
+  const selectionHint =
+    sampleCount >= 2 && multiSampleMode === "distinct"
+      ? `sample ${activeSampleIndex + 1}`
+      : sampleCount > 1 && multiSampleMode === "uniform"
+        ? `${subtotalUniform.toFixed(2)} ETB × ${sampleCount} samples`
+        : undefined;
 
   return (
     <section
@@ -617,17 +623,10 @@ export function ClientNewJobRequestForm({ onCreated }: Props) {
             New request
           </h2>
           <p className="text-sm text-muted-foreground">
-            Multi-step wizard: reference and sample count, service menu, then
-            review. Jobs start in finance review; multiple samples can share
-            one scope or differ per sample.
+            Multi-step wizard: reference and sample count, laboratory catalog,
+            then review. Jobs start in finance review; multiple samples can
+            share one scope or differ per sample.
           </p>
-          {liveCatalog.length > 0 ? (
-            <p className="text-xs text-muted-foreground">
-              Live laboratory catalog: {liveCatalog.length} active tests loaded from the API
-              (codes {liveCatalog.slice(0, 3).map((t) => t.test_code).join(", ")}
-              {liveCatalog.length > 3 ? "…" : ""}). Menu prices remain indicative until invoiced.
-            </p>
-          ) : null}
           <WizardStepNav
             steps={STEPS}
             step={step}
@@ -839,57 +838,17 @@ export function ClientNewJobRequestForm({ onCreated }: Props) {
             </div>
           ) : null}
 
-          <div className="max-h-[min(60vh,520px)] space-y-6 overflow-y-auto rounded-lg border border-border bg-muted/10 p-3 sm:p-4">
-            {CATALOG_SECTIONS.map(({ key, title }) => (
-              <div key={key}>
-                <h3 className="sticky top-0 z-10 border-b border-border bg-card/95 py-2 text-sm font-semibold backdrop-blur">
-                  {title}
-                </h3>
-                <div className="mt-3 space-y-5">
-                  {CLIENT_SERVICE_CATALOG[key].map((group) => (
-                    <div key={group.category}>
-                      <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                        {group.category}
-                      </p>
-                      <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                        {group.items.map((it) => {
-                          const k = itemKey(key, group.category, it.name);
-                          const on = catalogSelection.has(k);
-                          return (
-                            <li key={k}>
-                              <label
-                                className={cn(
-                                  "flex cursor-pointer gap-2 rounded-lg border px-3 py-2 text-sm transition-colors hover:bg-muted/50",
-                                  on
-                                    ? "border-primary bg-primary/5"
-                                    : "border-border bg-card",
-                                )}
-                              >
-                                <input
-                                  type="checkbox"
-                                  className="mt-1 size-4 shrink-0 rounded border-input"
-                                  checked={on}
-                                  onChange={() =>
-                                    toggleItem(key, group.category, it.name)
-                                  }
-                                />
-                                <span className="min-w-0 flex-1 leading-snug">
-                                  <span className="block">{it.name}</span>
-                                  <span className="text-xs text-muted-foreground">
-                                    {it.price.toFixed(2)} ETB
-                                  </span>
-                                </span>
-                              </label>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
+          <ClientServiceCatalogPicker
+            groups={catalogGroups}
+            index={catalogIndex}
+            selectedIds={catalogSelection}
+            onToggle={toggleItem}
+            isLoading={catalogLoading}
+            error={catalogError ? catalogErrorDetail : undefined}
+            onRetry={() => void refetchCatalog()}
+            selectionHint={selectionHint}
+            indicativeTotal={indicativeTotal}
+          />
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
@@ -910,7 +869,9 @@ export function ClientNewJobRequestForm({ onCreated }: Props) {
               </select>
             </div>
             <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor="wizard-notes">Additional notes for the whole job (optional)</Label>
+              <Label htmlFor="wizard-notes">
+                Additional notes for the whole job (optional)
+              </Label>
               <Textarea
                 id="wizard-notes"
                 rows={3}
@@ -924,30 +885,6 @@ export function ClientNewJobRequestForm({ onCreated }: Props) {
                   : "Per-sample requirements are set above when a sample is selected; use this box for job-wide context."}
               </p>
             </div>
-          </div>
-
-          <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
-            <span>
-              <span className="font-medium text-foreground">
-                {catalogSelection.size}
-              </span>{" "}
-              line(s) in scope
-              {sampleCount >= 2 && multiSampleMode === "distinct"
-                ? ` (sample ${activeSampleIndex + 1})`
-                : null}
-            </span>
-            <span>
-              Indicative total{" "}
-              <span className="font-mono font-medium text-foreground">
-                {indicativeTotal.toFixed(2)} ETB
-              </span>
-              {sampleCount > 1 && multiSampleMode === "uniform" ? (
-                <span className="text-xs">
-                  {" "}
-                  ({subtotalUniform.toFixed(2)} × {sampleCount})
-                </span>
-              ) : null}
-            </span>
           </div>
         </div>
       ) : null}
@@ -996,13 +933,13 @@ export function ClientNewJobRequestForm({ onCreated }: Props) {
                   <span className="tabular-nums text-muted-foreground">
                     {i + 1}.{" "}
                   </span>
-                  <span className="font-medium">{n.trim() || `Sample ${i + 1}`}</span>
+                  <span className="font-medium">
+                    {n.trim() || `Sample ${i + 1}`}
+                  </span>
                   {sampleCount >= 2 && multiSampleMode === "distinct" ? (
                     <p className="mt-1 text-xs text-muted-foreground">
                       {(perSampleSelections[i]?.size ?? 0)} catalog line(s)
-                      {(perSampleNotes[i] ?? "").trim()
-                        ? " · has notes"
-                        : ""}
+                      {(perSampleNotes[i] ?? "").trim() ? " · has notes" : ""}
                     </p>
                   ) : null}
                 </li>
@@ -1018,19 +955,28 @@ export function ClientNewJobRequestForm({ onCreated }: Props) {
             </h3>
             {reviewRows.length ? (
               <ul className="mt-2 divide-y divide-border rounded-lg border border-border text-sm">
-                {reviewRows.map((row) => (
+                {reviewRows.map((test) => (
                   <li
-                    key={row.key}
+                    key={test.id}
                     className="flex flex-wrap items-baseline justify-between gap-2 px-3 py-2"
                   >
                     <span className="min-w-0">
-                      <span className="text-muted-foreground">
-                        {row.category} ·{" "}
+                      <span className="font-mono text-xs text-muted-foreground">
+                        {test.test_code}
                       </span>
-                      {row.name}
+                      <span className="mx-1 text-muted-foreground">·</span>
+                      <span className="text-muted-foreground">
+                        {test.departmentName}
+                      </span>
+                      <span className="block font-medium">{test.test_name}</span>
+                      {test.unit ? (
+                        <span className="text-xs text-muted-foreground">
+                          {test.unit}
+                        </span>
+                      ) : null}
                     </span>
                     <span className="font-mono tabular-nums">
-                      {row.price.toFixed(2)} ETB
+                      {test.priceNumber.toFixed(2)} ETB
                     </span>
                   </li>
                 ))}

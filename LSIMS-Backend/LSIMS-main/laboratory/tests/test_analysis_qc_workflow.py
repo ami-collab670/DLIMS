@@ -88,7 +88,7 @@ class AnalysisQCWorkflowTests(BaseTestCase):
         self.assertEqual(result.sample_test, sample_test)
         self.assertEqual(result.analyst, self.analyst_user)
         self.assertEqual(result.state, AnalysisResult.State.DRAFT)
-        self.assertEqual(sample.sample_status, Sample.SampleStatus.PENDING_ANALYSIS)
+        self.assertEqual(sample.sample_status, Sample.SampleStatus.IN_ANALYSIS)
 
     def test_result_entry_requires_completed_preparation(self):
         sample = self._create_coded_sample(analyst=self.analyst_user)
@@ -360,7 +360,7 @@ class AnalysisQCWorkflowTests(BaseTestCase):
         sample.job.refresh_from_db()
         self.assertEqual(result.state, AnalysisResult.State.REJECTED)
         self.assertIsNotNone(result.rejected_at)
-        self.assertEqual(sample.sample_status, Sample.SampleStatus.PENDING_ANALYSIS)
+        self.assertEqual(sample.sample_status, Sample.SampleStatus.IN_ANALYSIS)
         self.assertEqual(sample.job.current_status, JobOrder.Status.IN_ANALYSIS)
         self.assertTrue(
             QCDecision.objects.filter(

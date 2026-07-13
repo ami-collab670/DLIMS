@@ -656,7 +656,6 @@ class AnalysisResultSerializer(serializers.ModelSerializer):
     def validate_sample_test(self, value):
         sample = value.sample
         if sample.sample_status not in {
-            Sample.SampleStatus.PENDING_ANALYSIS,
             Sample.SampleStatus.IN_ANALYSIS,
         }:
             raise serializers.ValidationError(
