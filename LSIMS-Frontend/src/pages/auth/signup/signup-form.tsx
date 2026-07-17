@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PhoneInputField } from "@/components/ui/phone-input";
 
 import type { SignupValues } from "./signup-schema";
 
@@ -16,6 +17,7 @@ type Props = {
 export function SignupForm({ form, onSubmit, submitting }: Props) {
   const {
     register,
+    control,
     handleSubmit,
     formState: { errors },
   } = form;
@@ -62,12 +64,10 @@ export function SignupForm({ form, onSubmit, submitting }: Props) {
 
           <div className="space-y-2 sm:col-span-2">
             <Label htmlFor="phone">Phone (optional)</Label>
-            <Input
-              id="phone"
-              type="tel"
-              autoComplete="tel"
-              {...register("phone")}
-            />
+            <PhoneInputField control={control} name="phone" id="phone" />
+            {errors.phone ? (
+              <p className="text-xs text-destructive">{errors.phone.message}</p>
+            ) : null}
           </div>
 
           <div className="space-y-2 sm:col-span-2">

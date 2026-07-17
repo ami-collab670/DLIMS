@@ -40,6 +40,7 @@ from .policies import (
     discount_approvals_visible_to,
     financial_records_visible_to,
     jobs_visible_to,
+    is_external_client,
     preparation_records_visible_to,
     qc_decisions_visible_to,
     samples_visible_to,
@@ -55,6 +56,7 @@ from .serializers import (
     TestCatalogSerializer,
     JobOrderSerializer,
     JobOrderCreateSerializer,
+    ClientJobOrderCreateSerializer,
     SampleSerializer,
     SampleCreateSerializer,
     SampleUpdateSerializer,
@@ -221,7 +223,7 @@ class JobOrderViewSet(viewsets.ModelViewSet):
     Access rules:
     - Admin: read/update/delete on all jobs.
     - Receptionist: create + read/update all jobs.
-    - Client (external): read-only, only their own jobs.
+    - Client (external): create self-service requests + read-only on own jobs.
     - Other roles: read-only, all jobs (for downstream workflow visibility).
 
     DELETE is implemented as a soft cancel that keeps the database row.
@@ -246,31 +248,49 @@ class JobOrderViewSet(viewsets.ModelViewSet):
         ).prefetch_related("samples", "samples__sample_tests__test")
         return jobs_visible_to(self.request.user, base_qs)
 
+    # edited by kiya
     def get_serializer_class(self):
         if self.action == "create":
+            user = getattr(self.request, "user", None)
+            if user and is_external_client(user):
+                return ClientJobOrderCreateSerializer
             return JobOrderCreateSerializer
         return JobOrderSerializer
 
+    # edited by kiya
     def check_permissions(self, request):
         """
         Enforce job-order write permissions:
-        - Only Receptionists can create new job orders.
+        - Receptionists can create staff intake job orders.
+        - External clients can create self-service job requests.
         - Admin/Receptionist can update or delete existing job orders.
         - Everyone else gets read-only.
         """
         super().check_permissions(request)
         if self.action == "create":
-            if not IsReceptionist().has_permission(request, self):
-                self.permission_denied(
-                    request,
-                    message="Only Receptionists can create job orders.",
-                )
+            if IsReceptionist().has_permission(request, self):
+                return
+            if is_external_client(request.user):
+                return
+            self.permission_denied(
+                request,
+                message="Only Receptionists can create job orders.",
+            )
         elif request.method not in ("GET", "HEAD", "OPTIONS"):
             if not IsAdminOrReceptionist().has_permission(request, self):
                 self.permission_denied(
                     request,
                     message="Only Admin or Receptionist can modify job orders.",
                 )
+
+    # edited by kiya
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        job = serializer.save()
+        output = JobOrderSerializer(job, context=self.get_serializer_context())
+        headers = self.get_success_headers(output.data)
+        return Response(output.data, status=status.HTTP_201_CREATED, headers=headers)
 
     def perform_destroy(self, instance):
         """Soft-cancel a job order instead of hard-deleting its database row."""

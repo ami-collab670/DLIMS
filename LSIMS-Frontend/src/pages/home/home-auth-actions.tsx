@@ -1,6 +1,8 @@
 import { Link } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
+import { DEFAULT_HOME_PAGE } from "@/features/cms/defaults";
+import { useHomePage } from "@/features/cms/hooks";
 import { getDashboardPath } from "@/lib/dashboard-path";
 import type { AuthUser } from "@/types/auth";
 
@@ -11,6 +13,11 @@ export function HomeAuthActions({
   user: AuthUser | null;
   ready: boolean;
 }) {
+  const { data: homePage } = useHomePage();
+  const primaryLabel = homePage?.primaryCtaLabel ?? DEFAULT_HOME_PAGE.primaryCtaLabel;
+  const secondaryLabel =
+    homePage?.secondaryCtaLabel ?? DEFAULT_HOME_PAGE.secondaryCtaLabel;
+
   if (!ready) return null;
 
   if (user) {
@@ -26,10 +33,10 @@ export function HomeAuthActions({
   return (
     <div className="flex flex-wrap gap-3">
       <Button asChild size="lg">
-        <Link to="/login">Sign in</Link>
+        <Link to="/login">{primaryLabel}</Link>
       </Button>
       <Button asChild variant="outline" size="lg">
-        <Link to="/signup">Create account</Link>
+        <Link to="/signup">{secondaryLabel}</Link>
       </Button>
     </div>
   );

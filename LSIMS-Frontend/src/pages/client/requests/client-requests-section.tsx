@@ -23,6 +23,7 @@ import {
 } from "@/features/jobs/job-order-list-sort";
 import { SortableJobTableHead } from "@/features/jobs/sortable-job-table-head";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
+import { getApiErrorMessage } from "@/lib/api-error";
 import {
   type TablePageSize,
 } from "@/lib/table-list-utils";
@@ -218,7 +219,7 @@ export function ClientRequestsSection() {
             <div className="flex flex-col items-center gap-2 px-4 py-16 text-center">
               <AlertCircle className="size-8 text-destructive" />
               <p className="text-sm text-destructive">
-                {(error as Error)?.message ?? "Could not load job orders."}
+                {getApiErrorMessage(error)}
               </p>
             </div>
           ) : !listData?.results.length ? (

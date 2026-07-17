@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PhoneInput } from "@/components/ui/phone-input";
 import {
   type UpdateAdminUserBody,
   fetchAdminUser,
@@ -226,10 +227,10 @@ export function UserEditDialog({ user, onClose, onSave, isPending }: Props) {
           </div>
           <div className="space-y-2 sm:col-span-2">
             <Label htmlFor="e-phone">Phone</Label>
-            <Input
+            <PhoneInput
               id="e-phone"
               value={phone}
-              onChange={(e) => setPhone(e.target.value)}
+              onChange={setPhone}
             />
           </div>
           <div className="space-y-2">

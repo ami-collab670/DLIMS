@@ -1,0 +1,25 @@
+############################
+# Package managers
+############################
+node_modules/
+yarn.lock
+pnpm-lock.yaml
+
+############################
+# Strapi
+############################
+.cache/
+.tmp/
+build/
+dist/
+.strapi/
+exports/
+*.log
+.env
+license.txt
+
+############################
+# Uploads (persisted via Docker volume in dev)
+############################
+public/uploads/*
+!public/uploads/.gitkeep

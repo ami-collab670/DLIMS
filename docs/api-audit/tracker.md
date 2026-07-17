@@ -1,7 +1,9 @@
 # API Audit Tracker
 
-**Last updated:** July 13, 2026  
+**Last updated:** July 16, 2026  
 **Scope:** All HTTP operations exposed by LSIMS backend routers under `/api/auth/`, `/api/accounts/`, `/api/laboratory/`, `/api/notifications/`.
+
+**July 16, 2026 revision (client requests fix):** `GET /api/accounts/departments/` — read access opened to all authenticated users (`IsAdminOrReadOnly`). `POST /api/laboratory/jobs/` — external client self-service create + nested `samples` implemented (`ClientJobOrderCreateSerializer`). See [accounts.md](accounts.md) and [laboratory-jobs.md](laboratory-jobs.md).
 
 | Column | Meaning |
 |--------|---------|

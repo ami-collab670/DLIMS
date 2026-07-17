@@ -229,6 +229,68 @@ class JobOrderSerializer(serializers.ModelSerializer):
         return obj.samples.count()
 
 
+# edited by kiya
+class ClientJobSampleIntakeSerializer(serializers.Serializer):
+    """Nested sample row for client self-service job requests (pre-intake)."""
+
+    sample_name = serializers.CharField(max_length=200)
+    notes = serializers.CharField(required=False, default="", allow_blank=True)
+    packaging_type = serializers.CharField(
+        required=False, default="", allow_blank=True, max_length=100
+    )
+    sample_weight = serializers.DecimalField(
+        max_digits=10, decimal_places=3, required=False, allow_null=True
+    )
+    collection_date = serializers.DateField(required=False, allow_null=True)
+
+
+# edited by kiya
+class ClientJobOrderCreateSerializer(serializers.Serializer):
+    """
+    Serializer for external client self-service job requests.
+    Auto-sets client/submitted_by to the authenticated user and pending_finance status.
+    """
+
+    description = serializers.CharField()
+    priority = serializers.ChoiceField(choices=JobOrder.Priority.choices)
+    samples = ClientJobSampleIntakeSerializer(many=True, required=False)
+
+    def validate(self, attrs):
+        if "client" in self.initial_data:
+            raise serializers.ValidationError(
+                {
+                    "client": (
+                        "Self-service clients cannot use receptionist intake fields."
+                    )
+                }
+            )
+        return attrs
+
+    def create(self, validated_data):
+        samples_data = validated_data.pop("samples", [])
+        user = self.context["request"].user
+        job = JobOrder.objects.create(
+            client=user,
+            submitted_by=user,
+            current_status=JobOrder.Status.PENDING_FINANCE,
+            priority=validated_data["priority"],
+            description=validated_data.get("description", ""),
+        )
+        for sample_data in samples_data:
+            Sample.objects.create(
+                job=job,
+                sample_name=sample_data["sample_name"],
+                notes=sample_data.get("notes", ""),
+                packaging_type=sample_data.get("packaging_type", ""),
+                sample_weight=sample_data.get("sample_weight"),
+                collection_date=sample_data.get("collection_date"),
+                submitted_by=user,
+                received_by=None,
+                sample_status=JobOrder.Status.PENDING_FINANCE,
+            )
+        return job
+
+
 class JobOrderCreateSerializer(serializers.ModelSerializer):
     """
     Serializer for creating new job orders (Receptionist only).
@@ -271,9 +333,13 @@ class JobOrderCreateSerializer(serializers.ModelSerializer):
             )
         return value
 
+    # edited by kiya
     def create(self, validated_data):
-        """Auto-set submitted_by to the authenticated user."""
+        """Auto-set submitted_by and default intake status for receptionist intake."""
         validated_data["submitted_by"] = self.context["request"].user
+        validated_data.setdefault(
+            "current_status", JobOrder.Status.PENDING_FINANCE
+        )
         return super().create(validated_data)
 
 

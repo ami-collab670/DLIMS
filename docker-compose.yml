@@ -1,8 +1,9 @@
-# Full stack: PostgreSQL + Django API + Vite dev server
+# Full stack: PostgreSQL + Django API + Strapi CMS + Vite dev server
 # From this directory (v1): docker compose up --build
 #
-# Open: http://localhost:5173  (API proxied to backend; browser calls use same origin + /api)
+# Open: http://localhost:5173  (API proxied to backend; CMS proxied via /cms-api)
 # API:  http://localhost:8000
+# CMS:  http://localhost:1337/admin
 
 services:
   db:
@@ -13,6 +14,7 @@ services:
       POSTGRES_DB: lsims
     volumes:
       - lsims_pgdata:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U lsims -d lsims"]
       interval: 3s
@@ -39,23 +41,58 @@ services:
         condition: service_healthy
 
   frontend:
-    image: node:22-alpine
+    build:
+      context: ./LSIMS-Frontend
+      dockerfile: Dockerfile.dev
     working_dir: /app
     volumes:
       - ./LSIMS-Frontend:/app
-      - frontend_node_modules:/app/node_modules
-    command: sh -c "npm ci && npm run dev -- --host 0.0.0.0 --port 5173"
+      - /app/node_modules
     ports:
       - "5173:5173"
     environment:
       # Vite dev server proxies /api → Django (see vite.config.ts)
       VITE_PROXY_API: http://backend:8000
+      VITE_CMS_PROXY: http://cms:1337
       CHOKIDAR_USEPOLLING: 'true'
       WATCHPACK_POLLING: 'true'
       NODE_OPTIONS: '--max-old-space-size=4096'
     depends_on:
       - backend
-      
+      - cms
+
+  cms:
+    build: ./cms
+    tty: true
+    stdin_open: true
+    restart: unless-stopped
+    ports:
+      - "1337:1337"
+    environment:
+      DATABASE_CLIENT: postgres
+      DATABASE_HOST: db
+      DATABASE_PORT: 5432
+      DATABASE_NAME: cms
+      DATABASE_USERNAME: lsims
+      DATABASE_PASSWORD: lsims_dev
+      APP_KEYS: devKey1,devKey2
+      API_TOKEN_SALT: devApiTokenSalt
+      ADMIN_JWT_SECRET: devAdminJwtSecret
+      JWT_SECRET: devJwtSecret
+      TRANSFER_TOKEN_SALT: devTransferSalt
+      ENCRYPTION_KEY: devEncryptionKey1234567890123456
+      HOST: 0.0.0.0
+      PORT: 1337
+      NODE_OPTIONS: '--max-old-space-size=4096'
+    volumes:
+      - ./cms:/opt/app
+      # Keep image node_modules; do not use a named volume (corrupted installs cannot be removed in-container).
+      - /opt/app/node_modules
+      - cms_uploads:/opt/app/public/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+
   pgadmin:
     image: dpage/pgadmin4:latest
     container_name: lsims-pgadmin
@@ -75,5 +112,5 @@ services:
 
 volumes:
   lsims_pgdata:
-  frontend_node_modules:
+  cms_uploads:
   pgadmin_data:

@@ -1,0 +1,33 @@
+{
+  "kind": "singleType",
+  "collectionName": "home_pages",
+  "info": {
+    "singularName": "home-page",
+    "pluralName": "home-pages",
+    "displayName": "Home Page",
+    "description": "Public home page hero content"
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "attributes": {
+    "heroTitle": {
+      "type": "string",
+      "required": true
+    },
+    "heroSubtitle": {
+      "type": "text",
+      "required": true
+    },
+    "primaryCtaLabel": {
+      "type": "string",
+      "required": true,
+      "default": "Sign in"
+    },
+    "secondaryCtaLabel": {
+      "type": "string",
+      "required": true,
+      "default": "Create account"
+    }
+  }
+}

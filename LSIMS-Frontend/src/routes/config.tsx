@@ -21,6 +21,7 @@ import ClientNotFoundPage from "@/pages/errors/ClientNotFoundPage";
 import PublicNotFoundPage from "@/pages/errors/PublicNotFoundPage";
 import StaffNotFoundPage from "@/pages/errors/StaffNotFoundPage";
 import Home from "@/pages/Home";
+import { MarketingPage } from "@/pages/public/MarketingPage";
 import ProfileManagementPage from "@/pages/profile/ProfileManagementPage";
 import StaffCompliancePage from "@/pages/staff/StaffCompliancePage";
 import StaffDashboardHome from "@/pages/staff/StaffDashboardHome";
@@ -43,6 +44,9 @@ export const appRoutes: RouteObject[] = [
     children: [
       // ── Public zone ──
       { path: "/", element: <Home /> },
+      { path: "/about", element: <MarketingPage slug="about" /> },
+      { path: "/services", element: <MarketingPage slug="services" /> },
+      { path: "/contact", element: <MarketingPage slug="contact" /> },
 
       // ── Auth zone ──
       { path: "/login", element: <LoginPage /> },

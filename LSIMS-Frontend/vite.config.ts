@@ -17,6 +17,11 @@ export default defineConfig({
         target: process.env.VITE_PROXY_API ?? 'http://127.0.0.1:8000',
         changeOrigin: true,
       },
+      '/cms-api': {
+        target: process.env.VITE_CMS_PROXY ?? 'http://127.0.0.1:1337',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/cms-api/, '/api'),
+      },
     },
   },
 })

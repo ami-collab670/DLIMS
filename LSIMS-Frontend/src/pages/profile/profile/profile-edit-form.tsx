@@ -3,6 +3,7 @@ import type { UseFormReturn } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PhoneInputField } from "@/components/ui/phone-input";
 import type { ProfileFormValues } from "@/schemas/profile";
 import type { AuthUser } from "@/types/auth";
 
@@ -19,7 +20,7 @@ export function ProfileEditForm({
   onSubmit,
   isPending,
 }: Props) {
-  const { register, handleSubmit, formState, reset } = form;
+  const { register, control, handleSubmit, formState, reset } = form;
 
   return (
     <form
@@ -45,12 +46,12 @@ export function ProfileEditForm({
         </div>
         <div className="space-y-2 sm:col-span-2">
           <Label htmlFor="phone">Phone</Label>
-          <Input
-            id="phone"
-            type="tel"
-            autoComplete="tel"
-            {...register("phone")}
-          />
+          <PhoneInputField control={control} name="phone" id="phone" />
+          {formState.errors.phone ? (
+            <p className="text-xs text-destructive">
+              {formState.errors.phone.message}
+            </p>
+          ) : null}
         </div>
       </div>
 

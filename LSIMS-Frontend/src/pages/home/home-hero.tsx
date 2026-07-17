@@ -1,13 +1,25 @@
+import { useHomePage } from "@/features/cms/hooks";
+import { DEFAULT_HOME_PAGE } from "@/features/cms/defaults";
+
 export function HomeHero() {
+  const { data, isLoading } = useHomePage();
+  const content = data ?? DEFAULT_HOME_PAGE;
+
+  if (isLoading) {
+    return (
+      <div className="space-y-3 animate-pulse">
+        <div className="h-10 w-3/4 rounded bg-muted" />
+        <div className="h-16 w-full rounded bg-muted" />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-3">
       <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">
-        Laboratory Sample Information Management
+        {content.heroTitle}
       </h1>
-      <p className="text-muted-foreground">
-        Sign in to access your dashboard. Staff use the workspace with a sidebar;
-        clients get a simple site-style layout.
-      </p>
+      <p className="text-muted-foreground">{content.heroSubtitle}</p>
     </div>
   );
 }

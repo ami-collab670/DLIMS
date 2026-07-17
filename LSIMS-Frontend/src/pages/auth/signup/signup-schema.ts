@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { optionalPhoneSchema } from "@/lib/phone-validation";
+
 export const signupSchema = z
   .object({
     email: z.string().email("Enter a valid email"),
@@ -8,7 +10,7 @@ export const signupSchema = z
     first_name: z.string().optional(),
     last_name: z.string().optional(),
     organization_name: z.string().optional(),
-    phone: z.string().optional(),
+    phone: optionalPhoneSchema,
   })
   .refine((data) => data.password === data.passwordConfirm, {
     message: "Passwords do not match",

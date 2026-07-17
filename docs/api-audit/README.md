@@ -1,6 +1,6 @@
 # LSIMS API Audit Library
 
-**Last updated:** July 13, 2026
+**Last updated:** July 16, 2026
 
 This directory contains standalone frontend–backend contract audits for every HTTP operation exposed under `/api/auth/`, `/api/accounts/`, `/api/laboratory/`, and `/api/notifications/`. Each file is written to the same template so reviewers can compare endpoints consistently.
 
@@ -68,7 +68,7 @@ Part 1 and Part 2 are intentionally separate so contract gaps (email vs UUID FKs
 | App | Tests |
 |-----|-------|
 | `accounts` | [LSIMS-Backend/LSIMS-main/accounts/tests.py](../../LSIMS-Backend/LSIMS-main/accounts/tests.py) — comprehensive Sprint 1 suite |
-| `laboratory`, `notifications` | No dedicated backend test modules found at audit time |
+| `laboratory`, `notifications` | [LSIMS-Backend/LSIMS-main/laboratory/tests/](../../LSIMS-Backend/LSIMS-main/laboratory/tests/) — permission, happy-path, workflow tests (not endpoint-by-endpoint catalog) |
 
 ---
 

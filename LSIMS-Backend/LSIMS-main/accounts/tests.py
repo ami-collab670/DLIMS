@@ -439,6 +439,15 @@ class AdminDepartmentCRUDTests(BaseTestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
+    # edited by kiya
+    def test_authenticated_client_can_list_departments(self):
+        client = self.get_authenticated_client(
+            "client@company.com", "ClientPass123!"
+        )
+        response = client.get(reverse("department-list"))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertGreaterEqual(response.data["count"], 1)
+
 
 class AdminUserCRUDTests(BaseTestCase):
     """Admin can perform full CRUD on Users."""

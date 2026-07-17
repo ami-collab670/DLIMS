@@ -1,14 +1,17 @@
 /**
- * Without a base URL, axios posts to the dev server origin (e.g. :5173) → 404 on /api/*.
+ * Without a base URL, CMS requests use same-origin `/cms-api` in dev (Vite proxy).
  *
- * - **Dev:** default is `""` so requests are same-origin; `vite.config.ts` proxies `/api` → Django.
- * - **Prod:** set `VITE_API_BASE_URL` to your API (e.g. `https://api.example.com`).
+ * - **Dev:** default is `/cms-api` (proxied to Strapi).
+ * - **Prod:** set `VITE_CMS_API_BASE_URL` (e.g. `https://cms.example.com/api`).
  */
-const apiBaseUrl =
-  import.meta.env.VITE_API_BASE_URL ||
-  (import.meta.env.DEV ? "" : "");
+const cmsApiBaseUrl =
+  import.meta.env.VITE_CMS_API_BASE_URL ||
+  (import.meta.env.DEV ? "/cms-api" : "");
 
 export const env = {
-  apiBaseUrl,
+  apiBaseUrl:
+    import.meta.env.VITE_API_BASE_URL ||
+    (import.meta.env.DEV ? "" : ""),
+  cmsApiBaseUrl: cmsApiBaseUrl.replace(/\/$/, ""),
   appName: import.meta.env.VITE_APP_NAME ?? "LSIMS",
 } as const;

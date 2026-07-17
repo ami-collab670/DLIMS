@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PhoneInput } from "@/components/ui/phone-input";
 import {
   type CreateAdminUserBody,
 } from "@/features/accounts/admin-api";
@@ -206,10 +207,10 @@ export function UserCreateForm({ onSubmit, isPending }: Props) {
       </div>
       <div className="space-y-2">
         <Label htmlFor="c-phone">Phone</Label>
-        <Input
+        <PhoneInput
           id="c-phone"
           value={form.phone}
-          onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+          onChange={(phone) => setForm((f) => ({ ...f, phone }))}
         />
       </div>
       <div className="space-y-2">

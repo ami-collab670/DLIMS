@@ -1,8 +1,9 @@
 # Accounts API Audit — `/api/accounts/`
 
 **Audited:** July 13, 2026  
+**Revised:** July 16, 2026 — department read permissions (`IsAdminOrReadOnly`); client service catalog `GET /departments/` no longer admin-only  
 **Swagger source:** Real tested JSON (user-provided for analysts, clients, users, departments, profile)  
-**Test coverage:** [LSIMS-Backend/LSIMS-main/accounts/tests.py](LSIMS-Backend/LSIMS-main/accounts/tests.py) — comprehensive Sprint 1 suite (~1000+ lines: auth, permissions, happy paths, business logic)
+**Test coverage:** [LSIMS-Backend/LSIMS-main/accounts/tests.py](LSIMS-Backend/LSIMS-main/accounts/tests.py) — comprehensive Sprint 1 suite (~1000+ lines: auth, permissions, happy paths, business logic). `test_authenticated_client_can_list_departments` added July 16, 2026.
 
 ---
 
@@ -44,7 +45,7 @@
 
 ## Overview
 
-The Accounts API manages LSIMS users (staff and external clients), laboratory departments, role-scoped picker lists for intake workflows, and the authenticated user's own profile. **Staff** use user management (`/users/`), department CRUD, analyst/client pickers, and (for admin/receptionist) sending notifications to clients by email. **All authenticated users** use `/profile/` for session bootstrap and self-service edits. **Clients** use profile GET/PATCH and change-password after login.
+The Accounts API manages LSIMS users (staff and external clients), laboratory departments, role-scoped picker lists for intake workflows, and the authenticated user's own profile. **Staff** use user management (`/users/`), department write CRUD (admin only), analyst/client pickers, and (for admin/receptionist) sending notifications to clients by email. **All authenticated users** can **read** `/departments/` (used by the client service catalog picker). **Clients** use profile GET/PATCH and change-password after login.
 
 This audit covers **25 HTTP operations** across five resource areas under `/api/accounts/`.
 
@@ -543,7 +544,8 @@ export type DepartmentRecord = {
 **6. Error handling**
 
 - `DepartmentsManagementSection`: `isError` + message.
-- User/catalog forms: **no error UI** on dept query.
+- User/catalog forms: **no error UI** on dept query (staff pickers).
+- **Client service catalog:** `ClientServiceCatalogPicker` surfaces `getApiErrorMessage` on catalog load failure ([client-new-job-request-form.tsx](LSIMS-Frontend/src/features/jobs/client-new-job-request-form.tsx)). Prior to July 16, 2026, external clients received **403** `"Admin access required."` on `GET /departments/` — **resolved** via `IsAdminOrReadOnly` on `DepartmentViewSet`.
 
 **7. Business rules / validation in frontend**
 
@@ -1120,12 +1122,24 @@ Routing: [LSIMS-Backend/LSIMS-main/accounts/urls.py](LSIMS-Backend/LSIMS-main/ac
 - **View:** `DepartmentViewSet` — `queryset = Department.objects.all()`.
 - **Serializer:** `DepartmentSerializer` — all fields direct model fields.
 - **Search:** `name`, `description`.
+- **Permissions (July 16, 2026):** `permission_classes = [IsAdminOrReadOnly]` — all authenticated users may **GET** list/detail; **POST/PATCH/DELETE** require admin (or superuser).
+
+```49:55:LSIMS-Backend/LSIMS-main/accounts/views.py
+# edited by kiya
+class DepartmentViewSet(viewsets.ModelViewSet):
+    """CRUD operations for laboratory departments."""
+
+    queryset = Department.objects.all()
+    serializer_class = DepartmentSerializer
+    permission_classes = [IsAdminOrReadOnly]
+```
 
 **9. Error messages**
 
 | Message/Shape | Trigger | Enforced In | FE Displays? |
 |---------------|---------|-------------|--------------|
-| 403 | Non-admin | `IsAdmin` | Yes (management section) |
+| 403 `"Admin access required."` | Non-admin **write** (POST/PATCH/DELETE) | `IsAdminOrReadOnly` | Yes (management section) |
+| 403 | Unauthenticated | `IsAdminOrReadOnly` | Yes (login redirect) |
 | Validation on unique name | Duplicate dept | Model/serializer — unclear exact JSON | Yes |
 
 **10. State machine** — N/A.
@@ -1134,7 +1148,8 @@ Routing: [LSIMS-Backend/LSIMS-main/accounts/urls.py](LSIMS-Backend/LSIMS-main/ac
 
 | Action | Roles |
 |--------|-------|
-| All department CRUD | `IsAdmin` |
+| GET list / GET detail | All authenticated users |
+| POST / PATCH / DELETE | `admin` (+ superuser) |
 
 ---
 
@@ -1271,7 +1286,8 @@ class RoleSerializer(serializers.ModelSerializer):
 | POST/PATCH users | Department is required for… | analyst/lab_technician/qc_manager w/o dept | same | Yes |
 | DELETE users | User '…' has been deactivated | DELETE | `UserViewSet.destroy` | No |
 | POST users/…/change-password | Password updated for '…' | success | `UserViewSet.change_password` | No |
-| GET/POST/PATCH/DELETE departments | Admin only | non-admin | `IsAdmin` | Yes (mgmt section) |
+| GET/POST/PATCH/DELETE departments (write) | Admin only | non-admin write | `IsAdminOrReadOnly` | Yes (mgmt section) |
+| GET departments | All authenticated | unauthenticated | `IsAdminOrReadOnly` | Yes (client catalog picker) |
 | GET/POST/PATCH/DELETE roles | Admin only | non-admin | `IsAdmin` | Yes (mgmt section) |
 | POST profile/change-password | Current password is incorrect | bad password | `SelfChangePasswordSerializer` | Yes |
 | POST profile/change-password | Password changed successfully | success | `ProfilePasswordChangeView` | No |
@@ -1290,8 +1306,8 @@ class RoleSerializer(serializers.ModelSerializer):
 | `/api/accounts/users/{id}/` | PATCH | Yes | Edit + reactivate | Yes | Yes | nationality→country mapping |
 | `/api/accounts/users/{id}/` | DELETE | Yes | Deactivate | Yes | Yes | Soft delete, 200+json |
 | `/api/accounts/users/{id}/change-password/` | POST | Yes | Edit flow | Yes | Yes | Dead `changeOwnPasswordAsAdmin` |
-| `/api/accounts/departments/` | GET | Yes | Mgmt, forms, client catalog | Yes | Yes | Most callers page-1 only |
-| `/api/accounts/departments/` | POST | Yes | DepartmentsManagementSection | Yes | Yes | |
+| `/api/accounts/departments/` | GET | Yes | Mgmt, forms, **client catalog** | Yes | Yes | All authenticated; `fetchAllDepartments` paginates |
+| `/api/accounts/departments/` | POST | Yes | DepartmentsManagementSection | Yes | Yes | Admin only |
 | `/api/accounts/departments/{id}/` | GET | No | Dead `fetchDepartment` | N/A | Yes | |
 | `/api/accounts/departments/{id}/` | PUT | No | — | N/A | Yes | |
 | `/api/accounts/departments/{id}/` | PATCH | Yes | DepartmentsManagementSection | Yes | Yes | |
@@ -1313,14 +1329,15 @@ class RoleSerializer(serializers.ModelSerializer):
 
 1. **Analyst/client pickers send email, not UUID** — `<option value={a.email}>` in sample and job forms; sample `assign-analyst` API uses `PrimaryKeyRelatedField` (UUID). Assign-from-UI may 400 unless backend accepts email elsewhere.
 2. **Silent empty dropdowns** — `fetchLabAnalysts` / `fetchLabClients` / dept queries in user forms use `= []` default with no `isError`; permission or network failures look like "no data."
-3. **Department list page-1 only** — `UserCreateForm`, `UserEditDialog`, `StaffCatalogSection`, and `DepartmentsManagementSection` do not paginate; departments beyond page 1 missing from pickers (client catalog path is safe via `fetchAllDepartments`).
-4. **User edit detail fetch failures hidden** — `UserEditDialog` falls back to list row when `fetchAdminUser` fails; stale/wrong data possible.
-5. **Profile GET is session-critical** — `auth-store` and `LoginPage` depend on `/profile/`; error handling on bootstrap unclear.
-6. **nationality vs country on user/profile edit** — Forms edit `nationality`; admin user PATCH may send `country` from nationality; profile backend has `country` read-only — field drift risk.
-7. **Dead API exports** — `fetchDepartment`, `replaceProfile`, `fetchExternalClients`, `fetchAnalystUsers`, `changeOwnPasswordAsAdmin`, **`fetchRole`**, **`replaceRole`** — maintenance noise and doc drift.
-8. **Role list omits `display_name`** — `RoleSerializer` vs nested `RoleListSerializer`; pickers rely on client-side `roleOptionLabel`.
-9. **Role list page-1 only** — `fetchRoles` unwraps `.results` without pagination; roles beyond page 1 missing from pickers.
-10. **DELETE user returns 200 not 204** — Frontend types as delete with body; works but unconventional.
+3. **Department list page-1 only** — `UserCreateForm`, `UserEditDialog`, `StaffCatalogSection`, and `DepartmentsManagementSection` do not paginate; departments beyond page 1 missing from staff pickers (client catalog path is safe via `fetchAllDepartments`).
+4. ~~**Client catalog blocked on GET departments**~~ — **Resolved July 16, 2026:** external clients can list departments for service catalog grouping.
+5. **User edit detail fetch failures hidden** — `UserEditDialog` falls back to list row when `fetchAdminUser` fails; stale/wrong data possible.
+6. **Profile GET is session-critical** — `auth-store` and `LoginPage` depend on `/profile/`; error handling on bootstrap unclear.
+7. **nationality vs country on user/profile edit** — Forms edit `nationality`; admin user PATCH may send `country` from nationality; profile backend has `country` read-only — field drift risk.
+8. **Dead API exports** — `fetchDepartment`, `replaceProfile`, `fetchExternalClients`, `fetchAnalystUsers`, `changeOwnPasswordAsAdmin`, **`fetchRole`**, **`replaceRole`** — maintenance noise and doc drift.
+9. **Role list omits `display_name`** — `RoleSerializer` vs nested `RoleListSerializer`; pickers rely on client-side `roleOptionLabel`.
+10. **Role list page-1 only** — `fetchRoles` unwraps `.results` without pagination; roles beyond page 1 missing from pickers.
+11. **DELETE user returns 200 not 204** — Frontend types as delete with body; works but unconventional.
 
 ---
 

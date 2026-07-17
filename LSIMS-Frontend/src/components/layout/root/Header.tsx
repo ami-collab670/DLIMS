@@ -1,22 +1,49 @@
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { ThemeToggler } from "@/components/ThemeToggler";
 import { Button } from "@/components/ui/button";
+import { DEFAULT_SITE_SETTINGS } from "@/features/cms/defaults";
+import { useSiteSettings } from "@/features/cms/hooks";
 import { getDashboardPath } from "@/lib/dashboard-path";
 import { useAuthStore } from "@/stores/auth-store";
 
 export function Header() {
   const { user, ready, clearSession } = useAuthStore();
+  const { pathname } = useLocation();
+  const { data: siteSettings } = useSiteSettings();
+
+  const siteName = siteSettings?.siteName ?? DEFAULT_SITE_SETTINGS.siteName;
+  const navLinks =
+    siteSettings?.navLinks ?? [...DEFAULT_SITE_SETTINGS.navLinks];
 
   return (
     <header className="flex items-center justify-between gap-4 border-b border-border px-4 py-3">
-      <Link
-        to="/"
-        className="text-xl font-semibold tracking-tight hover:opacity-90"
-      >
-        LSIMS
-      </Link>
+      <div className="flex min-w-0 items-center gap-6">
+        <Link
+          to="/"
+          className="shrink-0 text-xl font-semibold tracking-tight hover:opacity-90"
+        >
+          {siteName}
+        </Link>
+
+        <nav className="hidden items-center gap-1 md:flex">
+          {navLinks.map((link) => {
+            const isActive = pathname === link.path;
+            return (
+              <Button
+                key={link.path}
+                type="button"
+                variant={isActive ? "secondary" : "ghost"}
+                size="sm"
+                asChild
+              >
+                <Link to={link.path}>{link.label}</Link>
+              </Button>
+            );
+          })}
+        </nav>
+      </div>
 
       <div className="flex items-center gap-2">
         {ready && user ? (

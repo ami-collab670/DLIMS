@@ -1,8 +1,9 @@
 # Laboratory Jobs API Audit — `/api/laboratory/jobs/`
 
 **Audited:** July 13, 2026  
-**Swagger source:** Code-traced from [LSIMS-Backend/LSIMS-main/laboratory/views.py](LSIMS-Backend/LSIMS-main/laboratory/views.py) (`JobOrderViewSet`, lines 217–323) and [LSIMS-Backend/LSIMS-main/laboratory/serializers.py](LSIMS-Backend/LSIMS-main/laboratory/serializers.py) — no user-provided JSON fixtures  
-**Test coverage:** [LSIMS-Backend/LSIMS-main/laboratory/tests/test_happy_path.py](LSIMS-Backend/LSIMS-main/laboratory/tests/test_happy_path.py), [test_permissions.py](LSIMS-Backend/LSIMS-main/laboratory/tests/test_permissions.py), [test_edge_cases.py](LSIMS-Backend/LSIMS-main/laboratory/tests/test_edge_cases.py), [test_business_logic.py](LSIMS-Backend/LSIMS-main/laboratory/tests/test_business_logic.py), [test_analysis_qc_workflow.py](LSIMS-Backend/LSIMS-main/laboratory/tests/test_analysis_qc_workflow.py) — not comprehensive endpoint-by-endpoint (unlike accounts)
+**Revised:** July 16, 2026 — client self-service POST + nested `samples`; `JobOrderViewSet.create` returns `JobOrderSerializer`  
+**Swagger source:** Code-traced from [LSIMS-Backend/LSIMS-main/laboratory/views.py](LSIMS-Backend/LSIMS-main/laboratory/views.py) (`JobOrderViewSet`) and [LSIMS-Backend/LSIMS-main/laboratory/serializers.py](LSIMS-Backend/LSIMS-main/laboratory/serializers.py) — no user-provided JSON fixtures  
+**Test coverage:** [LSIMS-Backend/LSIMS-main/laboratory/tests/test_happy_path.py](LSIMS-Backend/LSIMS-main/laboratory/tests/test_happy_path.py), [test_permissions.py](LSIMS-Backend/LSIMS-main/laboratory/tests/test_permissions.py), [test_edge_cases.py](LSIMS-Backend/LSIMS-main/laboratory/tests/test_edge_cases.py), [test_business_logic.py](LSIMS-Backend/LSIMS-main/laboratory/tests/test_business_logic.py), [test_analysis_qc_workflow.py](LSIMS-Backend/LSIMS-main/laboratory/tests/test_analysis_qc_workflow.py). Client self-service create tests verified passing July 16, 2026.
 
 ---
 
@@ -26,7 +27,7 @@
 
 ## Overview
 
-The Jobs API manages client analysis requests (`JobOrder`) from finance-pending intake through laboratory workflow completion. **Receptionists** create jobs on behalf of clients (staff intake). **External clients** submit self-service requests via the same `POST` path (frontend + tests expect this; see drift note below). **Admin/Receptionist** can PATCH metadata and soft-cancel via DELETE. **Workflow status**, **role holds**, and **cancellation fields** are read-only on PATCH — transitions happen via finance, preparation, analysis, and QC services.
+The Jobs API manages client analysis requests (`JobOrder`) from finance-pending intake through laboratory workflow completion. **Receptionists** create jobs on behalf of clients (staff intake). **External clients** submit self-service requests via the same `POST` path using `ClientJobOrderCreateSerializer` (body: `{ description, priority, samples? }`). **Admin/Receptionist** can PATCH metadata and soft-cancel via DELETE. **Workflow status**, **role holds**, and **cancellation fields** are read-only on PATCH — transitions happen via finance, preparation, analysis, and QC services.
 
 This audit covers **7 HTTP operations** on `/api/laboratory/jobs/` (including the `result-summary` action).
 
@@ -213,14 +214,14 @@ export type CreateClientJobRequestBody = {
 
 **4. Field comparison vs. real POST JSON**
 
-| Field | Staff FE sends | Client FE sends | Backend `JobOrderCreateSerializer` | Verdict |
-|-------|----------------|-----------------|-----------------------------------|---------|
-| `client` | Client **email** from picker | Omitted (self) | Required FK (`PrimaryKeyRelatedField` — UUID in tests) | **MISMATCH** — FE sends email; `UserIdentityField` exists in accounts but **not wired** to job serializers |
-| `current_status` | `"pending_finance"` | Omitted | Validated must be `pending_finance` if sent; model default `received` if omitted | OK for staff; client relies on default — unclear - needs manual check |
+| Field | Staff FE sends | Client FE sends | Backend serializer | Verdict |
+|-------|----------------|-----------------|-------------------|---------|
+| `client` | Client **email** from picker | Omitted (self) | `JobOrderCreateSerializer` — required FK (`PrimaryKeyRelatedField` — UUID in tests) | **MISMATCH (staff only)** — FE sends email; `UserIdentityField` exists in accounts but **not wired** to job serializers |
+| `current_status` | `"pending_finance"` (optional) | Omitted | Staff: `setdefault` → `pending_finance` in `JobOrderCreateSerializer.create`; client: always `pending_finance` in `ClientJobOrderCreateSerializer` | OK (July 16, 2026) |
 | `priority` | `"normal"` / `"urgent"` | same | Model choices `normal`, `urgent` (tests reject `critical`) | OK |
-| `description` | Trimmed text (min 3 chars client-side) | Rich wizard text (min 10 via zod) | `TextField` — no min length in serializer | OK |
-| `samples` | Not sent | Array of `{ sample_name, notes?, packaging_type? }` | **Not in serializer fields** | **MISSING FROM BACKEND** — tests expect nested samples ([test_permissions.py](LSIMS-Backend/LSIMS-main/laboratory/tests/test_permissions.py)) |
-| Response `sample_count` | Not read on create | Not read | Tests expect on client multi-sample create | UNUSED BY FRONTEND |
+| `description` | Trimmed text (min 3 chars client-side) | Rich wizard text (min 10 via zod) | Both serializers accept `TextField` — no min length in serializer | OK |
+| `samples` | Not sent | Array of `{ sample_name, notes?, packaging_type? }` | `ClientJobOrderCreateSerializer.samples` — nested `ClientJobSampleIntakeSerializer` | OK (July 16, 2026) |
+| Response `sample_count` | Not read on create | Not read on create | `JobOrderViewSet.create` returns **`JobOrderSerializer`** (includes `sample_count`) | OK — tests assert; FE ignores on create |
 
 **5. Fallback/default values found**
 
@@ -556,58 +557,45 @@ Routing: [LSIMS-Backend/LSIMS-main/laboratory/urls.py](LSIMS-Backend/LSIMS-main/
 
 **8. Response construction**
 
-- **Serializer (create):** `JobOrderCreateSerializer` — fields: `id`, `client`, `submitted_by`, `current_status`, `priority`, `description`.
-- **`submitted_by`:** auto-set in `create()` to `request.user`.
-- **`client` validation:** must be external + active user.
-- **`current_status` validation:** if provided, must be `pending_finance`.
-- **Response serializer:** create returns `JobOrderCreateSerializer` data (not full `JobOrderSerializer` with `sample_count` unless overridden by view — unclear - needs manual check).
+- **Serializer selection (July 16, 2026):** `get_serializer_class` returns `ClientJobOrderCreateSerializer` when `request.user.user_type == "external"`, else `JobOrderCreateSerializer` for receptionist staff intake.
+- **Staff create:** `JobOrderCreateSerializer` — fields: `id`, `client`, `submitted_by`, `current_status`, `priority`, `description`. `submitted_by` auto-set; `current_status` defaults to `pending_finance` if omitted.
+- **Client create:** `ClientJobOrderCreateSerializer` — fields: `description`, `priority`, optional nested `samples[]`. Sets `client`/`submitted_by` to `request.user`, `current_status=pending_finance`. Creates pre-intake `Sample` rows (`received_by=null`, `sample_status=pending_finance`).
+- **Response:** `JobOrderViewSet.create` override returns **`JobOrderSerializer`** (full shape incl. `sample_count`).
 
-**Staff vs client POST bodies (intended design from tests + frontend):**
+**Staff vs client POST bodies:**
 
-| Caller | Required body | Backend behavior (traced + tests) |
-|--------|---------------|-----------------------------------|
-| Receptionist | `{ client, priority, description?, current_status? }` | `client` as user UUID in tests; validates external client |
-| External client | `{ description, priority, samples? }` — no `client` field | Tests expect 201 with `client`/`submitted_by` = self; nested `samples` create pre-intake sample rows |
+| Caller | Required body | Backend behavior |
+|--------|---------------|------------------|
+| Receptionist | `{ client, priority, description?, current_status? }` | `JobOrderCreateSerializer`; `client` as user UUID in tests |
+| External client | `{ description, priority, samples? }` — no `client` field | `ClientJobOrderCreateSerializer`; 201 with `client`/`submitted_by` = self; nested `samples` create pre-intake rows |
 
 **9. Error messages**
 
 | Message/Shape | Trigger | Enforced In | FE Displays? |
 |---------------|---------|-------------|--------------|
-| `{"detail": "Only Receptionists can create job orders."}` | Non-receptionist POST (incl. client per **current** view) | `JobOrderViewSet.check_permissions` | Yes (toast) |
-| `{"client": ["Job orders can only be created for external (client) users."]}` | Internal user as client | `JobOrderCreateSerializer.validate_client` | Yes |
+| `{"detail": "Only Receptionists can create job orders."}` | Non-receptionist, non-external POST (admin/finance/analyst) | `JobOrderViewSet.check_permissions` | Yes (toast) |
+| `{"client": ["Self-service clients cannot use receptionist intake fields."]}` | External client sends `client` field | `ClientJobOrderCreateSerializer.validate` | Yes |
+| `{"client": ["Job orders can only be created for external (client) users."]}` | Internal user as client (staff intake) | `JobOrderCreateSerializer.validate_client` | Yes |
 | `{"client": ["Cannot create a job order for a deactivated user."]}` | Inactive client | same | Yes |
-| `{"current_status": ["New job orders must start in the 'pending_finance' state."]}` | Wrong initial status | `validate_current_status` | Yes |
+| `{"current_status": ["New job orders must start in the 'pending_finance' state."]}` | Wrong initial status on staff intake | `validate_current_status` | Yes |
 | `{"priority": [...]}` | Invalid choice (e.g. `critical`) | Model/serializer | Yes |
 | 400 invalid client UUID | Bad `client` pk | DRF FK validation | Yes |
-
-```251:261:LSIMS-Backend/LSIMS-main/laboratory/serializers.py
-    def validate_client(self, value):
-        if value.user_type != "external":
-            raise serializers.ValidationError(
-                "Job orders can only be created for external (client) users."
-            )
-        if not value.is_active:
-            raise serializers.ValidationError(
-                "Cannot create a job order for a deactivated user."
-            )
-        return value
-```
 
 **10. State machine**
 
 | Transition | Rule |
 |------------|------|
-| (create) → `pending_finance` | Staff sends explicitly; client/tests expect this status |
-| (create) → `received` | Model default if `current_status` omitted — **conflicts** with `validate_current_status` when field sent; omitted path unclear - needs manual check |
+| (create) → `pending_finance` | Default for both staff (via `setdefault`) and client self-service |
 
 **11. Permissions**
 
-| Action | Roles (current `views.py`) | Tests expect |
-|--------|---------------------------|--------------|
-| POST create | `IsReceptionist` (+ superuser) | External **client** also 201 on self-service body |
-| POST create | Admin/analyst/finance → 403 | Matches tests |
+| Action | Roles |
+|--------|-------|
+| POST create (staff intake) | `receptionist` (+ superuser) |
+| POST create (self-service) | `external` client users |
+| POST create denied | `admin`, `finance`, `analyst`, other internal roles → 403 |
 
-**Implementation drift:** `test_client_can_create_self_service_job_request` and `test_client_can_create_self_service_job_with_multiple_samples` expect client POST **201**, but `check_permissions` denies non-receptionists. Serializer lacks `samples` nested field tests rely on.
+**Implementation note (July 16, 2026):** Prior drift between tests/frontend and views is **resolved**. `test_client_can_create_self_service_job_request`, `test_client_can_create_self_service_job_with_multiple_samples`, and `test_client_cannot_use_receptionist_job_intake_payload` pass against current code.
 
 ---
 
@@ -812,7 +800,7 @@ Workflow transitions are **not** available via job PATCH. Status changes occur t
 | GET jobs/* | `sample_count` | number | number | Computed | OK | Table column |
 | GET jobs/* | `created_at` / `updated_at` | ISO string | datetime | Direct | OK | Sort/display |
 | POST jobs/ (staff) | `client` | email | UUID FK expected | Write FK | **MISMATCH** | **High** — intake 400 |
-| POST jobs/ (client) | `samples` | array | not in serializer | — | **MISSING BE** | **High** — pre-intake samples lost |
+| POST jobs/ (client) | `samples` | array | `ClientJobOrderCreateSerializer.samples` | Nested create | OK | Pre-intake sample rows (July 16, 2026) |
 | PATCH jobs/{id} | workflow fields | in type, not sent | read_only | Serializer | OK | Correct FE discipline |
 | DELETE jobs/{id} | body | void | 204 empty | View | OK | — |
 | GET result-summary | counts + results | typed | typed | Mixed | unclear | QC/results UI |
@@ -821,7 +809,8 @@ Workflow transitions are **not** available via job PATCH. Status changes occur t
 
 | Endpoint | Error Message / Rule | Triggering Condition | Enforced In | Frontend Displays It? |
 |----------|---------------------|----------------------|-------------|----------------------|
-| POST jobs/ | Only Receptionists can create job orders | Non-receptionist create | `JobOrderViewSet.check_permissions` | Yes |
+| POST jobs/ | Only Receptionists can create job orders | Non-receptionist, non-external create | `JobOrderViewSet.check_permissions` | Yes |
+| POST jobs/ | Self-service clients cannot use receptionist intake fields | External client sends `client` | `ClientJobOrderCreateSerializer.validate` | Yes |
 | POST jobs/ | Job orders can only be created for external users | Internal `client` | `JobOrderCreateSerializer` | Yes |
 | POST jobs/ | Cannot create for deactivated user | inactive client | same | Yes |
 | POST jobs/ | Must start in pending_finance | wrong `current_status` | `validate_current_status` | Yes |
@@ -838,7 +827,7 @@ Workflow transitions are **not** available via job PATCH. Status changes occur t
 |----------|--------|------------------|------------|----------------|---------------------|-------|
 | `/api/laboratory/jobs/` | GET | Yes | Staff/client tables, dashboards, finance, LIMS | Partial | Yes | `ordering` likely ignored; page-1 only in widgets |
 | `/api/laboratory/jobs/` | POST (staff) | Yes | `StaffJobIntakeForm` | Partial | Yes | Email `client`; receptionist-only |
-| `/api/laboratory/jobs/` | POST (client) | Yes | `ClientNewJobRequestForm` | Partial | Partial | Tests ≠ current view permissions; no `samples` in serializer |
+| `/api/laboratory/jobs/` | POST (client) | Yes | `ClientNewJobRequestForm` | Yes | Yes | `ClientJobOrderCreateSerializer`; nested `samples`; 201 → `JobOrderSerializer` |
 | `/api/laboratory/jobs/{id}/` | GET | Yes | Staff + client detail panels | Partial | Yes | List-row fallback on detail fail |
 | `/api/laboratory/jobs/{id}/` | PUT | No | — | N/A | Yes | PATCH used |
 | `/api/laboratory/jobs/{id}/` | PATCH | Yes | `StaffJobDetailPanel` | Yes | Yes | Only priority + description |
@@ -849,8 +838,8 @@ Workflow transitions are **not** available via job PATCH. Status changes occur t
 
 ## Highest-Risk Findings
 
-1. **Client self-service POST blocked by view permissions** — Frontend `createClientJobRequest` and tests expect external clients to POST `{ description, priority, samples? }`, but `JobOrderViewSet.check_permissions` allows only receptionists (403 for clients). Client wizard is non-functional against current views.
-2. **Nested `samples` on client POST not in serializer** — Tests assert pre-registered samples; `JobOrderCreateSerializer` has no `samples` field. Client wizard builds `samples` payload that backend likely drops.
+1. ~~**Client self-service POST blocked by view permissions**~~ — **Resolved July 16, 2026:** external clients can POST via `ClientJobOrderCreateSerializer`.
+2. ~~**Nested `samples` on client POST not in serializer**~~ — **Resolved July 16, 2026:** nested intake samples created with `received_by=null`.
 3. **Staff intake sends client email, backend FK expects UUID** — `UserIdentityField` exists in [accounts/fields.py](LSIMS-Backend/LSIMS-main/accounts/fields.py) but is **not** used on `JobOrder` serializers; receptionist intake may 400 on `client` unless manual check proves otherwise.
 4. **`client` / `submitted_by` read shape mismatch** — Frontend `JobOrder` types both as email strings; serializer exposes separate `*_email` fields and FK pks on `client`/`submitted_by`. UI uses `client_name \|\| client` — may show UUID.
 5. **PATCH workflow/cancel fields correctly read-only** — Aligns with FE, but `PatchJobBody` still lists writable `is_cancelled` / `current_status` — dead type surface; cancellation via DELETE sets no `cancellation_reason`.
@@ -864,11 +853,8 @@ Workflow transitions are **not** available via job PATCH. Status changes occur t
 
 - Real JSON: does `client` on GET return UUID or email? Compare live response to `client_email` field.
 - Does staff intake with `client: "<email>"` succeed or 400 without `UserIdentityField` on `JobOrderCreateSerializer`?
-- Is client self-service POST intended to bypass `IsReceptionist` (tests) and if so, which serializer handles `samples` nested create?
-- Exact create **response** shape: `JobOrderCreateSerializer` vs full `JobOrderSerializer` (is `sample_count` returned on client multi-sample create)?
 - Does `ordering=sample_count` or `client__email` silently fail or error on list endpoint?
 - Should DELETE soft-cancel accept `cancellation_reason` (model help_text says required when cancelled)?
-- `current_status` when omitted on staff POST: model default `received` vs test expectation `pending_finance` — which wins?
 - Whether `submitted` status filter in finance/dashboard is legacy-only or still created by any path.
 - Live `result-summary` nested `results[]` field set vs frontend `AnalysisResult` type.
 - Confirm external superuser PATCH behavior in production (edge-case test allows unowned job PATCH).

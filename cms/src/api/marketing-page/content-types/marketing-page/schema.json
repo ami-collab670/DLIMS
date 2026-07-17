@@ -1,0 +1,33 @@
+{
+  "kind": "collectionType",
+  "collectionName": "marketing_pages",
+  "info": {
+    "singularName": "marketing-page",
+    "pluralName": "marketing-pages",
+    "displayName": "Marketing Page",
+    "description": "Public marketing pages such as About, Services, and Contact"
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "attributes": {
+    "slug": {
+      "type": "uid",
+      "targetField": "title",
+      "required": true
+    },
+    "title": {
+      "type": "string",
+      "required": true
+    },
+    "intro": {
+      "type": "text"
+    },
+    "body": {
+      "type": "blocks"
+    },
+    "seoDescription": {
+      "type": "text"
+    }
+  }
+}

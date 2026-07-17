@@ -71,7 +71,7 @@ UI module: [LSIMS-Frontend/src/pages/staff/catalog/staff-catalog-section.tsx](LS
 | `LSIMS-Frontend/src/pages/staff/lims-extensions/inventory/StaffInventoryPage.tsx` | inventory list | `fetchTestCatalog({ page: 1, is_active: true })` |
 | `LSIMS-Frontend/src/pages/staff/lims-extensions/results/StaffResultsPage.tsx` | indirect via sample-tests | — |
 
-Client-facing catalog uses a separate module: [LSIMS-Frontend/src/features/laboratory/test-catalog-api.ts](LSIMS-Frontend/src/features/laboratory/test-catalog-api.ts) (`fetchClientServiceCatalog`) — also hits `GET /api/laboratory/tests/` with pagination.
+Client-facing catalog uses a separate module: [LSIMS-Frontend/src/features/laboratory/test-catalog-api.ts](LSIMS-Frontend/src/features/laboratory/test-catalog-api.ts) (`fetchClientServiceCatalog`) — paginates `GET /api/laboratory/tests/` **and** `GET /api/accounts/departments/` (department names for grouping). As of July 16, 2026, department list read is allowed for all authenticated users — see [accounts.md](accounts.md).
 
 **3. Frontend-expected types**
 

@@ -16,7 +16,7 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from .models import Department, OTPToken, Role
-from .permissions import IsAdmin, IsAdminOrReceptionist
+from .permissions import IsAdmin, IsAdminOrReadOnly, IsAdminOrReceptionist
 from .serializers import (
     ChangePasswordSerializer,
     DepartmentSerializer,
@@ -46,12 +46,13 @@ PASSWORD_RESET_SUCCESS = (
     partial_update=extend_schema(summary="Partially update a department", tags=["Departments"]),
     destroy=extend_schema(summary="Delete a department", tags=["Departments"]),
 )
+# edited by kiya
 class DepartmentViewSet(viewsets.ModelViewSet):
     """CRUD operations for laboratory departments."""
 
     queryset = Department.objects.all()
     serializer_class = DepartmentSerializer
-    permission_classes = [IsAuthenticated, IsAdmin]
+    permission_classes = [IsAdminOrReadOnly]
     search_fields = ["name", "description"]
 
 

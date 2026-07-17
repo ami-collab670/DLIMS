@@ -1,0 +1,25 @@
+{
+  "kind": "singleType",
+  "collectionName": "site_settings",
+  "info": {
+    "singularName": "site-setting",
+    "pluralName": "site-settings",
+    "displayName": "Site Setting",
+    "description": "Global branding and public navigation"
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "attributes": {
+    "siteName": {
+      "type": "string",
+      "required": true,
+      "default": "LSIMS"
+    },
+    "navLinks": {
+      "type": "component",
+      "repeatable": true,
+      "component": "navigation.nav-link"
+    }
+  }
+}

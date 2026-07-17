@@ -95,7 +95,8 @@ function Show-DevUrls {
     Write-Host @"
 
 LSIMS is running:
-  Frontend:  http://localhost:5173/login
+  Frontend:  http://localhost:5173
+  CMS Admin: http://localhost:1337/admin
   API:       http://localhost:8000
   pgAdmin:   http://localhost:5050
 
@@ -103,7 +104,11 @@ Default login:
   Email:     $($script:LSIMS_DEFAULT_ADMIN_EMAIL)
   Password:  $($script:LSIMS_DEFAULT_ADMIN_PASSWORD)
 
-Note: First frontend start runs npm ci inside Docker and may take several minutes.
+Note: First frontend/cms start runs npm ci inside Docker and may take several minutes.
+On first CMS visit, create a Strapi admin account at http://localhost:1337/admin
+If the cms database is missing on an existing Postgres volume, run:
+  CREATE DATABASE cms;
+via pgAdmin, or reset with: docker compose down -v
 "@
 }
 

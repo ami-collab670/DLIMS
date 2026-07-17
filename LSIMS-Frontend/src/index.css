@@ -128,3 +128,155 @@
     @apply font-sans;
     }
 }
+
+.phone-input {
+  display: flex;
+  align-items: stretch;
+  gap: 0.5rem;
+}
+
+.phone-input .PhoneInputInput {
+  flex: 1;
+  min-width: 0;
+}
+
+.phone-country-select {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.phone-country-select__trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  height: 2.25rem;
+  padding: 0 0.625rem;
+  border: 1px solid var(--input);
+  border-radius: calc(var(--radius) - 2px);
+  background: transparent;
+  color: var(--foreground);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, box-shadow 0.15s;
+}
+
+.phone-country-select__trigger:hover:not(:disabled) {
+  border-color: var(--ring);
+}
+
+.phone-country-select__trigger:focus-visible {
+  outline: none;
+  border-color: var(--ring);
+  box-shadow: 0 0 0 1px var(--ring);
+}
+
+.phone-country-select__trigger:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.phone-country-select__name {
+  max-width: 7rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.phone-country-select__code {
+  color: var(--muted-foreground);
+  font-size: 0.8125rem;
+}
+
+.phone-country-select__arrow {
+  width: 0.875rem;
+  height: 0.875rem;
+  opacity: 0.55;
+  flex-shrink: 0;
+}
+
+.phone-country-select__panel {
+  position: absolute;
+  top: calc(100% + 0.25rem);
+  left: 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  width: min(20rem, calc(100vw - 2rem));
+  max-height: 18rem;
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) - 2px);
+  background: var(--popover);
+  color: var(--popover-foreground);
+  box-shadow: 0 10px 30px rgb(0 0 0 / 12%);
+}
+
+.phone-country-select__search {
+  margin: 0.5rem;
+}
+
+.phone-country-select__list {
+  overflow-y: auto;
+  padding: 0.25rem;
+  margin: 0;
+  list-style: none;
+}
+
+.phone-country-select__empty {
+  padding: 0.75rem;
+  color: var(--muted-foreground);
+  font-size: 0.875rem;
+}
+
+.phone-country-select__option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.5rem 0.625rem;
+  border: 0;
+  border-radius: calc(var(--radius) - 4px);
+  background: transparent;
+  color: inherit;
+  font-size: 0.875rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.phone-country-select__option:hover,
+.phone-country-select__option--highlighted {
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+
+.phone-country-select__option--selected {
+  font-weight: 500;
+}
+
+.phone-country-select__option-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.phone-country-select__option-code {
+  color: var(--muted-foreground);
+  font-size: 0.8125rem;
+  flex-shrink: 0;
+}
+
+.phone-input .PhoneInputCountryIcon {
+  width: 1.5rem;
+  height: 1rem;
+  flex-shrink: 0;
+  overflow: hidden;
+  border-radius: 2px;
+}
+
+.phone-input .PhoneInputCountryIconImg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
