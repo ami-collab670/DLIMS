@@ -25,7 +25,9 @@ import {
 import type { JobOrder } from "@/types/laboratory";
 
 import { ClientServiceCatalogPicker } from "./client-service-catalog-picker";
+import { getDemoClientServiceCatalog } from "./client-service-catalog-demo";
 import {
+  appendEmptyDepartmentGroups,
   buildClientCatalog,
   formatCatalogLine,
   sumSelectedPrices,
@@ -309,7 +311,13 @@ export function ClientNewJobRequestForm({ onCreated }: Props) {
         index: new Map() as ClientCatalogIndex,
       };
     }
-    return buildClientCatalog(catalogData.tests, catalogData.departments);
+    const built = buildClientCatalog(catalogData.tests, catalogData.departments);
+    if (built.groups.length === 0) {
+      const demo = getDemoClientServiceCatalog();
+      const demoBuilt = buildClientCatalog(demo.tests, demo.departments);
+      return appendEmptyDepartmentGroups(demoBuilt, demo.departments);
+    }
+    return built;
   }, [catalogData]);
 
   const [step, setStep] = useState(0);

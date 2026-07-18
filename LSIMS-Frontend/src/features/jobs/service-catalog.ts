@@ -7,6 +7,7 @@ import type { DepartmentRecord } from "@/types/account-admin";
 import type { TestCatalogItem } from "@/types/laboratory";
 
 export const GENERAL_SERVICES_LABEL = "General services";
+export const OTHER_SERVICES_LABEL = "Other";
 
 export type ClientCatalogTest = TestCatalogItem & {
   departmentName: string;
@@ -94,6 +95,29 @@ export function buildClientCatalog(
   return { groups, index };
 }
 
+/** Ensures every department appears as a group, even when it has no tests. */
+export function appendEmptyDepartmentGroups(
+  result: { groups: ClientCatalogGroup[]; index: ClientCatalogIndex },
+  departments: DepartmentRecord[],
+): { groups: ClientCatalogGroup[]; index: ClientCatalogIndex } {
+  const existingIds = new Set(
+    result.groups.map((g) => g.departmentId).filter(Boolean),
+  );
+  const groups = [...result.groups];
+
+  for (const dept of departments) {
+    if (existingIds.has(dept.id)) continue;
+    groups.push({
+      departmentId: dept.id,
+      departmentName: dept.name,
+      tests: [],
+    });
+  }
+
+  groups.sort((a, b) => a.departmentName.localeCompare(b.departmentName));
+  return { groups, index: result.index };
+}
+
 function matchesQuery(test: ClientCatalogTest, query: string): boolean {
   const q = query.trim().toLowerCase();
   if (!q) return true;
@@ -121,7 +145,12 @@ export function filterClientCatalog(
       ...g,
       tests: g.tests.filter((t) => matchesQuery(t, query)),
     }))
-    .filter((g) => g.tests.length > 0);
+    .filter((g) => {
+      if (departmentId === "all") return g.tests.length > 0;
+      if (departmentId === "general") return g.departmentId == null;
+      if (g.departmentId === departmentId) return true;
+      return g.tests.length > 0;
+    });
 }
 
 export function lookupTestPrice(
@@ -147,16 +176,26 @@ export function formatCatalogLine(test: ClientCatalogTest): string {
   return `- [${test.test_code} · ${test.departmentName}] ${test.test_name} — ${test.priceNumber.toFixed(2)} ETB${unitSuffix}`;
 }
 
+function departmentFilterLabel(group: ClientCatalogGroup): string {
+  if (group.departmentId == null) {
+    return OTHER_SERVICES_LABEL;
+  }
+  if (group.departmentName === GENERAL_SERVICES_LABEL) {
+    return OTHER_SERVICES_LABEL;
+  }
+  return group.departmentName;
+}
+
 export function getDepartmentFilterOptions(
   groups: ClientCatalogGroup[],
 ): { id: DepartmentFilter; label: string }[] {
   const options: { id: DepartmentFilter; label: string }[] = [
-    { id: "all", label: "All" },
+    { id: "all", label: "All departments" },
   ];
   for (const g of groups) {
     options.push({
       id: g.departmentId ?? "general",
-      label: g.departmentName,
+      label: departmentFilterLabel(g),
     });
   }
   return options;

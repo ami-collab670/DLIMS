@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
-import { useCallback, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 
 import { TablePaginationFooter } from "@/components/data-table/table-pagination-footer";
 import { TableToolbar } from "@/components/data-table/table-toolbar";
@@ -53,19 +53,41 @@ function ClientResultsJobRow({
 }
 
 export default function ClientResultsPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const selectedJobIdFromUrl = searchParams.get("job");
+
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<TablePageSize>(DEFAULT_TABLE_PAGE_SIZE);
   const [search, setSearch] = useState("");
-  const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
+  const [selectedJobId, setSelectedJobId] = useState<string | null>(
+    () => selectedJobIdFromUrl,
+  );
   const debouncedSearch = useDebouncedValue(search);
 
-  const openJob = useCallback((id: string) => {
-    setSelectedJobId(id);
-  }, []);
+  useEffect(() => {
+    setSelectedJobId(selectedJobIdFromUrl);
+  }, [selectedJobIdFromUrl]);
+
+  const openJob = useCallback(
+    (id: string) => {
+      setSelectedJobId(id);
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.set("job", id);
+        return next;
+      });
+    },
+    [setSearchParams],
+  );
 
   const closeJob = useCallback(() => {
     setSelectedJobId(null);
-  }, []);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete("job");
+      return next;
+    });
+  }, [setSearchParams]);
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["client-results-jobs", page, pageSize, debouncedSearch],

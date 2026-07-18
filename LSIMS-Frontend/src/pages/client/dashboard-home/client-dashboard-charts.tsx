@@ -14,20 +14,20 @@ import {
   YAxis,
 } from "recharts";
 
-import { fetchFinancialRecords } from "@/features/laboratory/financial-records-api";
+import {
+  fetchAllActiveJobs,
+  fetchAllFinancialRecords,
+  groupInvoicesByPaymentStatus,
+  groupJobsByPriority,
+  groupJobsByProgressStep,
+  groupJobsByStatus,
+} from "@/pages/client/dashboard-home/client-dashboard-metrics";
 import {
   chartColorForJobStatus,
   chartColorForPaymentStatus,
   chartColorForPriority,
   chartColorForProgressStep,
 } from "@/lib/client-dashboard-chart-colors";
-import {
-  fetchAllActiveJobs,
-  groupInvoicesByPaymentStatus,
-  groupJobsByPriority,
-  groupJobsByProgressStep,
-  groupJobsByStatus,
-} from "@/pages/client/dashboard-home/client-dashboard-metrics";
 
 import { clientDashboardKeys } from "./client-dashboard-api-keys";
 
@@ -96,13 +96,13 @@ export function ClientDashboardCharts() {
   });
 
   const financeQuery = useQuery({
-    queryKey: clientDashboardKeys.financialRecords,
-    queryFn: () => fetchFinancialRecords({ page: 1 }),
+    queryKey: clientDashboardKeys.allFinancialRecords,
+    queryFn: fetchAllFinancialRecords,
     staleTime: 45_000,
   });
 
   const jobs = jobsQuery.data ?? [];
-  const financeRecords = financeQuery.data?.results ?? [];
+  const financeRecords = financeQuery.data ?? [];
 
   const statusData = groupJobsByStatus(jobs, chartColorForJobStatus);
   const progressData = groupJobsByProgressStep(jobs, chartColorForProgressStep);

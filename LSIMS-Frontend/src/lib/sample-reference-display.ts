@@ -71,10 +71,6 @@ export function staffSampleRowLabel(
   return sample.blind_alias_code ?? sample.sample_code ?? "—";
 }
 
-export function clientLabReference(sample: SampleRecord): string {
-  return sample.blind_alias_code?.trim() || "Pending assignment";
-}
-
 export function staffPreparationSampleCode(record: PreparationRecord): string {
   return record.sample_code ?? record.reference_code ?? "—";
 }

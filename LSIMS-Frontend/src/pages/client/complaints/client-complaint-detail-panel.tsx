@@ -1,15 +1,23 @@
+import { useQuery } from "@tanstack/react-query";
 import { X } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
-import { shortJobId } from "@/lib/job-order-labels";
+import { fetchJobOrder } from "@/features/jobs/api";
+import { fetchSample } from "@/features/laboratory/staff-api";
+import { clientJobReferenceLabel } from "@/lib/sample-reference-display";
 import type { ComplaintRecord } from "@/types/laboratory";
 
 import {
   ClientComplaintCategoryBadge,
   ClientComplaintStatusBadge,
 } from "./client-complaint-badges";
+import {
+  clientResultsJobUrl,
+  formatSampleDisplayName,
+  parseComplaintReference,
+} from "./client-complaint-labels";
 import { complaintCategoryLabel } from "./constants";
 
 function formatDateTime(value: string | null | undefined): string {
@@ -27,6 +35,31 @@ export function ClientComplaintDetailPanel({
   complaint: ComplaintRecord;
   onClose: () => void;
 }) {
+  const jobQuery = useQuery({
+    queryKey: ["client-complaint-detail-job", complaint.job],
+    queryFn: () => fetchJobOrder(complaint.job!),
+    enabled: Boolean(complaint.job),
+    staleTime: 45_000,
+  });
+
+  const sampleQuery = useQuery({
+    queryKey: ["client-complaint-detail-sample", complaint.sample],
+    queryFn: () => fetchSample(complaint.sample!),
+    enabled: Boolean(complaint.sample),
+    staleTime: 45_000,
+  });
+
+  const jobLabel = complaint.job
+    ? clientJobReferenceLabel(jobQuery.data?.description)
+    : null;
+  const sampleLabel = complaint.sample
+    ? formatSampleDisplayName(sampleQuery.data)
+    : null;
+
+  const { reference, body: descriptionBody } = parseComplaintReference(
+    complaint.description,
+  );
+
   const rows: { label: string; value: ReactNode }[] = [
     {
       label: "Category",
@@ -46,16 +79,34 @@ export function ClientComplaintDetailPanel({
     },
   ];
 
+  if (reference && !complaint.job) {
+    rows.splice(2, 0, {
+      label: "Reference",
+      value: <span className="text-sm">{reference}</span>,
+    });
+  }
+
   if (complaint.job) {
     rows.splice(2, 0, {
-      label: "Job",
+      label: "Request",
       value: (
-        <Link
-          to={`/client/requests?job=${complaint.job}`}
-          className="font-mono text-sm text-primary underline-offset-4 hover:underline"
-        >
-          {shortJobId(complaint.job)}
-        </Link>
+        <div className="space-y-1">
+          <p className="text-sm font-medium">{jobLabel ?? "Loading request…"}</p>
+          <div className="flex flex-wrap gap-2 text-xs">
+            <Link
+              to={`/client/requests?job=${complaint.job}`}
+              className="text-primary hover:underline"
+            >
+              View request
+            </Link>
+            <Link
+              to={clientResultsJobUrl(complaint.job)}
+              className="text-primary hover:underline"
+            >
+              Track samples
+            </Link>
+          </div>
+        </div>
       ),
     });
   }
@@ -63,7 +114,19 @@ export function ClientComplaintDetailPanel({
   if (complaint.sample) {
     rows.splice(complaint.job ? 3 : 2, 0, {
       label: "Sample",
-      value: <span className="font-mono text-sm">{complaint.sample}</span>,
+      value: (
+        <div className="space-y-1">
+          <p className="text-sm font-medium">{sampleLabel ?? "Loading sample…"}</p>
+          {complaint.job ? (
+            <Link
+              to={clientResultsJobUrl(complaint.job)}
+              className="text-xs text-primary hover:underline"
+            >
+              Open in results
+            </Link>
+          ) : null}
+        </div>
+      ),
     });
   }
 
@@ -121,7 +184,7 @@ export function ClientComplaintDetailPanel({
           <div>
             <dt className="text-xs text-muted-foreground">Description</dt>
             <dd className="mt-1 whitespace-pre-wrap text-sm">
-              {complaint.description?.trim() ? complaint.description : "—"}
+              {descriptionBody.trim() || (reference ? "—" : complaint.description?.trim()) || "—"}
             </dd>
           </div>
         </dl>

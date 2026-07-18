@@ -1,13 +1,12 @@
 import { Package, X } from "lucide-react";
 import type { ReactNode } from "react";
-import { useState } from "react";
 import { Link } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
 import { shortJobId } from "@/lib/job-order-labels";
 import type { JobOrder } from "@/types/laboratory";
 
-import { ClientComplaintForm } from "../complaints/client-complaint-form";
+import { clientComplaintsUrl } from "../complaints/client-complaint-labels";
 import {
   ClientRequestPriorityBadge,
   ClientRequestStatusBadge,
@@ -20,8 +19,6 @@ export function ClientJobDetailPanel({
   job: JobOrder;
   onClose: () => void;
 }) {
-  const [showComplaint, setShowComplaint] = useState(false);
-
   const rows: { label: string; value: ReactNode }[] = [
     { label: "Job ID", value: <span className="font-mono text-sm">{job.id}</span> },
     {
@@ -115,33 +112,11 @@ export function ClientJobDetailPanel({
         </dl>
 
         {!job.is_cancelled ? (
-          <div className="mt-6 space-y-3 border-t pt-4">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-sm font-medium">Raise a complaint</p>
-              <div className="flex flex-wrap gap-2">
-                <Button type="button" size="sm" variant="ghost" asChild>
-                  <Link to={`/client/complaints?job=${job.id}`}>
-                    View all my complaints
-                  </Link>
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setShowComplaint((s) => !s)}
-                >
-                  {showComplaint ? "Cancel" : "New complaint"}
-                </Button>
-              </div>
-            </div>
-            {showComplaint ? (
-              <ClientComplaintForm
-                defaultJobId={job.id}
-                showJobField={false}
-                compact
-                onCreated={() => setShowComplaint(false)}
-              />
-            ) : null}
+          <div className="mt-6 flex flex-wrap items-center justify-between gap-2 border-t pt-4">
+            <p className="text-sm font-medium">Raise a complaint</p>
+            <Button type="button" size="sm" variant="outline" asChild>
+              <Link to={clientComplaintsUrl({ job: job.id })}>New complaint</Link>
+            </Button>
           </div>
         ) : null}
       </div>

@@ -1,11 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Loader2 } from "lucide-react";
+import { Link } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
 import { fetchSamples } from "@/features/laboratory/staff-api";
-import { clientLabReference } from "@/lib/sample-reference-display";
 import { cn } from "@/lib/utils";
 import type { SampleRecord } from "@/types/laboratory";
+
+import { clientComplaintsUrl } from "../complaints/client-complaint-labels";
 
 import {
   ClientProgressBadge,
@@ -15,8 +17,6 @@ import {
 import { ClientResultsSampleTests } from "./client-results-sample-tests";
 
 function SampleFields({ sample }: { sample: SampleRecord }) {
-  const aliasLabel = clientLabReference(sample);
-
   const receivedLabel =
     sample.received_by_email?.trim() ||
     (sample.received_by && sample.received_by.includes("@")
@@ -24,7 +24,6 @@ function SampleFields({ sample }: { sample: SampleRecord }) {
       : null);
 
   const rows: { label: string; value: string }[] = [
-    { label: "Lab reference", value: aliasLabel },
     {
       label: "Weight",
       value: sample.sample_weight?.trim()
@@ -75,9 +74,11 @@ function SampleFields({ sample }: { sample: SampleRecord }) {
 
 function ClientResultsSampleDetail({
   sample,
+  jobId,
   onBack,
 }: {
   sample: SampleRecord;
+  jobId: string;
   onBack: () => void;
 }) {
   const displayName = sample.sample_name?.trim() || "Unnamed sample";
@@ -94,7 +95,14 @@ function ClientResultsSampleDetail({
         <ArrowLeft className="size-4" aria-hidden />
         Back to samples
       </Button>
-      <h4 className="text-sm font-medium">{displayName}</h4>
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <h4 className="text-sm font-medium">{displayName}</h4>
+        <Button type="button" size="sm" variant="outline" asChild>
+          <Link to={clientComplaintsUrl({ job: jobId, sample: sample.id })}>
+            Raise complaint
+          </Link>
+        </Button>
+      </div>
       <SampleFields sample={sample} />
       <ClientResultsSampleTests
         sampleId={sample.id}
@@ -169,6 +177,7 @@ export function ClientResultsSamplesList({
       return (
         <ClientResultsSampleDetail
           sample={selectedSample}
+          jobId={jobId}
           onBack={() => onSelectSample(null)}
         />
       );

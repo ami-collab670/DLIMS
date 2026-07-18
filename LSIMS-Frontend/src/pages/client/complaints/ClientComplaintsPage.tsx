@@ -7,6 +7,7 @@ import { ClientComplaintsSection } from "./client-complaints-section";
 export default function ClientComplaintsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const defaultJobId = searchParams.get("job");
+  const defaultSampleId = searchParams.get("sample");
 
   const openComplaint = (id: string) => {
     setSearchParams((prev) => {
@@ -21,6 +22,7 @@ export default function ClientComplaintsPage() {
       <ClientComplaintsPageHeader />
       <ClientComplaintForm
         defaultJobId={defaultJobId}
+        defaultSampleId={defaultSampleId}
         onCreated={(complaint) => openComplaint(complaint.id)}
       />
       <ClientComplaintsSection />

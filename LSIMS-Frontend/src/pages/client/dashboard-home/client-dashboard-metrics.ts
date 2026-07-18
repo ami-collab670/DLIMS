@@ -1,4 +1,6 @@
 import { fetchJobOrders } from "@/features/jobs/api";
+import { fetchFinancialRecords } from "@/features/laboratory/financial-records-api";
+import { fetchSamples } from "@/features/laboratory/staff-api";
 import { JOB_PRIORITY_LABEL, JOB_STATUS_LABEL } from "@/lib/job-order-labels";
 import { clientJobReferenceLabel } from "@/lib/sample-reference-display";
 import {
@@ -14,10 +16,16 @@ import type {
   JobOrderStatus,
   JobPriority,
   PaymentStatus,
+  SampleRecord,
 } from "@/types/laboratory";
 
 const MAX_ACTIVE_JOBS = 200;
+const MAX_FINANCIAL_RECORDS = 200;
 const PAGE_SIZE = 50;
+
+export function clientResultsJobUrl(jobId: string): string {
+  return `/client/results?job=${encodeURIComponent(jobId)}`;
+}
 
 export type ChartCountRow = {
   key: string;
@@ -59,6 +67,39 @@ export async function fetchAllActiveJobs(): Promise<JobOrder[]> {
   }
 
   return jobs.slice(0, MAX_ACTIVE_JOBS);
+}
+
+export async function fetchAllFinancialRecords(): Promise<FinancialRecord[]> {
+  const records: FinancialRecord[] = [];
+  let page = 1;
+  let total = Infinity;
+
+  while (records.length < total && records.length < MAX_FINANCIAL_RECORDS) {
+    const data = await fetchFinancialRecords({ page });
+    total = data.count;
+    records.push(...data.results);
+    if (!data.next || data.results.length === 0) break;
+    page += 1;
+  }
+
+  return records.slice(0, MAX_FINANCIAL_RECORDS);
+}
+
+export async function fetchRecentSamples(limit = 5): Promise<SampleRecord[]> {
+  const data = await fetchSamples({ page: 1, page_size: limit });
+  return data.results;
+}
+
+export function sumSampleCount(jobs: JobOrder[]): number {
+  return jobs.reduce((sum, job) => sum + (job.sample_count ?? 0), 0);
+}
+
+export function countJobsByStatus(jobs: JobOrder[], status: JobOrderStatus): number {
+  return jobs.filter((j) => !j.is_cancelled && j.current_status === status).length;
+}
+
+export function countUrgentJobs(jobs: JobOrder[]): number {
+  return jobs.filter((j) => !j.is_cancelled && j.priority === "urgent").length;
 }
 
 export function countInProgressJobs(jobs: JobOrder[]): number {

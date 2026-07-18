@@ -9,8 +9,10 @@ import { cn } from "@/lib/utils";
 
 import {
   filterClientCatalog,
+  GENERAL_SERVICES_LABEL,
   getDepartmentFilterOptions,
   lookupTestPrice,
+  OTHER_SERVICES_LABEL,
   type ClientCatalogGroup,
   type ClientCatalogIndex,
   type DepartmentFilter,
@@ -99,19 +101,24 @@ function TestCard({
   );
 }
 
+function departmentDisplayName(group: ClientCatalogGroup): string {
+  if (group.departmentId == null) return OTHER_SERVICES_LABEL;
+  if (group.departmentName === GENERAL_SERVICES_LABEL) return OTHER_SERVICES_LABEL;
+  return group.departmentName;
+}
+
 function DepartmentSection({
   group,
   selectedIds,
   onToggle,
-  defaultExpanded,
 }: {
   group: ClientCatalogGroup;
   selectedIds: Set<string>;
   onToggle: (testId: string) => void;
-  defaultExpanded: boolean;
 }) {
-  const [expanded, setExpanded] = useState(defaultExpanded);
+  const [expanded, setExpanded] = useState(false);
   const selectedInGroup = group.tests.filter((t) => selectedIds.has(t.id)).length;
+  const displayName = departmentDisplayName(group);
 
   return (
     <section className="border-b border-border last:border-b-0">
@@ -129,7 +136,7 @@ function DepartmentSection({
             )}
             aria-hidden
           />
-          <span className="truncate text-sm font-semibold">{group.departmentName}</span>
+          <span className="truncate text-sm font-semibold">{displayName}</span>
           <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs tabular-nums text-muted-foreground">
             {group.tests.length}
           </span>
@@ -141,17 +148,23 @@ function DepartmentSection({
         ) : null}
       </button>
       {expanded ? (
-        <ul className="grid gap-2 pb-4 sm:grid-cols-2 lg:grid-cols-3">
-          {group.tests.map((test) => (
-            <li key={test.id}>
-              <TestCard
-                test={test}
-                selected={selectedIds.has(test.id)}
-                onToggle={() => onToggle(test.id)}
-              />
-            </li>
-          ))}
-        </ul>
+        group.tests.length === 0 ? (
+          <p className="pb-4 text-sm text-muted-foreground">
+            No tests are listed in this department yet.
+          </p>
+        ) : (
+          <ul className="grid gap-2 pb-4 sm:grid-cols-2 lg:grid-cols-3">
+            {group.tests.map((test) => (
+              <li key={test.id}>
+                <TestCard
+                  test={test}
+                  selected={selectedIds.has(test.id)}
+                  onToggle={() => onToggle(test.id)}
+                />
+              </li>
+            ))}
+          </ul>
+        )
       ) : null}
     </section>
   );
@@ -181,7 +194,6 @@ export function ClientServiceCatalogPicker({
     [groups, search, departmentFilter],
   );
 
-  const hasSearch = search.trim().length > 0;
   const selectedCount = selectedIds.size;
   const selectedTotal = useMemo(
     () =>
@@ -229,6 +241,7 @@ export function ClientServiceCatalogPicker({
                     : "border-border bg-background text-muted-foreground hover:bg-muted/50",
                 )}
                 onClick={() => setDepartmentFilter(opt.id)}
+                disabled={isLoading}
               >
                 {opt.label}
               </button>
@@ -269,7 +282,6 @@ export function ClientServiceCatalogPicker({
                 group={group}
                 selectedIds={selectedIds}
                 onToggle={onToggle}
-                defaultExpanded={hasSearch || filteredGroups.length <= 3}
               />
             ))}
           </div>

@@ -63,7 +63,15 @@ export function ClientDashboardProfileSnapshot() {
       <h3 id="profile-snapshot-heading" className="text-sm font-medium">
         Your account
       </h3>
-      <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-3">
+      <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-5">
+        <div>
+          <dt className="text-xs text-muted-foreground">Email</dt>
+          <dd className="mt-0.5 truncate font-medium">{user.email?.trim() || "—"}</dd>
+        </div>
+        <div>
+          <dt className="text-xs text-muted-foreground">Phone</dt>
+          <dd className="mt-0.5 font-medium">{user.phone?.trim() || "—"}</dd>
+        </div>
         <div>
           <dt className="text-xs text-muted-foreground">Organization</dt>
           <dd className="mt-0.5 font-medium">
@@ -74,7 +82,7 @@ export function ClientDashboardProfileSnapshot() {
           <dt className="text-xs text-muted-foreground">Member since</dt>
           <dd className="mt-0.5">{joined}</dd>
         </div>
-        <div>
+        <div className="sm:col-span-2 lg:col-span-1">
           <dt className="text-xs text-muted-foreground">Profile completeness</dt>
           <dd className="mt-0.5">
             <div className="flex items-center gap-2">

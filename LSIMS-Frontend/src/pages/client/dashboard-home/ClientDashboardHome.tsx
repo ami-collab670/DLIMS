@@ -9,6 +9,7 @@ import { ClientGettingStartedCard } from "./client-getting-started-card";
 import { ClientDashboardProfileSnapshot } from "./client-dashboard-profile-snapshot";
 import { ClientDashboardQuickActions } from "./client-dashboard-quick-actions";
 import { ClientDashboardRecentActivity } from "./client-dashboard-recent-activity";
+import { ClientDashboardSamplesSummary } from "./client-dashboard-samples-summary";
 import { ClientDashboardStatCards } from "./client-dashboard-stat-cards";
 import { ClientWelcomeHeader } from "./client-welcome-header";
 
@@ -31,6 +32,7 @@ export default function ClientDashboardHome() {
       ) : null}
 
       <ClientDashboardStatCards />
+      <ClientDashboardSamplesSummary />
       <ClientDashboardCharts />
       <ClientDashboardQuickActions />
       <ClientDashboardRecentActivity />

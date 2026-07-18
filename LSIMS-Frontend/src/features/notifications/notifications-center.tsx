@@ -50,28 +50,6 @@ function formatWhen(iso: string) {
   }
 }
 
-function hasMetadata(metadata: Record<string, unknown>): boolean {
-  return Object.keys(metadata).length > 0;
-}
-
-function NotificationMetadataBlock({
-  metadata,
-}: {
-  metadata: Record<string, unknown>;
-}) {
-  if (!hasMetadata(metadata)) return null;
-  return (
-    <details className="mt-2 rounded-md border border-border bg-muted/20 p-2 text-xs">
-      <summary className="cursor-pointer font-medium text-foreground">
-        Metadata
-      </summary>
-      <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap font-mono text-muted-foreground">
-        {JSON.stringify(metadata, null, 2)}
-      </pre>
-    </details>
-  );
-}
-
 function NotificationListItem({
   notification,
   onMarkRead,
@@ -116,7 +94,6 @@ function NotificationListItem({
         <p className="whitespace-pre-wrap text-sm text-muted-foreground">
           {row.body}
         </p>
-        <NotificationMetadataBlock metadata={row.metadata} />
         <p className="text-xs text-muted-foreground">
           {formatWhen(row.created_at)}
         </p>

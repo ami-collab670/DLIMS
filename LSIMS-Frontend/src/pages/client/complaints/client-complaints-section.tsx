@@ -1,38 +1,58 @@
 import { useQuery } from "@tanstack/react-query";
 import { AlertCircle, Calendar, Loader2, MessageSquare } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 
 import { TablePaginationFooter } from "@/components/data-table/table-pagination-footer";
-import { TableToolbar } from "@/components/data-table/table-toolbar";
+import { SortableTableHead } from "@/components/data-table/sortable-table-head";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
+import { fetchJobOrders } from "@/features/jobs/api";
 import {
   fetchComplaint,
   fetchComplaints,
 } from "@/features/laboratory/complaints-api";
+import { fetchSamples, fetchSample } from "@/features/laboratory/staff-api";
 import { laboratoryQueryKeys } from "@/features/laboratory/laboratory-query-keys";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { getApiErrorMessage } from "@/lib/api-error";
 import { shortJobId } from "@/lib/job-order-labels";
-import { type TablePageSize } from "@/lib/table-list-utils";
+import {
+  sortRowsClientSide,
+  toggleSortState,
+  type SortState,
+  type TablePageSize,
+} from "@/lib/table-list-utils";
 import { cn } from "@/lib/utils";
-import type { ComplaintStatus } from "@/types/laboratory";
+import type { ComplaintCategory, ComplaintStatus, ComplaintRecord } from "@/types/laboratory";
 
 import {
   ClientComplaintCategoryBadge,
   ClientComplaintStatusBadge,
 } from "./client-complaint-badges";
+import {
+  complaintDescriptionPreview,
+  formatJobOptionLabel,
+  formatSampleDisplayName,
+} from "./client-complaint-labels";
 import { ClientComplaintDetailPanel } from "./client-complaint-detail-panel";
+import { ClientComplaintsTableFilters } from "./client-complaints-table-filters";
 import {
   CLIENT_COMPLAINTS_PAGE_SIZE,
-  COMPLAINT_STATUS_OPTIONS,
 } from "./constants";
+
+type ComplaintSortKey =
+  | "category"
+  | "description"
+  | "status"
+  | "job"
+  | "sample"
+  | "created_at";
 
 export function ClientComplaintsSection() {
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedComplaintId = searchParams.get("complaint");
   const jobFilter = searchParams.get("job") ?? undefined;
+  const sampleFilter = searchParams.get("sample") ?? undefined;
 
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<TablePageSize>(
@@ -41,10 +61,19 @@ export function ClientComplaintsSection() {
   const [searchInput, setSearchInput] = useState("");
   const debouncedSearch = useDebouncedValue(searchInput);
   const [statusFilter, setStatusFilter] = useState<ComplaintStatus | "">("");
+  const [categoryFilter, setCategoryFilter] = useState<ComplaintCategory | "">("");
+  const [sort, setSort] = useState<SortState<ComplaintSortKey>>({
+    key: "created_at",
+    direction: "desc",
+  });
+
+  const handleSort = useCallback((key: ComplaintSortKey) => {
+    setSort((prev) => toggleSortState(prev, key));
+  }, []);
 
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, statusFilter, pageSize, jobFilter]);
+  }, [debouncedSearch, statusFilter, categoryFilter, pageSize, jobFilter, sampleFilter]);
 
   const listParams = useMemo(() => {
     const p: Parameters<typeof fetchComplaints>[0] = {
@@ -53,9 +82,58 @@ export function ClientComplaintsSection() {
     };
     if (debouncedSearch) p.search = debouncedSearch;
     if (statusFilter) p.status = statusFilter;
+    if (categoryFilter) p.category = categoryFilter;
     if (jobFilter) p.job = jobFilter;
+    if (sampleFilter) p.sample = sampleFilter;
     return p;
-  }, [page, pageSize, debouncedSearch, statusFilter, jobFilter]);
+  }, [page, pageSize, debouncedSearch, statusFilter, categoryFilter, jobFilter, sampleFilter]);
+
+  const jobsQuery = useQuery({
+    queryKey: ["client-complaints-job-labels"],
+    queryFn: () =>
+      fetchJobOrders({
+        page: 1,
+        page_size: 50,
+        is_cancelled: false,
+        ordering: "-updated_at",
+      }),
+    staleTime: 60_000,
+  });
+
+  const jobs = jobsQuery.data?.results ?? [];
+
+  const filteredJobSamplesQuery = useQuery({
+    queryKey: ["client-complaints-filter-samples", jobFilter],
+    queryFn: () => fetchSamples({ job: jobFilter!, page_size: 50 }),
+    enabled: Boolean(jobFilter),
+    staleTime: 45_000,
+  });
+
+  const filteredSampleQuery = useQuery({
+    queryKey: ["client-complaints-filter-sample", sampleFilter],
+    queryFn: () => fetchSample(sampleFilter!),
+    enabled: Boolean(sampleFilter),
+    staleTime: 45_000,
+  });
+
+  const jobLabelById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const job of jobsQuery.data?.results ?? []) {
+      map.set(job.id, formatJobOptionLabel(job));
+    }
+    return map;
+  }, [jobsQuery.data]);
+
+  const sampleNameById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const sample of filteredJobSamplesQuery.data?.results ?? []) {
+      map.set(sample.id, formatSampleDisplayName(sample));
+    }
+    if (sampleFilter && filteredSampleQuery.data) {
+      map.set(sampleFilter, formatSampleDisplayName(filteredSampleQuery.data));
+    }
+    return map;
+  }, [filteredJobSamplesQuery.data, sampleFilter, filteredSampleQuery.data]);
 
   const {
     data: listData,
@@ -97,11 +175,81 @@ export function ClientComplaintsSection() {
     });
   }, [setSearchParams]);
 
+  const setJobFilterParam = useCallback(
+    (jobId: string) => {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        if (jobId) {
+          next.set("job", jobId);
+        } else {
+          next.delete("job");
+          next.delete("sample");
+        }
+        return next;
+      });
+    },
+    [setSearchParams],
+  );
+
+  const setSampleFilterParam = useCallback(
+    (sampleId: string) => {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        if (sampleId) {
+          next.set("sample", sampleId);
+        } else {
+          next.delete("sample");
+        }
+        return next;
+      });
+    },
+    [setSearchParams],
+  );
+
+  const sortedComplaints = useMemo(() => {
+    const rows = listData?.results ?? [];
+    return sortRowsClientSide<ComplaintRecord>(rows, sort, (row, key) => {
+      switch (key as ComplaintSortKey) {
+        case "category":
+          return row.category;
+        case "description":
+          return complaintDescriptionPreview(row.description);
+        case "status":
+          return row.status;
+        case "job":
+          return row.job
+            ? (jobLabelById.get(row.job) ?? shortJobId(row.job))
+            : "";
+        case "sample":
+          return row.sample
+            ? (sampleNameById.get(row.sample) ?? "Linked sample")
+            : "";
+        case "created_at":
+          return row.created_at;
+        default:
+          return null;
+      }
+    });
+  }, [listData?.results, sort, jobLabelById, sampleNameById]);
+
+  const filterSamples = filteredJobSamplesQuery.data?.results ?? [];
+
   const displayComplaint = useMemo(() => {
     if (!selectedComplaintId) return null;
     if (detailComplaint) return detailComplaint;
     return listData?.results.find((c) => c.id === selectedComplaintId) ?? null;
   }, [selectedComplaintId, listData, detailComplaint]);
+
+  function renderSampleCell(complaintSample: string | null) {
+    if (!complaintSample) return "—";
+    if (sampleFilter && sampleNameById.has(complaintSample)) {
+      return sampleNameById.get(complaintSample);
+    }
+    if (jobFilter && sampleNameById.has(complaintSample)) {
+      return sampleNameById.get(complaintSample);
+    }
+    return "Linked sample";
+  }
 
   return (
     <div className="flex min-h-[min(80vh,720px)] flex-col gap-6 lg:flex-row">
@@ -109,8 +257,10 @@ export function ClientComplaintsSection() {
         {jobFilter ? (
           <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-dashed bg-muted/20 px-3 py-2 text-sm">
             <span className="text-muted-foreground">
-              Showing complaints linked to job{" "}
-              <span className="font-mono text-foreground">{shortJobId(jobFilter)}</span>
+              Showing complaints linked to request{" "}
+              <span className="font-medium text-foreground">
+                {jobLabelById.get(jobFilter) ?? shortJobId(jobFilter)}
+              </span>
             </span>
             <Button
               type="button"
@@ -129,41 +279,50 @@ export function ClientComplaintsSection() {
           </div>
         ) : null}
 
-        <TableToolbar
-          searchId="complaint-search"
-          searchPlaceholder="Search complaints…"
-          searchValue={searchInput}
-          onSearchChange={setSearchInput}
+        {sampleFilter ? (
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-dashed bg-muted/20 px-3 py-2 text-sm">
+            <span className="text-muted-foreground">
+              Showing complaints linked to sample{" "}
+              <span className="font-medium text-foreground">
+                {sampleNameById.get(sampleFilter) ?? "Linked sample"}
+              </span>
+            </span>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setSearchParams((prev) => {
+                  const next = new URLSearchParams(prev);
+                  next.delete("sample");
+                  return next;
+                });
+              }}
+            >
+              Clear filter
+            </Button>
+          </div>
+        ) : null}
+
+        <ClientComplaintsTableFilters
+          categoryFilter={categoryFilter}
+          onCategoryFilterChange={setCategoryFilter}
+          searchInput={searchInput}
+          onSearchInputChange={setSearchInput}
+          statusFilter={statusFilter}
+          onStatusFilterChange={setStatusFilter}
+          jobFilter={jobFilter}
+          onJobFilterChange={setJobFilterParam}
+          sampleFilter={sampleFilter}
+          onSampleFilterChange={setSampleFilterParam}
+          jobs={jobs}
+          filterSamples={filterSamples}
           pageSize={pageSize}
           onPageSizeChange={(size) => {
             setPageSize(size);
             setPage(1);
           }}
-        >
-          <div className="w-full space-y-1 lg:w-48">
-            <Label htmlFor="filter-complaint-status" className="text-xs">
-              Status
-            </Label>
-            <select
-              id="filter-complaint-status"
-              className={cn(
-                "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm",
-                "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
-              )}
-              value={statusFilter}
-              onChange={(e) =>
-                setStatusFilter(e.target.value as ComplaintStatus | "")
-              }
-            >
-              <option value="">All statuses</option>
-              {COMPLAINT_STATUS_OPTIONS.map(({ value, label }) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </div>
-        </TableToolbar>
+        />
 
         <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
           {isLoading ? (
@@ -189,23 +348,60 @@ export function ClientComplaintsSection() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[640px] text-left text-sm">
+              <table className="w-full min-w-[720px] text-left text-sm">
                 <thead>
                   <tr className="border-b border-border bg-muted/40">
-                    <th className="px-4 py-3 font-medium">Category</th>
-                    <th className="px-4 py-3 font-medium">Description</th>
-                    <th className="px-4 py-3 font-medium">Status</th>
-                    <th className="px-4 py-3 font-medium">Job</th>
-                    <th className="px-4 py-3 font-medium">
-                      <span className="inline-flex items-center gap-1">
-                        <Calendar className="size-3.5 opacity-70" aria-hidden />
-                        Submitted
-                      </span>
-                    </th>
+                    <SortableTableHead
+                      label="Category"
+                      sortKey="category"
+                      sort={sort}
+                      onSort={handleSort}
+                      className="py-3"
+                    />
+                    <SortableTableHead
+                      label="Description"
+                      sortKey="description"
+                      sort={sort}
+                      onSort={handleSort}
+                      className="py-3"
+                    />
+                    <SortableTableHead
+                      label="Status"
+                      sortKey="status"
+                      sort={sort}
+                      onSort={handleSort}
+                      className="py-3"
+                    />
+                    <SortableTableHead
+                      label="Request"
+                      sortKey="job"
+                      sort={sort}
+                      onSort={handleSort}
+                      className="py-3"
+                    />
+                    <SortableTableHead
+                      label="Sample"
+                      sortKey="sample"
+                      sort={sort}
+                      onSort={handleSort}
+                      className="py-3"
+                    />
+                    <SortableTableHead
+                      label={
+                        <span className="inline-flex items-center gap-1">
+                          <Calendar className="size-3.5 opacity-70" aria-hidden />
+                          Submitted
+                        </span>
+                      }
+                      sortKey="created_at"
+                      sort={sort}
+                      onSort={handleSort}
+                      className="py-3"
+                    />
                   </tr>
                 </thead>
                 <tbody>
-                  {listData.results.map((complaint) => (
+                  {sortedComplaints.map((complaint) => (
                     <tr
                       key={complaint.id}
                       className={cn(
@@ -217,14 +413,27 @@ export function ClientComplaintsSection() {
                       <td className="px-4 py-3">
                         <ClientComplaintCategoryBadge category={complaint.category} />
                       </td>
-                      <td className="max-w-[240px] truncate px-4 py-3 text-muted-foreground">
-                        {complaint.description?.trim() || "—"}
+                      <td className="max-w-[220px] truncate px-4 py-3 text-muted-foreground">
+                        {complaintDescriptionPreview(complaint.description) || "—"}
                       </td>
                       <td className="px-4 py-3">
                         <ClientComplaintStatusBadge status={complaint.status} />
                       </td>
-                      <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
-                        {complaint.job ? shortJobId(complaint.job) : "—"}
+                      <td className="max-w-[180px] truncate px-4 py-3">
+                        {complaint.job ? (
+                          <Link
+                            to={`/client/requests?job=${complaint.job}`}
+                            className="text-primary hover:underline"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {jobLabelById.get(complaint.job) ?? shortJobId(complaint.job)}
+                          </Link>
+                        ) : (
+                          "—"
+                        )}
+                      </td>
+                      <td className="max-w-[140px] truncate px-4 py-3 text-muted-foreground">
+                        {renderSampleCell(complaint.sample)}
                       </td>
                       <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
                         {new Date(complaint.created_at).toLocaleDateString(undefined, {

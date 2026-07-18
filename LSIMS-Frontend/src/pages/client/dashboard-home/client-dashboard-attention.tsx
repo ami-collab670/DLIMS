@@ -3,12 +3,13 @@ import { AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { fetchComplaints } from "@/features/laboratory/complaints-api";
-import { fetchFinancialRecords } from "@/features/laboratory/financial-records-api";
 import { JOB_STATUS_LABEL } from "@/lib/job-order-labels";
 import {
+  clientResultsJobUrl,
   complaintsNeedingFollowUp,
   extractClientReferenceLabel,
   fetchAllActiveJobs,
+  fetchAllFinancialRecords,
   invoicesNeedingPayment,
   jobsNeedingAttention,
 } from "@/pages/client/dashboard-home/client-dashboard-metrics";
@@ -28,8 +29,8 @@ export function ClientDashboardAttention() {
   });
 
   const financeQuery = useQuery({
-    queryKey: clientDashboardKeys.financialRecords,
-    queryFn: () => fetchFinancialRecords({ page: 1 }),
+    queryKey: clientDashboardKeys.allFinancialRecords,
+    queryFn: fetchAllFinancialRecords,
     staleTime: 45_000,
   });
 
@@ -53,7 +54,7 @@ export function ClientDashboardAttention() {
   }
 
   const attentionJobs = jobsNeedingAttention(jobsQuery.data ?? []);
-  const dueInvoices = invoicesNeedingPayment(financeQuery.data?.results ?? []);
+  const dueInvoices = invoicesNeedingPayment(financeQuery.data ?? []);
   const followUpComplaints = complaintsNeedingFollowUp(
     complaintsQuery.data?.results ?? [],
   );
@@ -137,7 +138,7 @@ export function ClientDashboardAttention() {
                     </p>
                   ) : null}
                   <Link
-                    to="/client/results"
+                    to={clientResultsJobUrl(job.id)}
                     className="mt-2 inline-block text-xs font-medium text-primary hover:underline"
                   >
                     View progress →
