@@ -21,7 +21,26 @@ export function MarketingPage({ slug }: { slug: string }) {
     );
   }
 
-  if (isError || !page) {
+  if (isError) {
+    return (
+      <CmsPageShell>
+        <div className="space-y-4">
+          <h1 className="text-3xl font-semibold tracking-tight">
+            Content unavailable
+          </h1>
+          <p className="text-muted-foreground">
+            We could not load this page from the CMS. Try again later or return
+            home.
+          </p>
+          <Button asChild variant="outline">
+            <Link to="/">Back to home</Link>
+          </Button>
+        </div>
+      </CmsPageShell>
+    );
+  }
+
+  if (!page) {
     return (
       <CmsPageShell>
         <div className="space-y-4">

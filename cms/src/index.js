@@ -12,29 +12,42 @@ async function enablePublicPermissions(strapi) {
   });
 
   if (!publicRole) {
-    return;
+    strapi.log.warn('[cms-bootstrap] Public role not found — skipping permission setup');
+    return { created: 0, existing: 0 };
   }
+
+  let created = 0;
+  let existing = 0;
 
   for (const uid of PUBLIC_CONTENT_TYPES) {
     for (const action of PUBLIC_ACTIONS) {
       const permissionAction = `${uid}.${action}`;
-      const existing = await strapi.db.query('plugin::users-permissions.permission').findOne({
+      const found = await strapi.db.query('plugin::users-permissions.permission').findOne({
         where: {
           action: permissionAction,
           role: publicRole.id,
         },
       });
 
-      if (!existing) {
+      if (!found) {
         await strapi.db.query('plugin::users-permissions.permission').create({
           data: {
             action: permissionAction,
             role: publicRole.id,
           },
         });
+        created += 1;
+      } else {
+        existing += 1;
       }
     }
   }
+
+  strapi.log.info(
+    `[cms-bootstrap] Public permissions: ${created} created, ${existing} already present`
+  );
+
+  return { created, existing };
 }
 
 function paragraphBlock(text) {
@@ -45,6 +58,12 @@ function paragraphBlock(text) {
 }
 
 async function seedDefaultContent(strapi) {
+  const summary = {
+    siteSetting: 'skipped',
+    homePage: 'skipped',
+    marketingPages: { created: 0, skipped: 0 },
+  };
+
   const siteSetting = await strapi.documents('api::site-setting.site-setting').findFirst();
 
   if (!siteSetting) {
@@ -58,6 +77,7 @@ async function seedDefaultContent(strapi) {
         ],
       },
     });
+    summary.siteSetting = 'created';
   }
 
   const homePage = await strapi.documents('api::home-page.home-page').findFirst();
@@ -72,6 +92,7 @@ async function seedDefaultContent(strapi) {
         secondaryCtaLabel: 'Create account',
       },
     });
+    summary.homePage = 'created';
   }
 
   const marketingPages = [
@@ -129,6 +150,32 @@ async function seedDefaultContent(strapi) {
         data: page,
         status: 'published',
       });
+      summary.marketingPages.created += 1;
+    } else {
+      summary.marketingPages.skipped += 1;
+    }
+  }
+
+  strapi.log.info(`[cms-bootstrap] Seed summary: ${JSON.stringify(summary)}`);
+
+  return summary;
+}
+
+async function verifyPublicContent(strapi) {
+  const checks = [
+    { label: 'site-setting', uid: 'api::site-setting.site-setting' },
+    { label: 'home-page', uid: 'api::home-page.home-page' },
+    { label: 'marketing-page (about)', uid: 'api::marketing-page.marketing-page', slug: 'about' },
+  ];
+
+  for (const check of checks) {
+    const filters = check.slug ? { slug: check.slug } : undefined;
+    const doc = await strapi.documents(check.uid).findFirst({ filters });
+
+    if (doc) {
+      strapi.log.info(`[cms-bootstrap] Verified ${check.label} content is present`);
+    } else {
+      strapi.log.warn(`[cms-bootstrap] Missing ${check.label} content after bootstrap`);
     }
   }
 }
@@ -137,13 +184,12 @@ module.exports = {
   register() {},
 
   async bootstrap({ strapi }) {
-    // #region agent log
-    fetch('http://host.docker.internal:7840/ingest/133e5be4-3aa4-440f-8689-c818d8f44f13',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'870467'},body:JSON.stringify({sessionId:'870467',location:'cms/src/index.js:bootstrap',message:'Strapi bootstrap started',data:{},hypothesisId:'H1',timestamp:Date.now(),runId:'post-fix'})}).catch(()=>{});
-    // #endregion
+    strapi.log.info('[cms-bootstrap] Starting CMS bootstrap');
+
     await enablePublicPermissions(strapi);
     await seedDefaultContent(strapi);
-    // #region agent log
-    fetch('http://host.docker.internal:7840/ingest/133e5be4-3aa4-440f-8689-c818d8f44f13',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'870467'},body:JSON.stringify({sessionId:'870467',location:'cms/src/index.js:bootstrap',message:'Strapi bootstrap completed',data:{seeded:true},hypothesisId:'H1',timestamp:Date.now(),runId:'post-fix'})}).catch(()=>{});
-    // #endregion
+    await verifyPublicContent(strapi);
+
+    strapi.log.info('[cms-bootstrap] CMS bootstrap completed');
   },
 };

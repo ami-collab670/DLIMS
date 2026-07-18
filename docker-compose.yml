@@ -58,8 +58,10 @@ services:
       WATCHPACK_POLLING: 'true'
       NODE_OPTIONS: '--max-old-space-size=4096'
     depends_on:
-      - backend
-      - cms
+      backend:
+        condition: service_started
+      cms:
+        condition: service_healthy
 
   cms:
     build: ./cms
@@ -92,6 +94,18 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:1337/api/home-page').then(async (r)=>{if(!r.ok)process.exit(1);const b=await r.json();process.exit(b?.data?0:1)}).catch(()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 180s
 
   pgadmin:
     image: dpage/pgadmin4:latest

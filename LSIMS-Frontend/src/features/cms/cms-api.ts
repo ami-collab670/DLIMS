@@ -1,4 +1,7 @@
+import axios from "axios";
+
 import { cmsClient } from "@/features/cms/client";
+import { CmsUnavailableError } from "@/features/cms/cms-errors";
 import {
   DEFAULT_HOME_PAGE,
   DEFAULT_SITE_SETTINGS,
@@ -11,22 +14,76 @@ import type {
   StrapiSingleResponse,
 } from "@/features/cms/types";
 
+const CMS_RETRY_ATTEMPTS = 3;
+const CMS_RETRY_DELAY_MS = 500;
+
+function isRetryableCmsError(error: unknown): boolean {
+  if (!axios.isAxiosError(error)) {
+    return true;
+  }
+
+  const status = error.response?.status;
+  if (!status) {
+    return true;
+  }
+
+  return status >= 502 && status <= 504;
+}
+
+function toCmsUnavailableError(error: unknown): CmsUnavailableError {
+  if (error instanceof CmsUnavailableError) {
+    return error;
+  }
+
+  if (axios.isAxiosError(error)) {
+    const status = error.response?.status;
+    if (status) {
+      return new CmsUnavailableError(`CMS request failed with status ${status}`);
+    }
+    return new CmsUnavailableError("CMS request failed");
+  }
+
+  return new CmsUnavailableError("CMS request failed");
+}
+
+async function withCmsRetry<T>(operation: () => Promise<T>): Promise<T> {
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt < CMS_RETRY_ATTEMPTS; attempt += 1) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error;
+
+      if (!isRetryableCmsError(error) || attempt === CMS_RETRY_ATTEMPTS - 1) {
+        throw toCmsUnavailableError(error);
+      }
+
+      await new Promise((resolve) => {
+        setTimeout(resolve, CMS_RETRY_DELAY_MS * (attempt + 1));
+      });
+    }
+  }
+
+  throw toCmsUnavailableError(lastError);
+}
+
 export async function fetchSiteSettings(): Promise<SiteSettings> {
-  try {
+  return withCmsRetry(async () => {
     const { data } = await cmsClient.get<StrapiSingleResponse<SiteSettings>>(
       "/site-setting",
       {
         params: {
-          populate: "navLinks",
+          "populate[navLinks]": true,
         },
       }
     );
-    // #region agent log
-    fetch('http://127.0.0.1:7840/ingest/133e5be4-3aa4-440f-8689-c818d8f44f13',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'870467'},body:JSON.stringify({sessionId:'870467',location:'cms-api.ts:fetchSiteSettings',message:'CMS site-setting OK',data:{hasData:!!data.data},hypothesisId:'H4',timestamp:Date.now(),runId:'post-fix'})}).catch(()=>{});
-    // #endregion
 
     if (!data.data) {
-      return { ...DEFAULT_SITE_SETTINGS, navLinks: [...DEFAULT_SITE_SETTINGS.navLinks] };
+      return {
+        ...DEFAULT_SITE_SETTINGS,
+        navLinks: [...DEFAULT_SITE_SETTINGS.navLinks],
+      };
     }
 
     return {
@@ -36,16 +93,11 @@ export async function fetchSiteSettings(): Promise<SiteSettings> {
           ? data.data.navLinks
           : [...DEFAULT_SITE_SETTINGS.navLinks],
     };
-  } catch (error) {
-    // #region agent log
-    fetch('http://127.0.0.1:7840/ingest/133e5be4-3aa4-440f-8689-c818d8f44f13',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'870467'},body:JSON.stringify({sessionId:'870467',location:'cms-api.ts:fetchSiteSettings',message:'CMS site-setting failed',data:{error:String(error)},hypothesisId:'H4',timestamp:Date.now(),runId:'post-fix'})}).catch(()=>{});
-    // #endregion
-    return { ...DEFAULT_SITE_SETTINGS, navLinks: [...DEFAULT_SITE_SETTINGS.navLinks] };
-  }
+  });
 }
 
 export async function fetchHomePage(): Promise<HomePageContent> {
-  try {
+  return withCmsRetry(async () => {
     const { data } = await cmsClient.get<StrapiSingleResponse<HomePageContent>>(
       "/home-page"
     );
@@ -62,26 +114,32 @@ export async function fetchHomePage(): Promise<HomePageContent> {
       secondaryCtaLabel:
         data.data.secondaryCtaLabel || DEFAULT_HOME_PAGE.secondaryCtaLabel,
     };
-  } catch {
-    return { ...DEFAULT_HOME_PAGE };
-  }
+  });
 }
 
+// Marketing pages use draft & publish — editors must click Publish after Save.
 export async function fetchMarketingPage(
   slug: string
 ): Promise<MarketingPageContent | null> {
   try {
-    const { data } = await cmsClient.get<
-      StrapiCollectionResponse<MarketingPageContent>
-    >("/marketing-pages", {
-      params: {
-        "filters[slug][$eq]": slug,
-        status: "published",
-      },
-    });
+    const { data } = await withCmsRetry(async () =>
+      cmsClient.get<StrapiCollectionResponse<MarketingPageContent>>(
+        "/marketing-pages",
+        {
+          params: {
+            "filters[slug][$eq]": slug,
+            status: "published",
+          },
+        }
+      )
+    );
 
     return data.data[0] ?? null;
-  } catch {
-    return null;
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response?.status === 404) {
+      return null;
+    }
+
+    throw toCmsUnavailableError(error);
   }
 }
