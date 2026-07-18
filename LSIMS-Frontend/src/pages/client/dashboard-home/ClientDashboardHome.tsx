@@ -1,64 +1,45 @@
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
 
-import { Button } from "@/components/ui/button";
 import { fetchJobOrders } from "@/features/jobs/api";
-import { JOB_STATUS_LABEL } from "@/lib/job-order-labels";
 
+import { ClientDashboardAttention } from "./client-dashboard-attention";
+import { clientDashboardKeys } from "./client-dashboard-api-keys";
+import { ClientDashboardCharts } from "./client-dashboard-charts";
 import { ClientGettingStartedCard } from "./client-getting-started-card";
+import { ClientDashboardProfileSnapshot } from "./client-dashboard-profile-snapshot";
+import { ClientDashboardQuickActions } from "./client-dashboard-quick-actions";
+import { ClientDashboardRecentActivity } from "./client-dashboard-recent-activity";
+import { ClientDashboardStatCards } from "./client-dashboard-stat-cards";
 import { ClientWelcomeHeader } from "./client-welcome-header";
 
 export default function ClientDashboardHome() {
-  const { data: jobs, isLoading } = useQuery({
-    queryKey: ["client-dashboard-jobs"],
-    queryFn: () => fetchJobOrders({ page: 1, is_cancelled: false }),
-    staleTime: 30_000,
+  const { data: activeJobsData } = useQuery({
+    queryKey: clientDashboardKeys.activeJobCount,
+    queryFn: () => fetchJobOrders({ page: 1, page_size: 1, is_cancelled: false }),
+    staleTime: 45_000,
   });
 
-  const activeCount = jobs?.count ?? 0;
-  const recent = jobs?.results.slice(0, 5) ?? [];
+  const activeJobCount = activeJobsData?.count ?? 0;
+  const showProminentGettingStarted = activeJobCount === 0;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <ClientWelcomeHeader />
 
-      <section className="rounded-xl border bg-card p-4 shadow-sm">
-        <h2 className="text-sm font-semibold">Your requests</h2>
-        {isLoading ? (
-          <p className="mt-2 text-sm text-muted-foreground">Loading…</p>
-        ) : (
-          <>
-            <p className="mt-2 text-sm text-muted-foreground">
-              {activeCount === 0
-                ? "No active job orders yet."
-                : `${activeCount} active job order${activeCount === 1 ? "" : "s"}.`}
-            </p>
-            {recent.length > 0 ? (
-              <ul className="mt-3 divide-y rounded-lg border text-sm">
-                {recent.map((j) => (
-                  <li
-                    key={j.id}
-                    className="flex flex-wrap items-center justify-between gap-2 px-3 py-2"
-                  >
-                    <span className="font-mono text-xs">{j.id.slice(0, 8)}…</span>
-                    <span className="text-muted-foreground">
-                      {JOB_STATUS_LABEL[j.current_status]}
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      {j.sample_count} sample(s)
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-            <Button asChild variant="outline" size="sm" className="mt-3">
-              <Link to="/client/requests">View all requests</Link>
-            </Button>
-          </>
-        )}
-      </section>
+      {showProminentGettingStarted ? (
+        <ClientGettingStartedCard prominent />
+      ) : null}
 
-      <ClientGettingStartedCard />
+      <ClientDashboardStatCards />
+      <ClientDashboardCharts />
+      <ClientDashboardQuickActions />
+      <ClientDashboardRecentActivity />
+      <ClientDashboardAttention />
+      <ClientDashboardProfileSnapshot />
+
+      {!showProminentGettingStarted ? (
+        <ClientGettingStartedCard prominent={false} />
+      ) : null}
     </div>
   );
 }

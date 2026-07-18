@@ -22,6 +22,7 @@ import {
 } from "@/features/laboratory/staff-api";
 import { getApiErrorMessage } from "@/lib/api-error";
 import { shortJobId } from "@/lib/job-order-labels";
+import { staffSampleDisplayCode } from "@/lib/sample-reference-display";
 import type { SampleRecord } from "@/types/laboratory";
 
 function formatDateForInput(isoOrDate: string | null | undefined): string {
@@ -57,17 +58,20 @@ function formatDisplayDateTime(iso: string | null | undefined): string {
 export function AnalystSampleDetailPanel({
   sample,
   manage,
+  hideClientSampleNames,
   onClose,
   onUpdated,
 }: {
   sample: SampleRecord;
   manage: boolean;
+  hideClientSampleNames: boolean;
   onClose: () => void;
   onUpdated: () => void;
 }) {
   const queryClient = useQueryClient();
-  const displayCode = sample.sample_code ?? sample.blind_alias_code ?? "—";
-  const isBlindView = !sample.sample_code && Boolean(sample.blind_alias_code);
+  const displayCode = staffSampleDisplayCode(sample);
+  const isBlindView =
+    hideClientSampleNames || (!sample.sample_code && Boolean(sample.blind_alias_code));
   const pendingPermanentCode = !sample.sample_code;
 
   const [sampleName, setSampleName] = useState(sample.sample_name ?? "");
@@ -121,10 +125,12 @@ export function AnalystSampleDetailPanel({
       const weightTrim = sampleWeight.trim();
       const body: Parameters<typeof patchSample>[1] = {
         notes,
-        sample_name: sampleName.trim() || undefined,
         packaging_type: packagingType.trim(),
         collection_date: collectionDate.trim() || null,
       };
+      if (!hideClientSampleNames) {
+        body.sample_name = sampleName.trim() || undefined;
+      }
       if (weightTrim) body.sample_weight = weightTrim;
       else body.sample_weight = null;
       if (assignedAt.trim()) {
@@ -240,7 +246,7 @@ export function AnalystSampleDetailPanel({
       </div>
 
       <dl className="grid gap-2 text-sm sm:grid-cols-2">
-        {!isBlindView && sample.sample_name ? (
+        {!isBlindView && !hideClientSampleNames && sample.sample_name ? (
           <div className="sm:col-span-2">
             <dt className="text-xs text-muted-foreground">Name</dt>
             <dd>{sample.sample_name}</dd>
@@ -401,7 +407,7 @@ export function AnalystSampleDetailPanel({
       {manage ? (
         <div className="mt-4 space-y-3 border-t pt-4">
           <p className="text-sm font-medium">Edit sample (reception/admin)</p>
-          {!isBlindView ? (
+          {!isBlindView && !hideClientSampleNames ? (
             <div className="space-y-1">
               <Label>Sample name</Label>
               <Input value={sampleName} onChange={(e) => setSampleName(e.target.value)} />

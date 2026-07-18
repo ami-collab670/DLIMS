@@ -9,6 +9,7 @@ import {
   canManageJobsAndSamples,
   isStaffAnalyst,
 } from "@/lib/staff-permissions";
+import { shouldHideClientSampleNames } from "@/lib/sample-reference-display";
 import { useAuthStore } from "@/stores/auth-store";
 
 import type { LaboratoryTabId } from "./constants";
@@ -70,6 +71,7 @@ export default function StaffLaboratoryPage() {
           intake={intake}
           manage={manageJobs}
           isAnalyst={isStaffAnalyst(user)}
+          hideClientSampleNames={shouldHideClientSampleNames(user)}
         />
       ) : null}
       {tab === "assignments" && showAssignmentsTab ? (

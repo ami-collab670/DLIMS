@@ -13,6 +13,7 @@ import {
 } from "@/features/laboratory/preparation-records-api";
 import { laboratoryQueryKeys } from "@/features/laboratory/laboratory-query-keys";
 import { getApiErrorMessage } from "@/lib/api-error";
+import { staffPreparationSampleCode } from "@/lib/sample-reference-display";
 import type { PreparationRecord } from "@/types/laboratory";
 
 export function AnalystPreparationSection() {
@@ -87,7 +88,7 @@ export function AnalystPreparationSection() {
               {rows.map((r) => (
                 <tr key={r.id} className="border-b">
                   <td className="px-3 py-2 font-mono text-xs">
-                    {r.sample_code ?? r.sample_name}
+                    {staffPreparationSampleCode(r)}
                   </td>
                   <td className="px-3 py-2 font-mono text-xs">{r.reference_code}</td>
                   <td className="px-3 py-2 capitalize">{r.status.replace(/_/g, " ")}</td>

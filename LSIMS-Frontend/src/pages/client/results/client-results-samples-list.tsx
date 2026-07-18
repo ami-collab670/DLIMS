@@ -3,6 +3,7 @@ import { ArrowLeft, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { fetchSamples } from "@/features/laboratory/staff-api";
+import { clientLabReference } from "@/lib/sample-reference-display";
 import { cn } from "@/lib/utils";
 import type { SampleRecord } from "@/types/laboratory";
 
@@ -14,9 +15,7 @@ import {
 import { ClientResultsSampleTests } from "./client-results-sample-tests";
 
 function SampleFields({ sample }: { sample: SampleRecord }) {
-  const aliasLabel = sample.blind_alias_code?.trim()
-    ? sample.blind_alias_code
-    : "Pending assignment";
+  const aliasLabel = clientLabReference(sample);
 
   const receivedLabel =
     sample.received_by_email?.trim() ||

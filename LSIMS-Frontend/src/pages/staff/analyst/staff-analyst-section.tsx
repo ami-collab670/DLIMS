@@ -8,8 +8,11 @@ import { Label } from "@/components/ui/label";
 import { fetchSample, fetchSamples } from "@/features/laboratory/staff-api";
 import { getApiErrorMessage } from "@/lib/api-error";
 import { shortJobId } from "@/lib/job-order-labels";
+import {
+  staffSampleDisplayCode,
+  staffSampleRowLabel,
+} from "@/lib/sample-reference-display";
 import { cn } from "@/lib/utils";
-import type { SampleRecord } from "@/types/laboratory";
 
 import {
   ANALYST_LIST_PAGE_SIZE,
@@ -19,20 +22,16 @@ import { AnalystPreparationSection } from "./analyst-preparation-section";
 import { AnalystSampleDetailPanel } from "./analyst-sample-detail-panel";
 import { RegisterSampleForm } from "./register-sample-form";
 
-function rowLabel(s: SampleRecord): string {
-  if (s.sample_name?.trim()) return s.sample_name;
-  if (s.blind_alias_code) return s.blind_alias_code;
-  return "—";
-}
-
 export function StaffAnalystSection({
   intake,
   manage,
   isAnalyst,
+  hideClientSampleNames,
 }: {
   intake: boolean;
   manage: boolean;
   isAnalyst: boolean;
+  hideClientSampleNames: boolean;
 }) {
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
@@ -103,7 +102,9 @@ export function StaffAnalystSection({
           <Label>Search</Label>
           <Input
             placeholder={
-              isAnalyst ? "Blind code / technical label…" : "Code or name…"
+              hideClientSampleNames || isAnalyst
+                ? "Blind code / technical label…"
+                : "Code or name…"
             }
             value={search}
             onChange={(e) => {
@@ -156,7 +157,9 @@ export function StaffAnalystSection({
               <thead>
                 <tr className="border-b bg-muted/40">
                   <th className="px-4 py-2 font-medium">Code</th>
-                  <th className="px-4 py-2 font-medium">Name / blind</th>
+                  <th className="px-4 py-2 font-medium">
+                    {hideClientSampleNames ? "Blind label" : "Name / blind"}
+                  </th>
                   {isAnalyst ? null : (
                     <>
                       <th className="px-4 py-2 font-medium">Job</th>
@@ -177,9 +180,11 @@ export function StaffAnalystSection({
                     onClick={() => setSelectedId(s.id)}
                   >
                     <td className="px-4 py-2 font-mono text-xs">
-                      {s.sample_code ?? s.blind_alias_code ?? "—"}
+                      {staffSampleDisplayCode(s)}
                     </td>
-                    <td className="max-w-[200px] truncate px-4 py-2">{rowLabel(s)}</td>
+                    <td className="max-w-[200px] truncate px-4 py-2">
+                      {staffSampleRowLabel(s, hideClientSampleNames)}
+                    </td>
                     {isAnalyst ? null : (
                       <>
                         <td className="px-4 py-2 font-mono text-xs">
@@ -233,6 +238,7 @@ export function StaffAnalystSection({
         <AnalystSampleDetailPanel
           sample={detail}
           manage={manage}
+          hideClientSampleNames={hideClientSampleNames}
           onClose={() => setSelectedId(null)}
           onUpdated={() => {
             queryClient.invalidateQueries({ queryKey: ["staff-analyst"] });

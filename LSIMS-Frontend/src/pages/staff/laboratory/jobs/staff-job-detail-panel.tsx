@@ -17,6 +17,10 @@ import {
   shortJobId,
 } from "@/lib/job-order-labels";
 import { resolveRoleLabel } from "@/lib/resolve-role-label";
+import {
+  mergeStaffJobDescriptionEdit,
+  sanitizeJobDescriptionForStaff,
+} from "@/lib/sample-reference-display";
 import type { JobOrder } from "@/types/laboratory";
 
 export function StaffJobDetailPanel({
@@ -31,7 +35,7 @@ export function StaffJobDetailPanel({
   onUpdated: () => void;
 }) {
   const [priority, setPriority] = useState(job.priority);
-  const [desc, setDesc] = useState(job.description);
+  const [desc, setDesc] = useState(() => sanitizeJobDescriptionForStaff(job.description));
   const [showCancelForm, setShowCancelForm] = useState(false);
 
   const rolesQuery = useQuery({
@@ -50,7 +54,7 @@ export function StaffJobDetailPanel({
 
   useEffect(() => {
     setPriority(job.priority);
-    setDesc(job.description);
+    setDesc(sanitizeJobDescriptionForStaff(job.description));
     setShowCancelForm(false);
   }, [job]);
 
@@ -58,7 +62,10 @@ export function StaffJobDetailPanel({
     mutationFn: () =>
       patchJobOrder(job.id, {
         priority,
-        description: desc,
+        description: mergeStaffJobDescriptionEdit(
+          job.description,
+          desc === "—" ? "" : desc,
+        ),
       }),
     onSuccess: () => {
       toast.success("Job updated.");
@@ -178,9 +185,12 @@ export function StaffJobDetailPanel({
             <Label>Description</Label>
             <Textarea
               rows={4}
-              value={desc}
+              value={desc === "—" ? "" : desc}
               onChange={(e) => setDesc(e.target.value)}
             />
+            <p className="text-xs text-muted-foreground">
+              Client reference ID is hidden from staff view.
+            </p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button

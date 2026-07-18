@@ -1,0 +1,212 @@
+import { useQuery } from "@tanstack/react-query";
+import { formatDistanceToNow } from "date-fns";
+import { Clock, Loader2, MessageSquare, Package } from "lucide-react";
+import type { ReactNode } from "react";
+import { Link } from "react-router-dom";
+
+import { fetchJobOrders } from "@/features/jobs/api";
+import { fetchComplaints } from "@/features/laboratory/complaints-api";
+import { fetchNotifications } from "@/features/notifications/api";
+import {
+  complaintsNeedingFollowUp,
+  extractClientReferenceLabel,
+} from "@/pages/client/dashboard-home/client-dashboard-metrics";
+import {
+  ClientComplaintCategoryBadge,
+  ClientComplaintStatusBadge,
+} from "@/pages/client/complaints/client-complaint-badges";
+import { truncateComplaintTitle } from "@/pages/client/complaints/constants";
+import {
+  ClientProgressBadge,
+  formatClientDateTime,
+} from "@/pages/client/results/client-results-progress";
+import type { NotificationKind } from "@/types/notification";
+
+import { clientDashboardKeys } from "./client-dashboard-api-keys";
+
+const KIND_LABEL: Record<NotificationKind, string> = {
+  info: "Info",
+  alert: "Alert",
+  job: "Job",
+  message: "Message",
+  system: "System",
+};
+
+function PanelShell({
+  title,
+  icon: Icon,
+  linkTo,
+  linkLabel,
+  loading,
+  error,
+  empty,
+  emptyMessage,
+  children,
+}: {
+  title: string;
+  icon: typeof Clock;
+  linkTo: string;
+  linkLabel: string;
+  loading: boolean;
+  error: boolean;
+  empty: boolean;
+  emptyMessage: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <Icon className="size-4 text-muted-foreground" aria-hidden />
+          <h4 className="text-sm font-medium">{title}</h4>
+        </div>
+        <Link to={linkTo} className="text-xs font-medium text-primary hover:underline">
+          {linkLabel}
+        </Link>
+      </div>
+      {loading ? (
+        <div className="flex justify-center py-8">
+          <Loader2 className="size-5 animate-spin text-muted-foreground" />
+        </div>
+      ) : error ? (
+        <p className="py-4 text-sm text-destructive">Could not load.</p>
+      ) : empty ? (
+        <p className="py-4 text-sm text-muted-foreground">{emptyMessage}</p>
+      ) : (
+        <ul className="mt-3 space-y-2">{children}</ul>
+      )}
+    </div>
+  );
+}
+
+export function ClientDashboardRecentActivity() {
+  const jobsQuery = useQuery({
+    queryKey: clientDashboardKeys.recentJobs,
+    queryFn: () =>
+      fetchJobOrders({
+        page: 1,
+        page_size: 5,
+        is_cancelled: false,
+        ordering: "-updated_at",
+      }),
+    staleTime: 45_000,
+  });
+
+  const notificationsQuery = useQuery({
+    queryKey: clientDashboardKeys.recentNotifications,
+    queryFn: () => fetchNotifications({ page: 1 }),
+    staleTime: 30_000,
+  });
+
+  const complaintsQuery = useQuery({
+    queryKey: clientDashboardKeys.attentionComplaints,
+    queryFn: () => fetchComplaints({ page: 1, page_size: 20 }),
+    staleTime: 45_000,
+  });
+
+  const recentJobs = jobsQuery.data?.results ?? [];
+  const recentNotifications = (notificationsQuery.data?.results ?? []).slice(0, 3);
+  const followUpComplaints = complaintsNeedingFollowUp(
+    complaintsQuery.data?.results ?? [],
+  ).slice(0, 3);
+
+  return (
+    <section aria-labelledby="client-recent-heading">
+      <h3 id="client-recent-heading" className="mb-3 text-sm font-medium">
+        Recent activity
+      </h3>
+      <div className="grid gap-4 lg:grid-cols-3">
+        <PanelShell
+          title="Recent requests"
+          icon={Package}
+          linkTo="/client/results"
+          linkLabel="Track progress →"
+          loading={jobsQuery.isLoading}
+          error={jobsQuery.isError}
+          empty={recentJobs.length === 0}
+          emptyMessage="No active requests yet."
+        >
+          {recentJobs.map((job) => (
+            <li key={job.id}>
+              <Link
+                to="/client/results"
+                className="block rounded-lg border border-border/60 px-3 py-2 transition-colors hover:bg-muted/30"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="min-w-0 truncate text-sm font-medium">
+                    {extractClientReferenceLabel(job.description)}
+                  </span>
+                  <ClientProgressBadge status={job.current_status} />
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {job.sample_count} sample{job.sample_count === 1 ? "" : "s"} · Updated{" "}
+                  {formatClientDateTime(job.updated_at)}
+                </p>
+              </Link>
+            </li>
+          ))}
+        </PanelShell>
+
+        <PanelShell
+          title="Recent notifications"
+          icon={Clock}
+          linkTo="/client/notifications"
+          linkLabel="View all →"
+          loading={notificationsQuery.isLoading}
+          error={notificationsQuery.isError}
+          empty={recentNotifications.length === 0}
+          emptyMessage="No notifications yet."
+        >
+          {recentNotifications.map((n) => (
+            <li
+              key={n.id}
+              className="rounded-lg border border-border/60 px-3 py-2"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-sm font-medium">{n.title}</span>
+                <span className="rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                  {KIND_LABEL[n.kind]}
+                </span>
+              </div>
+              <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{n.body}</p>
+              <p className="mt-1 text-[10px] text-muted-foreground">
+                {formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}
+              </p>
+            </li>
+          ))}
+        </PanelShell>
+
+        <PanelShell
+          title="Complaints needing follow-up"
+          icon={MessageSquare}
+          linkTo="/client/complaints"
+          linkLabel="View complaints →"
+          loading={complaintsQuery.isLoading}
+          error={complaintsQuery.isError}
+          empty={followUpComplaints.length === 0}
+          emptyMessage="No open or in-review complaints."
+        >
+          {followUpComplaints.map((c) => (
+            <li key={c.id}>
+              <Link
+                to={`/client/complaints?complaint=${c.id}`}
+                className="block rounded-lg border border-border/60 px-3 py-2 transition-colors hover:bg-muted/30"
+              >
+                <p className="text-sm font-medium">
+                  {truncateComplaintTitle(c.description)}
+                </p>
+                <div className="mt-1 flex flex-wrap items-center gap-2">
+                  <ClientComplaintCategoryBadge category={c.category} />
+                  <ClientComplaintStatusBadge status={c.status} />
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {formatClientDateTime(c.updated_at)}
+                </p>
+              </Link>
+            </li>
+          ))}
+        </PanelShell>
+      </div>
+    </section>
+  );
+}

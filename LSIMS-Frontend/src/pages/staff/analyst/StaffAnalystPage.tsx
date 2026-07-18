@@ -5,6 +5,7 @@ import {
   isStaffAnalyst,
   isStaffLabTechnician,
 } from "@/lib/staff-permissions";
+import { shouldHideClientSampleNames } from "@/lib/sample-reference-display";
 import { useAuthStore } from "@/stores/auth-store";
 
 import { StaffAnalystSection } from "./staff-analyst-section";
@@ -48,7 +49,12 @@ export default function StaffAnalystPage() {
 
       <StaffRoleBanner />
 
-      <StaffAnalystSection intake={intake} manage={manage} isAnalyst={analyst} />
+      <StaffAnalystSection
+        intake={intake}
+        manage={manage}
+        isAnalyst={analyst}
+        hideClientSampleNames={shouldHideClientSampleNames(user)}
+      />
     </div>
   );
 }
