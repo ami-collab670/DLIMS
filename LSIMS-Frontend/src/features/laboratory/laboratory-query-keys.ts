@@ -12,6 +12,7 @@ export const laboratoryQueryKeys = {
     ["calibration-records", params] as const,
   qcDecisions: (params?: Record<string, unknown>) => ["qc-decisions", params] as const,
   complaints: (params?: Record<string, unknown>) => ["complaints", params] as const,
+  complaint: (id: string) => ["complaints", id] as const,
   discountApprovals: (params?: Record<string, unknown>) =>
     ["discount-approvals", params] as const,
   priorityAlerts: () => ["priority-alerts"] as const,

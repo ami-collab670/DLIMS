@@ -1,4 +1,4 @@
-import { FileText, Home, User } from "lucide-react";
+import { FileText, Home, MessageSquare, User } from "lucide-react";
 import { NavLink, Outlet } from "react-router-dom";
 
 import { NotificationBell } from "@/components/notifications/notification-bell";
@@ -11,6 +11,7 @@ const navItems = [
   { to: "/client", label: "Home", icon: Home, end: true },
   { to: "/client/requests", label: "My requests", icon: FileText, end: false },
   { to: "/client/results", label: "My results", icon: FileText, end: false },
+  { to: "/client/complaints", label: "My complaints", icon: MessageSquare, end: false },
   { to: "/client/profile", label: "Profile & settings", icon: User, end: false },
 ];
 

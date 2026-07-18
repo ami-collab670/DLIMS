@@ -10,6 +10,7 @@ const BASE = "/api/laboratory/complaints/";
 
 export async function fetchComplaints(params?: {
   page?: number;
+  page_size?: number;
   search?: string;
   status?: ComplaintStatus;
   category?: ComplaintCategory;
@@ -17,6 +18,7 @@ export async function fetchComplaints(params?: {
 }): Promise<DrfPaginated<ComplaintRecord>> {
   const query: Record<string, string | number> = {};
   if (params?.page && params.page > 0) query.page = params.page;
+  if (params?.page_size && params.page_size > 0) query.page_size = params.page_size;
   if (params?.search?.trim()) query.search = params.search.trim();
   if (params?.status) query.status = params.status;
   if (params?.category) query.category = params.category;
