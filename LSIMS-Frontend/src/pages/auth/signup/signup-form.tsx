@@ -4,6 +4,8 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PasswordInput } from "@/components/ui/password-input";
+import { PasswordStrengthIndicator } from "@/components/ui/password-strength-indicator";
 import { PhoneInputField } from "@/components/ui/phone-input";
 
 import type { SignupValues } from "./signup-schema";
@@ -19,8 +21,14 @@ export function SignupForm({ form, onSubmit, submitting }: Props) {
     register,
     control,
     handleSubmit,
+    watch,
     formState: { errors },
   } = form;
+
+  const password = watch("password") ?? "";
+  const passwordConfirm = watch("passwordConfirm") ?? "";
+  const passwordsMismatch =
+    passwordConfirm.length > 0 && password !== passwordConfirm;
 
   return (
     <>
@@ -72,13 +80,13 @@ export function SignupForm({ form, onSubmit, submitting }: Props) {
 
           <div className="space-y-2 sm:col-span-2">
             <Label htmlFor="password">Password</Label>
-            <Input
+            <PasswordInput
               id="password"
-              type="password"
               autoComplete="new-password"
               aria-invalid={!!errors.password}
               {...register("password")}
             />
+            <PasswordStrengthIndicator password={password} />
             {errors.password ? (
               <p className="text-xs text-destructive">
                 {errors.password.message}
@@ -88,14 +96,16 @@ export function SignupForm({ form, onSubmit, submitting }: Props) {
 
           <div className="space-y-2 sm:col-span-2">
             <Label htmlFor="passwordConfirm">Confirm password</Label>
-            <Input
+            <PasswordInput
               id="passwordConfirm"
-              type="password"
               autoComplete="new-password"
-              aria-invalid={!!errors.passwordConfirm}
+              aria-invalid={!!errors.passwordConfirm || passwordsMismatch}
               {...register("passwordConfirm")}
             />
-            {errors.passwordConfirm ? (
+            {passwordsMismatch ? (
+              <p className="text-xs text-destructive">Passwords do not match</p>
+            ) : null}
+            {errors.passwordConfirm && !passwordsMismatch ? (
               <p className="text-xs text-destructive">
                 {errors.passwordConfirm.message}
               </p>

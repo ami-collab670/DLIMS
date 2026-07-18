@@ -1,5 +1,4 @@
-import { useState } from "react";
-
+import { useTrackedTabs } from "@/hooks/use-tracked-tabs";
 import { Button } from "@/components/ui/button";
 import { LimsPageIntro } from "../lims-page-intro";
 import { StaffRoleBanner } from "../staff-role-banner";
@@ -7,7 +6,9 @@ import { FinanceDiscountsSection } from "./finance-discounts-section";
 import { FinanceInvoicesSection } from "./finance-invoices-section";
 
 export default function StaffFinancePage() {
-  const [activeTab, setActiveTab] = useState<"invoices" | "discounts">("invoices");
+  const [activeTab, setActiveTab] = useTrackedTabs<"invoices" | "discounts">(
+    "invoices",
+  );
 
   return (
     <div className="space-y-10">

@@ -1,5 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo } from "react";
 
+import { useBreadcrumbSegments } from "@/components/navigation/breadcrumb-segments-context";
+import { useTrackedTabs } from "@/hooks/use-tracked-tabs";
 import { StaffRoleBanner } from "@/pages/staff/lims-extensions/staff-role-banner";
 import { StaffAnalystSection } from "@/pages/staff/analyst/staff-analyst-section";
 import {
@@ -9,10 +11,16 @@ import {
 } from "@/lib/staff-permissions";
 import { useAuthStore } from "@/stores/auth-store";
 
-import { StaffAssignmentsSection } from "./assignments/staff-assignments-section";
 import type { LaboratoryTabId } from "./constants";
+import { StaffAssignmentsSection } from "./assignments/staff-assignments-section";
 import { StaffJobsSection } from "./jobs/staff-jobs-section";
 import { LaboratoryTabBar } from "./laboratory-tab-bar";
+
+const LABORATORY_TAB_LABELS: Record<LaboratoryTabId, string> = {
+  jobs: "Job orders",
+  analyst: "Analyst",
+  assignments: "Test assignments",
+};
 
 export default function StaffLaboratoryPage() {
   const user = useAuthStore((s) => s.user);
@@ -21,13 +29,19 @@ export default function StaffLaboratoryPage() {
   const manageJobs = canManageJobsAndSamples(user);
 
   const showAssignmentsTab = manageJobs;
-  const [tab, setTab] = useState<LaboratoryTabId>("jobs");
+  const [tab, setTab] = useTrackedTabs<LaboratoryTabId>("jobs");
 
   useEffect(() => {
     if (!showAssignmentsTab && tab === "assignments") {
-      setTab("jobs");
+      setTab("jobs", { skipHistory: true });
     }
-  }, [showAssignmentsTab, tab]);
+  }, [showAssignmentsTab, setTab, tab]);
+
+  const tabSegments = useMemo(
+    () => [{ label: LABORATORY_TAB_LABELS[tab] }],
+    [tab],
+  );
+  useBreadcrumbSegments(tabSegments, "laboratory-tab");
 
   return (
     <div className="space-y-6">

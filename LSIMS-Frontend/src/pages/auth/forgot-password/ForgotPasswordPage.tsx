@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PasswordInput } from "@/components/ui/password-input";
+import { PasswordStrengthIndicator } from "@/components/ui/password-strength-indicator";
 import {
   confirmPasswordReset,
   requestPasswordReset,
@@ -59,6 +60,11 @@ export default function ForgotPasswordPage() {
       confirm_password: "",
     },
   });
+
+  const newPassword = confirmForm.watch("new_password") ?? "";
+  const confirmPassword = confirmForm.watch("confirm_password") ?? "";
+  const passwordsMismatch =
+    confirmPassword.length > 0 && newPassword !== confirmPassword;
 
   async function onRequest(values: RequestValues) {
     setSubmitting(true);
@@ -168,8 +174,10 @@ export default function ForgotPasswordPage() {
               id="confirm-new"
               autoComplete="new-password"
               minLength={8}
+              aria-invalid={!!confirmForm.formState.errors.new_password}
               {...confirmForm.register("new_password")}
             />
+            <PasswordStrengthIndicator password={newPassword} />
             {confirmForm.formState.errors.new_password ? (
               <p className="text-xs text-destructive">
                 {confirmForm.formState.errors.new_password.message}
@@ -181,9 +189,15 @@ export default function ForgotPasswordPage() {
             <PasswordInput
               id="confirm-repeat"
               autoComplete="new-password"
+              aria-invalid={
+                !!confirmForm.formState.errors.confirm_password || passwordsMismatch
+              }
               {...confirmForm.register("confirm_password")}
             />
-            {confirmForm.formState.errors.confirm_password ? (
+            {passwordsMismatch ? (
+              <p className="text-xs text-destructive">Passwords do not match</p>
+            ) : null}
+            {confirmForm.formState.errors.confirm_password && !passwordsMismatch ? (
               <p className="text-xs text-destructive">
                 {confirmForm.formState.errors.confirm_password.message}
               </p>

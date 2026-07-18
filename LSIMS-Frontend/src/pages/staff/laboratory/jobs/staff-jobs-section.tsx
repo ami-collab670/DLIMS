@@ -6,6 +6,7 @@ import {
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
+import { useBreadcrumbSegments } from "@/components/navigation/breadcrumb-segments-context";
 import { TablePaginationFooter } from "@/components/data-table/table-pagination-footer";
 import { TableToolbar } from "@/components/data-table/table-toolbar";
 import { Label } from "@/components/ui/label";
@@ -114,6 +115,17 @@ export function StaffJobsSection({
     if (detailJob) return detailJob;
     return listData?.results.find((j) => j.id === selectedJobId) ?? null;
   }, [selectedJobId, detailJob, listData]);
+
+  const jobDetailSegments = useMemo(() => {
+    if (!selectedJobId) return [];
+    return [
+      {
+        label: shortJobId(displayJob?.id ?? selectedJobId),
+        onClick: closeJob,
+      },
+    ];
+  }, [closeJob, displayJob?.id, selectedJobId]);
+  useBreadcrumbSegments(jobDetailSegments, "laboratory-job-detail");
 
   return (
     <div className="flex min-h-[min(80vh,760px)] flex-col gap-6 lg:flex-row">

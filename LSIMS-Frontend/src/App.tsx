@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, useRoutes } from "react-router-dom";
 
+import { NavigationHistoryProvider } from "@/providers/navigation-history-provider";
 import { appRoutes } from "@/routes/config";
 
 function AppRoutes() {
@@ -9,7 +10,9 @@ function AppRoutes() {
 export default function App() {
   return (
     <Router>
-      <AppRoutes />
+      <NavigationHistoryProvider>
+        <AppRoutes />
+      </NavigationHistoryProvider>
     </Router>
   );
 }

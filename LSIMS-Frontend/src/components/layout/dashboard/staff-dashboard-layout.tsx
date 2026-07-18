@@ -17,6 +17,8 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { NavLink, Outlet } from "react-router-dom";
 
+import { BreadcrumbSegmentsProvider } from "@/components/navigation/breadcrumb-segments-context";
+import { StaffPageNavigation } from "@/components/navigation/staff-page-navigation";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { ThemeToggler } from "@/components/ThemeToggler";
 import { Button } from "@/components/ui/button";
@@ -139,7 +141,12 @@ export function StaffDashboardLayout() {
           </div>
         </header>
         <main className="flex-1 overflow-auto p-6">
-          <Outlet />
+          <BreadcrumbSegmentsProvider>
+            <StaffPageNavigation />
+            <div className="mt-4">
+              <Outlet />
+            </div>
+          </BreadcrumbSegmentsProvider>
         </main>
       </div>
     </div>

@@ -1,9 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import { useBreadcrumbSegments } from "@/components/navigation/breadcrumb-segments-context";
 import { TableToolbar } from "@/components/data-table/table-toolbar";
 import { Button } from "@/components/ui/button";
+import { useTrackedTabs } from "@/hooks/use-tracked-tabs";
 import {
   adminChangeUserPassword,
   createAdminUser,
@@ -26,6 +28,12 @@ import { UserManagementHeader } from "./user-management-header";
 import { UserManagementTable } from "./user-management-table";
 import { StaffRoleBanner } from "@/pages/staff/lims-extensions/staff-role-banner";
 
+const USER_MANAGEMENT_TAB_LABELS = {
+  users: "Users",
+  roles: "Roles",
+  departments: "Departments",
+} as const;
+
 export default function StaffUserManagementPage() {
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
@@ -33,13 +41,19 @@ export default function StaffUserManagementPage() {
   const [search, setSearch] = useState("");
   const debounced = useDebouncedValue(search);
   const [showCreate, setShowCreate] = useState(false);
-  const [activeTab, setActiveTab] = useState<"users" | "roles" | "departments">(
-    "users",
-  );
+  const [activeTab, setActiveTab] = useTrackedTabs<
+    "users" | "roles" | "departments"
+  >("users");
   const [createFormKey, setCreateFormKey] = useState(0);
   const [editingUser, setEditingUser] = useState<AdminUserRow | null>(null);
 
   useEffect(() => setPage(1), [debounced, pageSize]);
+
+  const tabSegments = useMemo(
+    () => [{ label: USER_MANAGEMENT_TAB_LABELS[activeTab] }],
+    [activeTab],
+  );
+  useBreadcrumbSegments(tabSegments, "user-management-tab");
 
   const {
     data: listData,
