@@ -77,8 +77,10 @@ export type SampleRecord = {
   sample_weight: string | null;
   packaging_type: string;
   collection_date: string | null;
-  /** Receptionist email, if physically received; pre-intake samples may omit. */
+  /** Receptionist user id (UUID); prefer received_by_email for display. */
   received_by: string | null;
+  /** Receptionist email, if physically received; pre-intake samples may omit. */
+  received_by_email?: string | null;
   /** Client email. */
   submitted_by?: string;
   /** Analyst email or null. */
