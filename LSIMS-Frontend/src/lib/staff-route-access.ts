@@ -20,6 +20,7 @@ export type StaffRouteKey =
   | "instruments"
   | "compliance"
   | "notifications"
+  | "clients"
   | "users"
   | "profile"
   | "settings";
@@ -27,6 +28,7 @@ export type StaffRouteKey =
 const ALL_STAFF_ROUTES: StaffRouteKey[] = [
   "dashboard",
   "laboratory",
+  "clients",
   "analyst",
   "results",
   "qc",
@@ -53,6 +55,16 @@ const STAFF_SHELL: StaffRouteKey[] = [
 
 /** All operational pages except admin-only user management. */
 const OPS_ALL: StaffRouteKey[] = ALL_STAFF_ROUTES.filter((k) => k !== "users");
+
+/** Reception desk: intake, clients, finance coordination (read-only invoices). */
+const RECEPTIONIST_ROUTES: StaffRouteKey[] = [
+  "dashboard",
+  "notifications",
+  "profile",
+  "laboratory",
+  "clients",
+  "finance",
+];
 
 /**
  * Analyst: assigned samples, analysis results, calibrations.
@@ -140,7 +152,7 @@ const AUDITOR_ROUTES: StaffRouteKey[] = [
  */
 const ROUTES_BY_ROLE_NAME: Record<string, readonly StaffRouteKey[]> = {
   admin: ALL_STAFF_ROUTES,
-  receptionist: OPS_ALL,
+  receptionist: RECEPTIONIST_ROUTES,
   analyst: ANALYST_ROUTES,
   lab_technician: LAB_TECHNICIAN_ROUTES,
   lab_director: LAB_DIRECTOR_ROUTES,

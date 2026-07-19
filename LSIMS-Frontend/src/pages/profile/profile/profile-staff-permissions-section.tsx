@@ -3,9 +3,11 @@ import { Check } from "lucide-react";
 import { getAccessibleStaffAreaLabels } from "@/lib/staff-nav-meta";
 import { canAccessUserManagement } from "@/lib/staff-route-access";
 import {
+  canRequestDiscountApproval,
   canIntakeSamples,
   canManageJobsAndSamples,
   canManageTestCatalog,
+  isReceptionist,
   staffRoleName,
 } from "@/lib/staff-permissions";
 import type { AuthUser } from "@/types/auth";
@@ -20,6 +22,16 @@ type Capability = {
 };
 
 function buildCapabilities(profile: AuthUser): Capability[] {
+  if (isReceptionist(profile)) {
+    return [
+      { label: "Intake (jobs & samples)", enabled: canIntakeSamples(profile) },
+      { label: "Job & sample updates", enabled: canManageJobsAndSamples(profile) },
+      { label: "Finance (read-only)", enabled: true },
+      { label: "Discount requests", enabled: canRequestDiscountApproval(profile) },
+      { label: "Client coordination", enabled: true },
+    ].filter((c) => c.enabled);
+  }
+
   const caps: Capability[] = [
     { label: "Test catalog admin", enabled: canManageTestCatalog(profile) },
     { label: "Job & sample updates", enabled: canManageJobsAndSamples(profile) },

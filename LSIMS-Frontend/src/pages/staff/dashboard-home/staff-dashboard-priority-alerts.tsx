@@ -4,9 +4,13 @@ import { Link } from "react-router-dom";
 
 import { fetchPriorityAlerts } from "@/features/laboratory/priority-alerts-api";
 import { laboratoryQueryKeys } from "@/features/laboratory/laboratory-query-keys";
+import { canAccessStaffRoute } from "@/lib/staff-route-access";
 import { shortJobId } from "@/lib/job-order-labels";
+import { useAuthStore } from "@/stores/auth-store";
 
 export function StaffDashboardPriorityAlerts() {
+  const user = useAuthStore((s) => s.user);
+  const showSchedulingLink = canAccessStaffRoute("scheduling", user);
   const { data: alerts = [], isLoading, isError } = useQuery({
     queryKey: laboratoryQueryKeys.priorityAlerts(),
     queryFn: fetchPriorityAlerts,
@@ -31,12 +35,21 @@ export function StaffDashboardPriorityAlerts() {
       <div className="mb-3 flex items-center gap-2">
         <AlertTriangle className="size-4 text-amber-600" />
         <h3 className="text-sm font-semibold">Priority alerts</h3>
-        <Link
-          to="/staff/scheduling"
-          className="ml-auto text-xs font-medium text-primary underline-offset-4 hover:underline"
-        >
-          View scheduling →
-        </Link>
+        {showSchedulingLink ? (
+          <Link
+            to="/staff/scheduling"
+            className="ml-auto text-xs font-medium text-primary underline-offset-4 hover:underline"
+          >
+            View scheduling →
+          </Link>
+        ) : (
+          <Link
+            to="/staff/laboratory"
+            className="ml-auto text-xs font-medium text-primary underline-offset-4 hover:underline"
+          >
+            Sample intake →
+          </Link>
+        )}
       </div>
       <ul className="space-y-2">
         {alerts.slice(0, 5).map((a) => (

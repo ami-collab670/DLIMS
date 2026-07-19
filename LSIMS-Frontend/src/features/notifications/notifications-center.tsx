@@ -21,9 +21,11 @@ import {
   markAllNotificationsUnread,
   patchNotificationRead,
 } from "@/features/notifications/api";
+import { fetchLabClients } from "@/features/accounts/lab-clients-api";
 import { notificationKeys } from "@/features/notifications/query-keys";
 import { getApiErrorMessage } from "@/lib/api-error";
-import { canManageJobsAndSamples } from "@/lib/staff-permissions";
+import { canManageJobsAndSamples, isReceptionist } from "@/lib/staff-permissions";
+import { RECEPTIONIST_MESSAGE_TEMPLATES } from "@/pages/staff/receptionist/shared/receptionist-message-templates";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth-store";
 import type { NotificationKind, NotificationRecord } from "@/types/notification";
@@ -38,6 +40,10 @@ const KIND_OPTIONS: { value: NotificationKind | ""; label: string }[] = [
 ];
 
 const PAGE_SIZE = 20;
+
+function isValidEmail(value: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+}
 
 function formatWhen(iso: string) {
   try {
@@ -145,6 +151,14 @@ export function NotificationsCenter({
   const queryClient = useQueryClient();
   const user = useAuthStore((s) => s.user);
   const canSend = showStaffSendForm && canManageJobsAndSamples(user);
+  const receptionistSend = canSend && isReceptionist(user);
+
+  const clientsQuery = useQuery({
+    queryKey: ["staff-lab-clients"],
+    queryFn: fetchLabClients,
+    enabled: receptionistSend,
+    staleTime: 60_000,
+  });
 
   const [page, setPage] = useState(1);
   const [unreadFilter, setUnreadFilter] = useState<"" | "0" | "1">("");
@@ -214,11 +228,20 @@ export function NotificationsCenter({
   const [sendTitle, setSendTitle] = useState("");
   const [sendBody, setSendBody] = useState("");
   const [sendKind, setSendKind] = useState<NotificationKind>("info");
+  const [recipientMode, setRecipientMode] = useState<"client" | "finance">("client");
+  const [selectedClientEmail, setSelectedClientEmail] = useState("");
+  const [financeContactEmail, setFinanceContactEmail] = useState("");
+
+  const resolvedRecipient = receptionistSend
+    ? recipientMode === "client"
+      ? selectedClientEmail.trim()
+      : financeContactEmail.trim()
+    : sendRecipient.trim();
 
   const sendMut = useMutation({
     mutationFn: () =>
       createNotification({
-        recipient: sendRecipient.trim(),
+        recipient: resolvedRecipient,
         title: sendTitle.trim(),
         body: sendBody.trim(),
         kind: sendKind,
@@ -226,6 +249,8 @@ export function NotificationsCenter({
     onSuccess: () => {
       toast.success("Notification sent.");
       setSendRecipient("");
+      setSelectedClientEmail("");
+      setFinanceContactEmail("");
       setSendTitle("");
       setSendBody("");
       invalidate();
@@ -304,20 +329,105 @@ export function NotificationsCenter({
         <section className="rounded-xl border border-border bg-card p-4 shadow-sm">
           <h3 className="text-sm font-medium">Send notification</h3>
           <p className="mt-1 text-xs text-muted-foreground">
-            Deliver an in-app message to a user by their account email address.
+            {receptionistSend
+              ? "Send to an active client from the directory or enter your finance desk contact email."
+              : "Deliver an in-app message to a user by their account email address."}
           </p>
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
-            <div className="space-y-1 sm:col-span-2">
-              <Label htmlFor="send-recipient">Recipient email</Label>
-              <Input
-                id="send-recipient"
-                className="font-mono text-xs"
-                type="email"
-                placeholder="user@example.com"
-                value={sendRecipient}
-                onChange={(e) => setSendRecipient(e.target.value)}
-              />
-            </div>
+            {receptionistSend ? (
+              <>
+                <div className="space-y-1 sm:col-span-2">
+                  <Label htmlFor="send-recipient-mode">Recipient type</Label>
+                  <select
+                    id="send-recipient-mode"
+                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
+                    value={recipientMode}
+                    onChange={(e) =>
+                      setRecipientMode(e.target.value as "client" | "finance")
+                    }
+                  >
+                    <option value="client">Client</option>
+                    <option value="finance">Finance</option>
+                  </select>
+                </div>
+                {recipientMode === "client" ? (
+                  <div className="space-y-1 sm:col-span-2">
+                    <Label htmlFor="send-client">Client</Label>
+                    <select
+                      id="send-client"
+                      className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
+                      value={selectedClientEmail}
+                      onChange={(e) => setSelectedClientEmail(e.target.value)}
+                      disabled={clientsQuery.isLoading}
+                    >
+                      <option value="">Select a client…</option>
+                      {(clientsQuery.data ?? []).map((client) => (
+                        <option key={client.id} value={client.email}>
+                          {client.organization_name
+                            ? `${client.organization_name} (${client.email})`
+                            : client.email}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ) : (
+                  <div className="space-y-1 sm:col-span-2">
+                    <Label htmlFor="send-finance-email">Finance contact email</Label>
+                    <Input
+                      id="send-finance-email"
+                      className="font-mono text-xs"
+                      type="email"
+                      placeholder="finance@example.com"
+                      value={financeContactEmail}
+                      onChange={(e) => setFinanceContactEmail(e.target.value)}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Enter your finance desk contact email — staff directory is
+                      not available to reception accounts.
+                    </p>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="space-y-1 sm:col-span-2">
+                <Label htmlFor="send-recipient">Recipient email</Label>
+                <Input
+                  id="send-recipient"
+                  className="font-mono text-xs"
+                  type="email"
+                  placeholder="user@example.com"
+                  value={sendRecipient}
+                  onChange={(e) => setSendRecipient(e.target.value)}
+                />
+              </div>
+            )}
+            {receptionistSend ? (
+              <div className="space-y-1 sm:col-span-2">
+                <Label htmlFor="send-template">Message template</Label>
+                <select
+                  id="send-template"
+                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
+                  defaultValue=""
+                  onChange={(e) => {
+                    const template = RECEPTIONIST_MESSAGE_TEMPLATES.find(
+                      (t) => t.id === e.target.value,
+                    );
+                    if (template) {
+                      setSendTitle(template.title);
+                      setSendBody(template.body);
+                      setSendKind(template.kind);
+                    }
+                  }}
+                >
+                  <option value="">Choose a preset…</option>
+                  {RECEPTIONIST_MESSAGE_TEMPLATES.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : null}
             <div className="space-y-1">
               <Label htmlFor="send-kind">Type</Label>
               <select
@@ -358,7 +468,10 @@ export function NotificationsCenter({
             className="mt-3"
             disabled={
               sendMut.isPending ||
-              !sendRecipient.trim() ||
+              !resolvedRecipient ||
+              (receptionistSend &&
+                recipientMode === "finance" &&
+                !isValidEmail(resolvedRecipient)) ||
               !sendTitle.trim() ||
               !sendBody.trim()
             }

@@ -40,11 +40,13 @@ export function LaboratoryTabBar({
   tab,
   onTabChange,
   showAssignmentsTab = true,
+  analystTabLabel = "Analyst",
 }: {
   tab: LaboratoryTabId;
   onTabChange: (t: LaboratoryTabId) => void;
   /** Admin/receptionist only per backend for assigning tests; others use read-only laboratory views. */
   showAssignmentsTab?: boolean;
+  analystTabLabel?: string;
 }) {
   return (
     <div className="flex flex-wrap gap-2">
@@ -58,7 +60,7 @@ export function LaboratoryTabBar({
         active={tab === "analyst"}
         onClick={() => onTabChange("analyst")}
         icon={TestTube}
-        label="Analyst"
+        label={analystTabLabel}
       />
       {showAssignmentsTab ? (
         <TabButton

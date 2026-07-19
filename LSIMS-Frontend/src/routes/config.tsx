@@ -24,6 +24,7 @@ import StaffNotFoundPage from "@/pages/errors/StaffNotFoundPage";
 import Home from "@/pages/Home";
 import { MarketingPage } from "@/pages/public/MarketingPage";
 import ProfileManagementPage from "@/pages/profile/ProfileManagementPage";
+import StaffClientsPage from "@/pages/staff/StaffClientsPage";
 import StaffCompliancePage from "@/pages/staff/StaffCompliancePage";
 import StaffDashboardHome from "@/pages/staff/StaffDashboardHome";
 import StaffFinancePage from "@/pages/staff/StaffFinancePage";
@@ -78,6 +79,14 @@ export const appRoutes: RouteObject[] = [
             element: (
               <StaffRouteGate routeKey="laboratory">
                 <StaffLaboratoryPage />
+              </StaffRouteGate>
+            ),
+          },
+          {
+            path: "clients",
+            element: (
+              <StaffRouteGate routeKey="clients">
+                <StaffClientsPage />
               </StaffRouteGate>
             ),
           },

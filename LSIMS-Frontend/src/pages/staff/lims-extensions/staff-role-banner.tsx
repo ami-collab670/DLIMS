@@ -2,6 +2,7 @@ import {
   canIntakeSamples,
   canManageJobsAndSamples,
   canManageTestCatalog,
+  isReceptionist,
   staffRoleName,
 } from "@/lib/staff-permissions";
 import { useAuthStore } from "@/stores/auth-store";
@@ -18,16 +19,24 @@ export function StaffRoleBanner() {
     staffRoleName(user)?.replace(/_/g, " ") ??
     (user.is_superuser ? "Superuser" : "Staff");
 
+  const receptionist = isReceptionist(user);
+
   const caps: string[] = [];
-  if (canManageTestCatalog(user)) caps.push("catalog admin");
-  if (canManageJobsAndSamples(user)) caps.push("job & sample updates");
-  if (canIntakeSamples(user)) caps.push("intake (jobs & samples)");
-  if (
-    !canManageJobsAndSamples(user) &&
-    !canIntakeSamples(user) &&
-    user.user_type === "internal"
-  ) {
-    caps.push("read-only or scoped data (per API)");
+  if (receptionist) {
+    caps.push("intake (jobs & samples)");
+    caps.push("job & sample updates");
+    caps.push("finance coordination (read-only)");
+  } else {
+    if (canManageTestCatalog(user)) caps.push("catalog admin");
+    if (canManageJobsAndSamples(user)) caps.push("job & sample updates");
+    if (canIntakeSamples(user)) caps.push("intake (jobs & samples)");
+    if (
+      !canManageJobsAndSamples(user) &&
+      !canIntakeSamples(user) &&
+      user.user_type === "internal"
+    ) {
+      caps.push("read-only or scoped data (per API)");
+    }
   }
 
   return (
@@ -36,6 +45,11 @@ export function StaffRoleBanner() {
         <span className="font-medium text-foreground">Role: </span>
         <span className="capitalize">{label}</span>
       </p>
+      {receptionist ? (
+        <p className="mt-1 text-xs text-muted-foreground">
+          Reception desk — sample intake &amp; client coordination
+        </p>
+      ) : null}
       {caps.length ? (
         <p className="mt-1 text-xs text-muted-foreground">
           Capabilities in this app: {caps.join(" · ")}.

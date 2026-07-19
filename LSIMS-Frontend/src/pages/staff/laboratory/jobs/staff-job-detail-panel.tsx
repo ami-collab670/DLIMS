@@ -28,11 +28,14 @@ export function StaffJobDetailPanel({
   onClose,
   manageJobs,
   onUpdated,
+  financeReadOnly = false,
 }: {
   job: JobOrder;
   onClose: () => void;
   manageJobs: boolean;
   onUpdated: () => void;
+  /** Reception desk — view payment status only; no invoice create/edit. */
+  financeReadOnly?: boolean;
 }) {
   const [priority, setPriority] = useState(job.priority);
   const [desc, setDesc] = useState(() => sanitizeJobDescriptionForStaff(job.description));
@@ -137,11 +140,20 @@ export function StaffJobDetailPanel({
           <div>
             <dt className="text-xs text-muted-foreground">Finance action</dt>
             <dd>
-              <Button type="button" size="sm" variant="outline" asChild>
-                <Link to={`/staff/finance?job=${job.id}`}>
-                  {invoice ? "View / edit invoice" : "Create invoice"}
+              {financeReadOnly ? (
+                <Link
+                  to={`/staff/finance?job=${job.id}`}
+                  className="text-sm font-medium text-primary hover:underline"
+                >
+                  Check payment status →
                 </Link>
-              </Button>
+              ) : (
+                <Button type="button" size="sm" variant="outline" asChild>
+                  <Link to={`/staff/finance?job=${job.id}`}>
+                    {invoice ? "View / edit invoice" : "Create invoice"}
+                  </Link>
+                </Button>
+              )}
             </dd>
           </div>
         ) : null}

@@ -35,7 +35,13 @@ import {
   StaffComplaintDetailPanelLoading,
 } from "./staff-complaint-detail-panel";
 
-export function StaffComplaintsSection() {
+export function StaffComplaintsSection({
+  clientIdFilter,
+  breadcrumbOwnerKey = "compliance-complaint-detail",
+}: {
+  clientIdFilter?: string;
+  breadcrumbOwnerKey?: string;
+} = {}) {
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedComplaintId = searchParams.get("complaint");
 
@@ -62,8 +68,9 @@ export function StaffComplaintsSection() {
     if (debouncedSearch) p.search = debouncedSearch;
     if (statusFilter) p.status = statusFilter;
     if (categoryFilter) p.category = categoryFilter;
+    if (clientIdFilter) p.client = clientIdFilter;
     return p;
-  }, [page, pageSize, debouncedSearch, statusFilter, categoryFilter]);
+  }, [page, pageSize, debouncedSearch, statusFilter, categoryFilter, clientIdFilter]);
 
   const {
     data: listData,
@@ -122,7 +129,7 @@ export function StaffComplaintsSection() {
     ];
   }, [closeComplaint, displayComplaint?.description, selectedComplaintId]);
 
-  useBreadcrumbSegments(complaintDetailSegments, "compliance-complaint-detail");
+  useBreadcrumbSegments(complaintDetailSegments, breadcrumbOwnerKey);
 
   return (
     <div className="flex min-h-[min(80vh,760px)] flex-col gap-6 lg:flex-row">

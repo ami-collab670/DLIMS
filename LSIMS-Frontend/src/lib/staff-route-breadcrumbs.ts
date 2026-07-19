@@ -17,6 +17,7 @@ const STAFF_ROUTE_KEYS = new Set<StaffRouteKey>([
   "instruments",
   "compliance",
   "notifications",
+  "clients",
   "users",
   "profile",
   "settings",

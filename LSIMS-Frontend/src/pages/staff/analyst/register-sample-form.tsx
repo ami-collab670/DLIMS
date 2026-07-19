@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -11,22 +11,42 @@ import { fetchLabAnalysts } from "@/features/accounts/lab-analysts-api";
 import { fetchJobOrders } from "@/features/jobs/api";
 import { createSample } from "@/features/laboratory/staff-api";
 import { getApiErrorMessage } from "@/lib/api-error";
+import { IntakeChecklistFields } from "@/pages/staff/receptionist/shared/intake-checklist-fields";
 import { JOB_STATUS_LABEL, shortJobId } from "@/lib/job-order-labels";
-import type { JobOrderStatus } from "@/types/laboratory";
+import type { JobOrder, JobOrderStatus } from "@/types/laboratory";
 
 /** Reception intake form for the analyst workspace / laboratory tab. */
-export function RegisterSampleForm({ onCreated }: { onCreated: () => void }) {
-  const [jobId, setJobId] = useState("");
+export function RegisterSampleForm({
+  onCreated,
+  showIntakeChecklist = false,
+  fixedJobId,
+  fixedJob,
+}: {
+  onCreated: () => void;
+  showIntakeChecklist?: boolean;
+  /** When set, locks registration to this job (receptionist job detail panel). */
+  fixedJobId?: string;
+  /** Optional job payload when parent already loaded the job. */
+  fixedJob?: JobOrder;
+}) {
+  const [jobId, setJobId] = useState(fixedJobId ?? "");
   const [sampleName, setSampleName] = useState("");
   const [analystId, setAnalystId] = useState("");
   const [sampleWeight, setSampleWeight] = useState("");
   const [packagingType, setPackagingType] = useState("");
   const [collectionDate, setCollectionDate] = useState("");
   const [notes, setNotes] = useState("");
+  const [clientIdVerified, setClientIdVerified] = useState(false);
+  const [packagingOk, setPackagingOk] = useState(false);
+
+  useEffect(() => {
+    if (fixedJobId) setJobId(fixedJobId);
+  }, [fixedJobId]);
 
   const { data: jobsData } = useQuery({
     queryKey: ["staff-jobs-picker"],
     queryFn: () => fetchJobOrders({ page: 1 }),
+    enabled: !fixedJobId,
   });
 
   const { data: analysts = [] } = useQuery({
@@ -34,7 +54,7 @@ export function RegisterSampleForm({ onCreated }: { onCreated: () => void }) {
     queryFn: fetchLabAnalysts,
   });
 
-  const selectedJob = jobsData?.results.find((j) => j.id === jobId);
+  const selectedJob = fixedJob ?? jobsData?.results.find((j) => j.id === jobId);
 
   const mut = useMutation({
     mutationFn: () =>
@@ -81,19 +101,26 @@ export function RegisterSampleForm({ onCreated }: { onCreated: () => void }) {
       </p>
       <div className="space-y-1">
         <Label>Job order</Label>
-        <select
-          required
-          className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
-          value={jobId}
-          onChange={(e) => setJobId(e.target.value)}
-        >
-          <option value="">Select job…</option>
-          {jobsData?.results.map((j) => (
-            <option key={j.id} value={j.id}>
-              {shortJobId(j.id)} — {j.client}
-            </option>
-          ))}
-        </select>
+        {fixedJobId ? (
+          <p className="rounded-md border border-input bg-muted/30 px-3 py-2 font-mono text-sm">
+            {shortJobId(fixedJobId)}
+            {selectedJob ? ` — ${selectedJob.client_name || selectedJob.client}` : ""}
+          </p>
+        ) : (
+          <select
+            required
+            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
+            value={jobId}
+            onChange={(e) => setJobId(e.target.value)}
+          >
+            <option value="">Select job…</option>
+            {jobsData?.results.map((j) => (
+              <option key={j.id} value={j.id}>
+                {shortJobId(j.id)} — {j.client}
+              </option>
+            ))}
+          </select>
+        )}
       </div>
       {selectedJob ? (
         <p className="text-xs text-muted-foreground">
@@ -169,6 +196,14 @@ export function RegisterSampleForm({ onCreated }: { onCreated: () => void }) {
         <p className="text-xs text-muted-foreground">
           Submitted by (client): {selectedJob.client}
         </p>
+      ) : null}
+      {showIntakeChecklist ? (
+        <IntakeChecklistFields
+          clientIdVerified={clientIdVerified}
+          onClientIdVerifiedChange={setClientIdVerified}
+          packagingOk={packagingOk}
+          onPackagingOkChange={setPackagingOk}
+        />
       ) : null}
       <Button type="submit" disabled={mut.isPending}>
         {mut.isPending ? <Loader2 className="size-4 animate-spin" /> : "Register"}

@@ -8,4 +8,9 @@ export const dashboardKeys = {
     ["staff-dashboard", "analyst", "count", status] as const,
   recentJobs: ["staff-dashboard", "jobs", "recent"] as const,
   catalogActive: ["staff-dashboard", "catalog", "active-count"] as const,
+  receptionistIntakeQueue: ["staff-dashboard", "receptionist", "intake-queue"] as const,
+  receptionistTodaysSamples: ["staff-dashboard", "receptionist", "todays-samples"] as const,
+  receptionistAwaitingPayment: ["staff-dashboard", "receptionist", "awaiting-payment"] as const,
+  receptionistRecentMessages: ["staff-dashboard", "receptionist", "recent-messages"] as const,
+  receptionistKpis: ["staff-dashboard", "receptionist", "kpis"] as const,
 } as const;

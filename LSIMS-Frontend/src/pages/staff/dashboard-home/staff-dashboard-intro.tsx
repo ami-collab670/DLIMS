@@ -1,6 +1,7 @@
 import {
   canIntakeSamples,
   canManageJobsAndSamples,
+  isReceptionist,
   isStaffAdmin,
 } from "@/lib/staff-permissions";
 import { useAuthStore } from "@/stores/auth-store";
@@ -19,10 +20,18 @@ export function StaffDashboardIntro() {
   const intake = canIntakeSamples(user);
   const manageOps = canManageJobsAndSamples(user);
   const admin = isStaffAdmin(user);
+  const receptionist = isReceptionist(user);
 
+  let subtitle =
+    "Laboratory information snapshot — job pipeline, analyst workspaces, and quick access to LSIMS areas.";
   let roleHint =
     "Use the sections below to monitor work in progress and open detailed workflows when needed.";
-  if (admin) {
+  if (receptionist) {
+    subtitle =
+      "Reception desk overview — intake queue, finance coordination, and client communication.";
+    roleHint =
+      "Register jobs and samples, track payment clearance with Finance, and message clients from the sections below.";
+  } else if (admin) {
     roleHint +=
       " As an administrator you can manage users, the test catalog, and laboratory records.";
   } else if (intake) {
@@ -38,9 +47,7 @@ export function StaffDashboardIntro() {
   return (
     <div>
       <h2 className="text-2xl font-semibold tracking-tight">Dashboard</h2>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Laboratory information snapshot — job pipeline, analyst workspaces, and quick access to LSIMS areas.
-      </p>
+      <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>
       <p className="mt-3 text-sm">
         <span className="font-medium text-foreground">Welcome back, {displayName}.</span>
         {roleLabel ? (

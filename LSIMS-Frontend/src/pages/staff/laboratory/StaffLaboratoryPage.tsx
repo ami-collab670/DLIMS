@@ -1,16 +1,19 @@
-import { useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
 
 import { useBreadcrumbSegments } from "@/components/navigation/breadcrumb-segments-context";
 import { useTrackedTabs } from "@/hooks/use-tracked-tabs";
 import { StaffRoleBanner } from "@/pages/staff/lims-extensions/staff-role-banner";
-import { StaffAnalystSection } from "@/pages/staff/analyst/staff-analyst-section";
+import { ReceptionistLaboratorySection } from "@/pages/staff/receptionist/laboratory/ReceptionistLaboratorySection";
 import {
   canIntakeSamples,
   canManageJobsAndSamples,
-  isStaffAnalyst,
+  isReceptionist,
+  staffRoleName,
 } from "@/lib/staff-permissions";
 import { shouldHideClientSampleNames } from "@/lib/sample-reference-display";
 import { useAuthStore } from "@/stores/auth-store";
+import { StaffAnalystSection } from "@/pages/staff/analyst/staff-analyst-section";
 
 import type { LaboratoryTabId } from "./constants";
 import { StaffAssignmentsSection } from "./assignments/staff-assignments-section";
@@ -23,60 +26,134 @@ const LABORATORY_TAB_LABELS: Record<LaboratoryTabId, string> = {
   assignments: "Test assignments",
 };
 
+function parseLaboratoryTabParam(value: string | null): LaboratoryTabId | null {
+  if (value === "jobs" || value === "analyst" || value === "assignments") {
+    return value;
+  }
+  return null;
+}
+
 export default function StaffLaboratoryPage() {
   const user = useAuthStore((s) => s.user);
+  const receptionist = isReceptionist(user);
 
   const intake = canIntakeSamples(user);
   const manageJobs = canManageJobsAndSamples(user);
 
   const showAssignmentsTab = manageJobs;
-  const [tab, setTab] = useTrackedTabs<LaboratoryTabId>("jobs");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabParam = searchParams.get("tab");
+  const parsedTab = parseLaboratoryTabParam(tabParam);
+  const initialTab: LaboratoryTabId = parsedTab ?? "jobs";
+
+  const [tab, setTab] = useTrackedTabs<LaboratoryTabId>(initialTab);
+
+  const handleTabChange = useCallback(
+    (next: LaboratoryTabId) => {
+      setTab(next, { skipHistory: true });
+      setSearchParams(
+        (prev) => {
+          const params = new URLSearchParams(prev);
+          params.set("tab", next);
+          return params;
+        },
+        { replace: true },
+      );
+    },
+    [setTab, setSearchParams],
+  );
 
   useEffect(() => {
+    if (!receptionist) return;
+    if (tabParam === "analyst" || tabParam === "assignments") {
+      setSearchParams(
+        (prev) => {
+          const params = new URLSearchParams(prev);
+          params.delete("tab");
+          return params;
+        },
+        { replace: true },
+      );
+    }
+  }, [receptionist, setSearchParams, tabParam]);
+
+  useEffect(() => {
+    if (receptionist) return;
+    if (parsedTab) {
+      setTab(parsedTab, { skipHistory: true });
+    }
+  }, [parsedTab, receptionist, setTab]);
+
+  useEffect(() => {
+    if (receptionist) return;
     if (!showAssignmentsTab && tab === "assignments") {
       setTab("jobs", { skipHistory: true });
     }
-  }, [showAssignmentsTab, setTab, tab]);
+  }, [receptionist, showAssignmentsTab, setTab, tab]);
 
+  const tabLabels = LABORATORY_TAB_LABELS;
   const tabSegments = useMemo(
-    () => [{ label: LABORATORY_TAB_LABELS[tab] }],
-    [tab],
+    () => (receptionist ? [] : [{ label: tabLabels[tab] }]),
+    [receptionist, tab, tabLabels],
   );
   useBreadcrumbSegments(tabSegments, "laboratory-tab");
 
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-semibold tracking-tight">Laboratory</h2>
+        <h2 className="text-2xl font-semibold tracking-tight">
+          {receptionist ? "Sample intake" : "Laboratory"}
+        </h2>
         <p className="text-sm text-muted-foreground">
-          Job orders, analyst routing, and test assignments — wired to the laboratory API. Manage
-          the test catalog from the sidebar link <strong>Test catalog</strong>. Actions match your
-          role.
+          {receptionist ? (
+            <>
+              Register job orders and samples from one desk view. Select a job to register
+              samples, assign tests, and check finance clearance — finance edits stay read-only
+              here.
+            </>
+          ) : (
+            <>
+              Job orders, analyst routing, and test assignments — wired to the laboratory API.
+              Manage the test catalog from the sidebar link <strong>Test catalog</strong>. Actions
+              match your role.
+            </>
+          )}
         </p>
       </div>
 
       <StaffRoleBanner />
 
-      <LaboratoryTabBar
-        tab={tab}
-        onTabChange={setTab}
-        showAssignmentsTab={showAssignmentsTab}
-      />
+      {receptionist ? (
+        <ReceptionistLaboratorySection />
+      ) : (
+        <>
+          <LaboratoryTabBar
+            tab={tab}
+            onTabChange={handleTabChange}
+            showAssignmentsTab={showAssignmentsTab}
+            analystTabLabel="Analyst"
+          />
 
-      {tab === "jobs" ? (
-        <StaffJobsSection intake={intake} manageJobs={manageJobs} />
-      ) : null}
-      {tab === "analyst" ? (
-        <StaffAnalystSection
-          intake={intake}
-          manage={manageJobs}
-          isAnalyst={isStaffAnalyst(user)}
-          hideClientSampleNames={shouldHideClientSampleNames(user)}
-        />
-      ) : null}
-      {tab === "assignments" && showAssignmentsTab ? (
-        <StaffAssignmentsSection manage={manageJobs} />
-      ) : null}
+          {tab === "jobs" ? (
+            <StaffJobsSection
+              intake={intake}
+              manageJobs={manageJobs}
+              financeReadOnly={false}
+            />
+          ) : null}
+          {tab === "analyst" ? (
+            <StaffAnalystSection
+              intake={intake}
+              manage={manageJobs}
+              isAnalyst={staffRoleName(user) === "analyst"}
+              hideClientSampleNames={shouldHideClientSampleNames(user)}
+            />
+          ) : null}
+          {tab === "assignments" && showAssignmentsTab ? (
+            <StaffAssignmentsSection manage={manageJobs} />
+          ) : null}
+        </>
+      )}
     </div>
   );
 }

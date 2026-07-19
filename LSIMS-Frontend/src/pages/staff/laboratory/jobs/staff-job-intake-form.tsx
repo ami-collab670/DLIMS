@@ -9,19 +9,26 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { fetchLabClients } from "@/features/accounts/lab-clients-api";
 import { createStaffJob } from "@/features/jobs/api";
+import { IntakeChecklistFields } from "@/pages/staff/receptionist/shared/intake-checklist-fields";
 import { getApiErrorMessage } from "@/lib/api-error";
 import { JOB_PRIORITY_OPTIONS, shortJobId } from "@/lib/job-order-labels";
 import type { JobOrder } from "@/types/laboratory";
 
-export function StaffJobIntakeForm({
+import { StaffJobIntakeWizard } from "./staff-job-intake-wizard";
+
+function StaffJobIntakeSimpleForm({
   onCreated,
+  showIntakeChecklist = false,
 }: {
   onCreated: (job: JobOrder) => void;
+  showIntakeChecklist?: boolean;
 }) {
-  const [clientEmail, setClientEmail] = useState("");
+  const [clientId, setClientId] = useState("");
   const [description, setDescription] = useState("");
   const [priority, setPriority] = useState("normal");
   const [lastCreated, setLastCreated] = useState<JobOrder | null>(null);
+  const [clientIdVerified, setClientIdVerified] = useState(false);
+  const [packagingOk, setPackagingOk] = useState(false);
 
   const { data: clients = [] } = useQuery({
     queryKey: ["lab-clients-picker"],
@@ -44,12 +51,12 @@ export function StaffJobIntakeForm({
       className="space-y-3 rounded-xl border border-border bg-card p-4 shadow-sm"
       onSubmit={(e) => {
         e.preventDefault();
-        if (!clientEmail || description.trim().length < 3) {
+        if (!clientId || description.trim().length < 3) {
           toast.error("Select a client and enter a description.");
           return;
         }
         mut.mutate({
-          client: clientEmail,
+          client: clientId,
           current_status: "pending_finance",
           priority,
           description: description.trim(),
@@ -71,12 +78,12 @@ export function StaffJobIntakeForm({
           <select
             required
             className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
-            value={clientEmail}
-            onChange={(e) => setClientEmail(e.target.value)}
+            value={clientId}
+            onChange={(e) => setClientId(e.target.value)}
           >
             <option value="">Choose client…</option>
             {clients.map((c) => (
-              <option key={c.id} value={c.email}>
+              <option key={c.id} value={c.id}>
                 {c.email} — {c.first_name} {c.last_name}
               </option>
             ))}
@@ -107,6 +114,14 @@ export function StaffJobIntakeForm({
           placeholder="Work requested, context for analysts…"
         />
       </div>
+      {showIntakeChecklist ? (
+        <IntakeChecklistFields
+          clientIdVerified={clientIdVerified}
+          onClientIdVerifiedChange={setClientIdVerified}
+          packagingOk={packagingOk}
+          onPackagingOkChange={setPackagingOk}
+        />
+      ) : null}
       <Button type="submit" disabled={mut.isPending}>
         {mut.isPending ? <Loader2 className="size-4 animate-spin" /> : "Create job"}
       </Button>
@@ -124,5 +139,25 @@ export function StaffJobIntakeForm({
         </div>
       ) : null}
     </form>
+  );
+}
+
+export function StaffJobIntakeForm({
+  onCreated,
+  showIntakeChecklist = false,
+  enableCatalogWizard = false,
+}: {
+  onCreated: (job: JobOrder) => void;
+  showIntakeChecklist?: boolean;
+  enableCatalogWizard?: boolean;
+}) {
+  if (enableCatalogWizard) {
+    return (
+      <StaffJobIntakeWizard onCreated={onCreated} showIntakeChecklist={showIntakeChecklist} />
+    );
+  }
+
+  return (
+    <StaffJobIntakeSimpleForm onCreated={onCreated} showIntakeChecklist={showIntakeChecklist} />
   );
 }

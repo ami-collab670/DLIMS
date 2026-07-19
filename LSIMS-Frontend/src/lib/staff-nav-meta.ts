@@ -4,7 +4,7 @@ import {
   getStaffNavRouteKeys,
   type StaffRouteKey,
 } from "@/lib/staff-route-access";
-import { isStaffAnalyst } from "@/lib/staff-permissions";
+import { isReceptionist, isStaffAnalyst } from "@/lib/staff-permissions";
 
 /** Human-readable sidebar labels — keep in sync with staff-dashboard-layout nav. */
 export const STAFF_ROUTE_LABELS: Record<StaffRouteKey, string> = {
@@ -20,6 +20,7 @@ export const STAFF_ROUTE_LABELS: Record<StaffRouteKey, string> = {
   instruments: "Instruments",
   compliance: "Compliance",
   notifications: "Notifications",
+  clients: "Clients",
   users: "User management",
   profile: "Profile & settings",
   settings: "Profile & settings",
@@ -32,6 +33,9 @@ export function getStaffNavItemLabel(
 ): string {
   if (routeKey === "analyst" && isStaffAnalyst(user)) {
     return "Analyst bench";
+  }
+  if (routeKey === "laboratory" && isReceptionist(user)) {
+    return "Sample intake";
   }
   return STAFF_ROUTE_LABELS[routeKey];
 }

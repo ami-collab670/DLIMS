@@ -13,6 +13,7 @@ import {
   staffSampleRowLabel,
 } from "@/lib/sample-reference-display";
 import { cn } from "@/lib/utils";
+import { ReceptionistTestCatalogReference } from "@/pages/staff/receptionist/shared/receptionist-test-catalog-reference";
 
 import {
   ANALYST_LIST_PAGE_SIZE,
@@ -27,11 +28,14 @@ export function StaffAnalystSection({
   manage,
   isAnalyst,
   hideClientSampleNames,
+  hidePreparation = false,
 }: {
   intake: boolean;
   manage: boolean;
   isAnalyst: boolean;
   hideClientSampleNames: boolean;
+  /** Reception desk — prep start/complete is lab tech only. */
+  hidePreparation?: boolean;
 }) {
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
@@ -70,10 +74,13 @@ export function StaffAnalystSection({
   return (
     <div className="space-y-4">
 
-      <AnalystPreparationSection />
+      {hidePreparation ? null : <AnalystPreparationSection />}
+
+      {hidePreparation ? <ReceptionistTestCatalogReference /> : null}
 
       {intake ? (
         <RegisterSampleForm
+          showIntakeChecklist={hidePreparation}
           onCreated={() => {
             queryClient.invalidateQueries({ queryKey: ["staff-analyst"] });
             queryClient.invalidateQueries({ queryKey: ["staff-job-orders"] });

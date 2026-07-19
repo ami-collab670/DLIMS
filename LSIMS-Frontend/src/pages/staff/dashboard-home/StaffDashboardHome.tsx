@@ -1,6 +1,7 @@
-import { isStaffAdmin, staffRoleName } from "@/lib/staff-permissions";
+import { isReceptionist, isStaffAdmin, staffRoleName } from "@/lib/staff-permissions";
 import { useAuthStore } from "@/stores/auth-store";
 
+import ReceptionistDashboardHome from "@/pages/staff/receptionist/dashboard/ReceptionistDashboardHome";
 import { StaffRoleBanner } from "@/pages/staff/lims-extensions/staff-role-banner";
 
 import { StaffAdminPromoCard } from "./staff-admin-promo-card";
@@ -17,6 +18,11 @@ export default function StaffDashboardHome() {
   const user = useAuthStore((s) => s.user);
   const showAdmin = isStaffAdmin(user);
   const isAnalyst = staffRoleName(user) === "analyst";
+  const receptionist = isReceptionist(user);
+
+  if (receptionist) {
+    return <ReceptionistDashboardHome />;
+  }
 
   return (
     <div className="space-y-8">

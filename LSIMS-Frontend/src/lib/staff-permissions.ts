@@ -27,6 +27,12 @@ export function isQcManager(user: AuthUser | null): boolean {
   return roleName(user) === "qc_manager";
 }
 
+/** Reception desk — sample intake and client coordination. */
+export function isReceptionist(user: AuthUser | null): boolean {
+  if (!user?.is_active) return false;
+  return roleName(user) === "receptionist";
+}
+
 /** Finance role — invoices and discount requests. */
 export function isFinance(user: AuthUser | null): boolean {
   if (!user?.is_active) return false;

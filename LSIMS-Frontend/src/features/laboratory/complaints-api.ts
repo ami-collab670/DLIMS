@@ -16,6 +16,7 @@ export async function fetchComplaints(params?: {
   category?: ComplaintCategory;
   job?: string;
   sample?: string;
+  client?: string;
 }): Promise<DrfPaginated<ComplaintRecord>> {
   const query: Record<string, string | number> = {};
   if (params?.page && params.page > 0) query.page = params.page;
@@ -25,6 +26,7 @@ export async function fetchComplaints(params?: {
   if (params?.category) query.category = params.category;
   if (params?.job) query.job = params.job;
   if (params?.sample) query.sample = params.sample;
+  if (params?.client) query.client = params.client;
   const { data } = await apiClient.get<DrfPaginated<ComplaintRecord>>(BASE, {
     params: query,
   });

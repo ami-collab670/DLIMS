@@ -28,7 +28,7 @@ import {
   type StaffRouteKey,
 } from "@/lib/staff-route-access";
 import { getStaffNavItemLabel } from "@/lib/staff-nav-meta";
-import { staffRoleName } from "@/lib/staff-permissions";
+import { isReceptionist, staffRoleName } from "@/lib/staff-permissions";
 import { useAuthStore } from "@/stores/auth-store";
 
 type NavItem = {
@@ -41,6 +41,7 @@ type NavItem = {
 const STAFF_NAV_ITEMS: NavItem[] = [
   { routeKey: "dashboard", to: "/staff", icon: LayoutDashboard, end: true },
   { routeKey: "laboratory", to: "/staff/laboratory", icon: FlaskConical },
+  { routeKey: "clients", to: "/staff/clients", icon: Users },
   {
     routeKey: "inventory",
     to: "/staff/inventory",
@@ -71,6 +72,10 @@ export function StaffDashboardLayout() {
     user?.role_detail?.display_name ??
     staffRoleName(user)?.replace(/_/g, " ") ??
     (user?.is_superuser ? "Superuser" : null);
+
+  const workspaceTitle = isReceptionist(user)
+    ? "Receptionist dashboard"
+    : "Staff workspace";
 
   return (
     <div className="flex min-h-dvh bg-background">
@@ -126,7 +131,7 @@ export function StaffDashboardLayout() {
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex h-14 shrink-0 items-center justify-between gap-4 border-b border-border px-6">
-          <h1 className="text-sm font-medium text-muted-foreground">Staff workspace</h1>
+          <h1 className="text-sm font-medium text-muted-foreground">{workspaceTitle}</h1>
           <div className="flex items-center gap-2">
             <span className="hidden max-w-[160px] truncate text-xs text-muted-foreground lg:inline">
               {user?.email}

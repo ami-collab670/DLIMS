@@ -1,8 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  AlertCircle,
-  Loader2,
-} from "lucide-react";
+import { AlertCircle, Loader2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
@@ -10,10 +7,7 @@ import { useBreadcrumbSegments } from "@/components/navigation/breadcrumb-segmen
 import { TablePaginationFooter } from "@/components/data-table/table-pagination-footer";
 import { TableToolbar } from "@/components/data-table/table-toolbar";
 import { Label } from "@/components/ui/label";
-import {
-  fetchJobOrder,
-  fetchJobOrders,
-} from "@/features/jobs/api";
+import { fetchJobOrder, fetchJobOrders } from "@/features/jobs/api";
 import {
   DEFAULT_JOB_ORDER_SORT,
   toOrderingParam,
@@ -31,24 +25,27 @@ import {
   shortJobId,
 } from "@/lib/job-order-labels";
 import { cn } from "@/lib/utils";
+import {
+  canIntakeSamples,
+  canManageJobsAndSamples,
+} from "@/lib/staff-permissions";
+import { useAuthStore } from "@/stores/auth-store";
+import { ReceptionistTestCatalogBrowse } from "@/pages/staff/receptionist/shared/receptionist-test-catalog-reference";
 
-import { LABORATORY_PAGE_SIZE } from "../constants";
+import { LABORATORY_PAGE_SIZE } from "@/pages/staff/laboratory/constants";
 import {
   LaboratoryPriorityBadge,
   LaboratoryStatusBadge,
-} from "../job-badges";
-import { StaffJobDetailPanel } from "./staff-job-detail-panel";
-import { StaffJobIntakeForm } from "./staff-job-intake-form";
+} from "@/pages/staff/laboratory/job-badges";
+import { StaffJobIntakeForm } from "@/pages/staff/laboratory/jobs/staff-job-intake-form";
 
-export function StaffJobsSection({
-  intake,
-  manageJobs,
-  financeReadOnly = false,
-}: {
-  intake: boolean;
-  manageJobs: boolean;
-  financeReadOnly?: boolean;
-}) {
+import { ReceptionistJobDetailPanel } from "./ReceptionistJobDetailPanel";
+
+export function ReceptionistLaboratorySection() {
+  const user = useAuthStore((s) => s.user);
+  const intake = canIntakeSamples(user);
+  const manageJobs = canManageJobsAndSamples(user);
+
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedJobId = searchParams.get("job");
@@ -98,6 +95,7 @@ export function StaffJobsSection({
       setSearchParams((prev) => {
         const next = new URLSearchParams(prev);
         next.set("job", id);
+        next.delete("tab");
         return next;
       });
     },
@@ -132,21 +130,18 @@ export function StaffJobsSection({
   return (
     <div className="flex min-h-[min(80vh,760px)] flex-col gap-6 lg:flex-row">
       <div className="min-w-0 flex-1 space-y-4">
+        <ReceptionistTestCatalogBrowse variant="main" />
+
         {intake ? (
           <StaffJobIntakeForm
-            showIntakeChecklist={financeReadOnly}
-            enableCatalogWizard={financeReadOnly}
+            showIntakeChecklist
+            enableCatalogWizard
             onCreated={(job) => {
               queryClient.invalidateQueries({ queryKey: ["staff-job-orders"] });
               openJob(job.id);
             }}
           />
-        ) : (
-          <p className="rounded-lg border border-dashed border-border bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
-            Only receptionists (and superusers) can register new job orders on
-            behalf of clients.
-          </p>
-        )}
+        ) : null}
 
         <TableToolbar
           searchPlaceholder="Search descriptions…"
@@ -203,9 +198,7 @@ export function StaffJobsSection({
               {getApiErrorMessage(error)}
             </div>
           ) : !listData?.results.length ? (
-            <div className="py-16 text-center text-muted-foreground">
-              No job orders.
-            </div>
+            <div className="py-16 text-center text-muted-foreground">No job orders.</div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[700px] text-left text-sm">
@@ -297,14 +290,14 @@ export function StaffJobsSection({
       </div>
 
       {selectedJobId ? (
-        <div className="fixed inset-0 z-50 flex lg:static lg:z-auto lg:w-[400px] lg:shrink-0">
+        <div className="fixed inset-0 z-50 flex lg:static lg:z-auto lg:w-[420px] lg:shrink-0 lg:self-start">
           <button
             type="button"
             className="flex-1 bg-background/80 backdrop-blur-sm lg:hidden"
             aria-label="Close"
             onClick={closeJob}
           />
-          <div className="w-full max-w-md overflow-y-auto border-l bg-card shadow-xl lg:max-w-none">
+          <div className="w-full max-w-md overflow-y-auto border-l bg-card shadow-xl lg:max-h-[min(80vh,760px)] lg:max-w-none">
             {detailLoading && !displayJob ? (
               <div className="flex min-h-[200px] items-center justify-center">
                 <Loader2 className="size-8 animate-spin text-muted-foreground" />
@@ -312,11 +305,10 @@ export function StaffJobsSection({
             ) : detailError || !displayJob ? (
               <div className="p-4 text-sm text-destructive">Could not load job.</div>
             ) : (
-              <StaffJobDetailPanel
+              <ReceptionistJobDetailPanel
                 job={displayJob}
                 onClose={closeJob}
                 manageJobs={manageJobs}
-                financeReadOnly={financeReadOnly}
                 onUpdated={() => {
                   queryClient.invalidateQueries({ queryKey: ["staff-job-orders"] });
                   queryClient.invalidateQueries({

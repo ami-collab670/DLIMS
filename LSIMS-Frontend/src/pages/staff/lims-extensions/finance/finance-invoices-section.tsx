@@ -1,16 +1,18 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { QueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useCallback, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 
+import { TableToolbar } from "@/components/data-table/table-toolbar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { fetchLabClients } from "@/features/accounts/lab-clients-api";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { JobRoleHoldBadge } from "@/components/jobs/job-role-hold-badge";
 import { fetchRoles } from "@/features/accounts/roles-api";
-import { fetchJobOrders } from "@/features/jobs/api";
 import {
   createFinancialRecord,
   fetchFinancialRecords,
@@ -19,45 +21,23 @@ import {
 import { laboratoryQueryKeys } from "@/features/laboratory/laboratory-query-keys";
 import { getApiErrorMessage } from "@/lib/api-error";
 import { JOB_STATUS_LABEL, shortJobId } from "@/lib/job-order-labels";
+import { isReceptionist } from "@/lib/staff-permissions";
 import type { FinancialRecord, JobOrder, PaymentStatus } from "@/types/laboratory";
+import { useAuthStore } from "@/stores/auth-store";
 
 import { dashboardKeys } from "@/pages/staff/dashboard-home/dashboard-api-keys";
+import { fetchAwaitingFinanceJobs } from "@/pages/staff/receptionist/shared/fetch-awaiting-finance-jobs";
+import {
+  hasClientSearchQuery,
+  matchesClientSearch,
+} from "@/pages/staff/receptionist/shared/client-search-utils";
+import type { AdminUserRow } from "@/types/account-admin";
 
 const PAYMENT_STATUSES: { value: PaymentStatus; label: string }[] = [
   { value: "pending", label: "Pending" },
   { value: "partial", label: "Partial" },
   { value: "paid", label: "Paid" },
 ];
-
-async function fetchAwaitingFinanceJobs(): Promise<JobOrder[]> {
-  const [pending, legacy] = await Promise.all([
-    fetchJobOrders({
-      page: 1,
-      current_status: "pending_finance",
-      is_cancelled: false,
-    }),
-    fetchJobOrders({
-      page: 1,
-      current_status: "submitted",
-      is_cancelled: false,
-    }),
-  ]);
-  const seen = new Set<string>();
-  const results: JobOrder[] = [];
-  for (const j of pending.results) {
-    if (!seen.has(j.id)) {
-      seen.add(j.id);
-      results.push(j);
-    }
-  }
-  for (const j of legacy.results) {
-    if (!seen.has(j.id)) {
-      seen.add(j.id);
-      results.push(j);
-    }
-  }
-  return results;
-}
 
 /** Invalidate caches that depend on payment gate / job workflow. */
 export function invalidateFinanceWorkflowQueries(
@@ -83,6 +63,8 @@ export function invalidateFinanceWorkflowQueries(
 
 export function FinanceInvoicesSection() {
   const queryClient = useQueryClient();
+  const user = useAuthStore((s) => s.user);
+  const readOnlyFinance = isReceptionist(user);
   const [searchParams, setSearchParams] = useSearchParams();
   const prefillJob = searchParams.get("job") ?? "";
 
@@ -93,13 +75,15 @@ export function FinanceInvoicesSection() {
   const [editPaid, setEditPaid] = useState("");
   const [editExpected, setEditExpected] = useState("");
   const [editStatus, setEditStatus] = useState<PaymentStatus>("pending");
+  const [financeSearchInput, setFinanceSearchInput] = useState("");
+  const debouncedFinanceSearch = useDebouncedValue(financeSearchInput);
 
   useEffect(() => {
-    if (prefillJob) {
+    if (prefillJob && !readOnlyFinance) {
       setCreateJob(prefillJob);
       setShowCreate(true);
     }
-  }, [prefillJob]);
+  }, [prefillJob, readOnlyFinance]);
 
   const { data: roles = [] } = useQuery({
     queryKey: ["admin-roles"],
@@ -118,6 +102,53 @@ export function FinanceInvoicesSection() {
     queryFn: fetchAwaitingFinanceJobs,
     staleTime: 15_000,
   });
+
+  const { data: labClients = [] } = useQuery({
+    queryKey: ["staff-lab-clients"],
+    queryFn: fetchLabClients,
+    staleTime: 60_000,
+    enabled: readOnlyFinance,
+  });
+
+  const clientByEmail = useMemo(() => {
+    const map = new Map<string, AdminUserRow>();
+    for (const client of labClients) {
+      map.set(client.email.trim().toLowerCase(), client);
+    }
+    return map;
+  }, [labClients]);
+
+  const showFinanceTables =
+    !readOnlyFinance || hasClientSearchQuery(debouncedFinanceSearch);
+
+  const clientFieldsForEmail = useCallback(
+    (email: string | undefined) => {
+      const normalized = email?.trim().toLowerCase() ?? "";
+      const client = clientByEmail.get(normalized);
+      const contact = client
+        ? [client.first_name, client.last_name].filter(Boolean).join(" ").trim()
+        : "";
+      return {
+        email,
+        name: contact || undefined,
+        phone: client?.phone,
+        organization: client?.organization_name,
+      };
+    },
+    [clientByEmail],
+  );
+
+  const filteredAwaiting = useMemo(() => {
+    if (!readOnlyFinance || !hasClientSearchQuery(debouncedFinanceSearch)) {
+      return awaiting;
+    }
+    return awaiting.filter((job) =>
+      matchesClientSearch(debouncedFinanceSearch, {
+        ...clientFieldsForEmail(job.client),
+        name: job.client_name || clientFieldsForEmail(job.client).name,
+      }),
+    );
+  }, [awaiting, clientFieldsForEmail, debouncedFinanceSearch, readOnlyFinance]);
 
   const invoiceByJob = useMemo(() => {
     const map = new Map<string, FinancialRecord>();
@@ -185,6 +216,18 @@ export function FinanceInvoicesSection() {
 
   const rows = data?.results ?? [];
 
+  const filteredRows = useMemo(() => {
+    if (!readOnlyFinance || !hasClientSearchQuery(debouncedFinanceSearch)) {
+      return rows;
+    }
+    return rows.filter((record) =>
+      matchesClientSearch(
+        debouncedFinanceSearch,
+        clientFieldsForEmail(record.job_client_email),
+      ),
+    );
+  }, [clientFieldsForEmail, debouncedFinanceSearch, readOnlyFinance, rows]);
+
   function openCreateForJob(job: JobOrder) {
     setCreateJob(job.id);
     setCreateExpected("");
@@ -205,17 +248,44 @@ export function FinanceInvoicesSection() {
 
   return (
     <div className="space-y-8">
+      {readOnlyFinance && prefillJob ? (
+        <div className="rounded-lg border border-border bg-muted/30 px-4 py-3 text-sm">
+          <p className="font-medium">Job payment status</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Viewing finance clearance for job{" "}
+            <span className="font-mono">{shortJobId(prefillJob)}</span>. Invoice
+            create and payment updates are handled by Finance — contact them if
+            clearance is delayed.
+          </p>
+        </div>
+      ) : null}
+
+      {readOnlyFinance ? (
+        <TableToolbar
+          searchId="staff-finance-client-search"
+          searchPlaceholder="Search by client name, phone, or email…"
+          searchValue={financeSearchInput}
+          onSearchChange={setFinanceSearchInput}
+        />
+      ) : null}
+
       <section className="space-y-3">
         <h3 className="text-sm font-semibold">Awaiting finance clearance</h3>
         <p className="text-xs text-muted-foreground">
-          Create an invoice for each job, then mark it paid (or approve a discount waiver) to
-          release the job to laboratory intake.
+          {readOnlyFinance
+            ? "Jobs waiting on Finance to create an invoice or mark payment. Coordinate with the finance desk — you cannot edit invoices from this role."
+            : "Create an invoice for each job, then mark it paid (or approve a discount waiver) to release the job to laboratory intake."}
         </p>
         <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
           {awaitingLoading ? (
             <div className="flex justify-center py-8">
               <Loader2 className="size-5 animate-spin text-muted-foreground" />
             </div>
+          ) : !showFinanceTables ? (
+            <p className="p-6 text-sm text-muted-foreground">
+              Search by client name, phone, or email to view finance clearance
+              jobs.
+            </p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[640px] text-left text-sm">
@@ -229,7 +299,7 @@ export function FinanceInvoicesSection() {
                   </tr>
                 </thead>
                 <tbody>
-                  {awaiting.map((j) => {
+                  {filteredAwaiting.map((j) => {
                     const invoice = invoiceByJob.get(j.id);
                     return (
                       <tr key={j.id} className="border-b">
@@ -250,39 +320,47 @@ export function FinanceInvoicesSection() {
                           {invoice ? invoice.invoice_no : "—"}
                         </td>
                         <td className="px-4 py-2">
-                          <div className="flex flex-wrap gap-2">
-                            {invoice ? (
-                              <>
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => openEditForJob(j.id)}
-                                >
-                                  Edit invoice
-                                </Button>
-                                {invoice.payment_status !== "paid" &&
-                                !invoice.waiver_approved_at ? (
+                          {readOnlyFinance ? (
+                            <span className="text-xs text-muted-foreground">
+                              {invoice
+                                ? `Status: ${invoice.payment_status}`
+                                : "No invoice yet"}
+                            </span>
+                          ) : (
+                            <div className="flex flex-wrap gap-2">
+                              {invoice ? (
+                                <>
                                   <Button
                                     type="button"
                                     size="sm"
-                                    disabled={markPaidMut.isPending}
-                                    onClick={() => markPaidMut.mutate(invoice)}
+                                    variant="outline"
+                                    onClick={() => openEditForJob(j.id)}
                                   >
-                                    Mark paid
+                                    Edit invoice
                                   </Button>
-                                ) : null}
-                              </>
-                            ) : (
-                              <Button
-                                type="button"
-                                size="sm"
-                                onClick={() => openCreateForJob(j)}
-                              >
-                                Create invoice
-                              </Button>
-                            )}
-                          </div>
+                                  {invoice.payment_status !== "paid" &&
+                                  !invoice.waiver_approved_at ? (
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      disabled={markPaidMut.isPending}
+                                      onClick={() => markPaidMut.mutate(invoice)}
+                                    >
+                                      Mark paid
+                                    </Button>
+                                  ) : null}
+                                </>
+                              ) : (
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  onClick={() => openCreateForJob(j)}
+                                >
+                                  Create invoice
+                                </Button>
+                              )}
+                            </div>
+                          )}
                         </td>
                       </tr>
                     );
@@ -291,9 +369,11 @@ export function FinanceInvoicesSection() {
               </table>
             </div>
           )}
-          {!awaitingLoading && awaiting.length === 0 ? (
+          {showFinanceTables && !awaitingLoading && filteredAwaiting.length === 0 ? (
             <p className="p-6 text-sm text-muted-foreground">
-              No jobs are waiting for finance clearance.
+              {readOnlyFinance && hasClientSearchQuery(debouncedFinanceSearch)
+                ? "No finance clearance jobs match your search."
+                : "No jobs are waiting for finance clearance."}
             </p>
           ) : null}
         </div>
@@ -302,20 +382,23 @@ export function FinanceInvoicesSection() {
       <section className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-xs text-muted-foreground">
-            Financial records keyed by invoice number. Payment status drives workflow — job status
-            is read-only on the API.
+            {readOnlyFinance
+              ? "Read-only invoice list. Payment status drives workflow — job status is read-only on the API."
+              : "Financial records keyed by invoice number. Payment status drives workflow — job status is read-only on the API."}
           </p>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={() => setShowCreate((s) => !s)}
-          >
-            {showCreate ? "Cancel" : "New invoice"}
-          </Button>
+          {!readOnlyFinance ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => setShowCreate((s) => !s)}
+            >
+              {showCreate ? "Cancel" : "New invoice"}
+            </Button>
+          ) : null}
         </div>
 
-        {showCreate ? (
+        {!readOnlyFinance && showCreate ? (
           <form
             className="grid gap-3 rounded-xl border bg-card p-4 md:grid-cols-2"
             onSubmit={(e) => {
@@ -355,6 +438,10 @@ export function FinanceInvoicesSection() {
             </div>
           ) : isError ? (
             <p className="p-4 text-destructive">Could not load financial records.</p>
+          ) : !showFinanceTables ? (
+            <p className="p-6 text-sm text-muted-foreground">
+              Search by client name, phone, or email to view invoices.
+            </p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[880px] text-left text-sm">
@@ -367,11 +454,13 @@ export function FinanceInvoicesSection() {
                     <th className="px-4 py-2 font-medium">Status</th>
                     <th className="px-4 py-2 font-medium">Gate</th>
                     <th className="px-4 py-2 font-medium">Waiver</th>
-                    <th className="px-4 py-2 font-medium" />
+                    {!readOnlyFinance ? (
+                      <th className="px-4 py-2 font-medium" />
+                    ) : null}
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map((r) => (
+                  {filteredRows.map((r) => (
                     <tr key={r.invoice_no} className="border-b">
                       <td className="px-4 py-2 font-mono text-xs">{r.invoice_no}</td>
                       <td className="px-4 py-2 font-mono text-xs">{shortJobId(r.job)}</td>
@@ -386,45 +475,51 @@ export function FinanceInvoicesSection() {
                           ? r.waiver_reason || "Approved waiver"
                           : "—"}
                       </td>
-                      <td className="px-4 py-2">
-                        <div className="flex flex-wrap gap-2">
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            onClick={() => {
-                              setEditing(r);
-                              setEditExpected(r.amount_expected);
-                              setEditPaid(r.amount_paid);
-                              setEditStatus(r.payment_status);
-                            }}
-                          >
-                            Edit
-                          </Button>
-                          {r.payment_status !== "paid" && !r.waiver_approved_at ? (
+                      {!readOnlyFinance ? (
+                        <td className="px-4 py-2">
+                          <div className="flex flex-wrap gap-2">
                             <Button
                               type="button"
                               size="sm"
-                              disabled={markPaidMut.isPending}
-                              onClick={() => markPaidMut.mutate(r)}
+                              variant="outline"
+                              onClick={() => {
+                                setEditing(r);
+                                setEditExpected(r.amount_expected);
+                                setEditPaid(r.amount_paid);
+                                setEditStatus(r.payment_status);
+                              }}
                             >
-                              Mark paid
+                              Edit
                             </Button>
-                          ) : null}
-                        </div>
-                      </td>
+                            {r.payment_status !== "paid" && !r.waiver_approved_at ? (
+                              <Button
+                                type="button"
+                                size="sm"
+                                disabled={markPaidMut.isPending}
+                                onClick={() => markPaidMut.mutate(r)}
+                              >
+                                Mark paid
+                              </Button>
+                            ) : null}
+                          </div>
+                        </td>
+                      ) : null}
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
           )}
-          {!isLoading && rows.length === 0 ? (
-            <p className="p-6 text-sm text-muted-foreground">No invoices yet.</p>
+          {showFinanceTables && !isLoading && filteredRows.length === 0 ? (
+            <p className="p-6 text-sm text-muted-foreground">
+              {readOnlyFinance && hasClientSearchQuery(debouncedFinanceSearch)
+                ? "No invoices match your search."
+                : "No invoices yet."}
+            </p>
           ) : null}
         </div>
 
-        {editing ? (
+        {!readOnlyFinance && editing ? (
           <div className="space-y-3 rounded-xl border bg-card p-4">
             <p className="font-mono text-sm font-medium">{editing.invoice_no}</p>
             {editing.waiver_approved_at ? (
