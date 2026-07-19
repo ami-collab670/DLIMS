@@ -1,7 +1,6 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Dice5, FilePlus2, Loader2 } from "lucide-react";
-import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { BookOpen, CheckCircle2, Dice5, FilePlus2, Loader2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { WizardStepNav } from "@/components/data-table/wizard-step-nav";
@@ -41,14 +40,21 @@ import { cn } from "@/lib/utils";
 import { IntakeChecklistFields } from "@/pages/staff/receptionist/shared/intake-checklist-fields";
 import type { JobOrder } from "@/types/laboratory";
 
+import { IntakeClientLookupField } from "./intake-client-lookup-field";
+import { TestCatalogBrowseDialog } from "./test-catalog-browse-dialog";
+
 const STEPS = ["Client & scope", "Services", "Review & submit"] as const;
 
 export function StaffJobIntakeWizard({
-  onCreated,
+  onViewJob,
   showIntakeChecklist = false,
+  embedded = false,
+  onPendingChange,
 }: {
-  onCreated: (job: JobOrder) => void;
+  onViewJob: (job: JobOrder) => void;
   showIntakeChecklist?: boolean;
+  embedded?: boolean;
+  onPendingChange?: (pending: boolean) => void;
 }) {
   const [step, setStep] = useState(0);
   const [clientId, setClientId] = useState("");
@@ -65,9 +71,10 @@ export function StaffJobIntakeWizard({
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const [confirmationCode, setConfirmationCode] = useState("");
   const [extraNotes, setExtraNotes] = useState("");
-  const [lastCreated, setLastCreated] = useState<JobOrder | null>(null);
+  const [createdJob, setCreatedJob] = useState<JobOrder | null>(null);
   const [clientIdVerified, setClientIdVerified] = useState(false);
   const [packagingOk, setPackagingOk] = useState(false);
+  const [catalogDialogOpen, setCatalogDialogOpen] = useState(false);
 
   const { data: clients = [] } = useQuery({
     queryKey: ["lab-clients-picker"],
@@ -107,11 +114,6 @@ export function StaffJobIntakeWizard({
     [selected, catalogIndex],
   );
 
-  const selectedListActiveDistinct = useMemo(() => {
-    const set = perSampleSelections[activeSampleIndex] ?? new Set<string>();
-    return selectedTestsFromIds(set, catalogIndex);
-  }, [perSampleSelections, activeSampleIndex, catalogIndex]);
-
   const subtotalUniform = useMemo(
     () => sumSelectedPrices(selected, catalogIndex),
     [selected, catalogIndex],
@@ -127,6 +129,23 @@ export function StaffJobIntakeWizard({
     );
   }, [sampleCount, multiSampleMode, subtotalUniform, perSampleSelections, catalogIndex]);
 
+  const reviewGroups = useMemo(() => {
+    if (sampleCount === 1 || multiSampleMode === "uniform") {
+      return [{ label: null as string | null, tests: selectedListUniform }];
+    }
+    return sampleNames.map((name, i) => ({
+      label: name.trim() || `Sample ${i + 1}`,
+      tests: selectedTestsFromIds(perSampleSelections[i] ?? new Set(), catalogIndex),
+    }));
+  }, [
+    sampleCount,
+    multiSampleMode,
+    sampleNames,
+    perSampleSelections,
+    catalogIndex,
+    selectedListUniform,
+  ]);
+
   const catalogSelection =
     sampleCount >= 2 && multiSampleMode === "distinct"
       ? (perSampleSelections[activeSampleIndex] ?? new Set())
@@ -136,29 +155,14 @@ export function StaffJobIntakeWizard({
     mutationFn: createStaffJob,
     onSuccess: (job) => {
       toast.success("Job order created — send to Finance for invoicing.");
-      setLastCreated(job);
-      onCreated(job);
-      resetWizard();
+      setCreatedJob(job);
     },
-    onError: (e) => {
-      // #region agent log
-      fetch("http://127.0.0.1:7840/ingest/133e5be4-3aa4-440f-8689-c818d8f44f13", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "0148a2" },
-        body: JSON.stringify({
-          sessionId: "0148a2",
-          runId: "post-fix",
-          hypothesisId: "A",
-          location: "staff-job-intake-wizard.tsx:mut.onError",
-          message: "createStaffJob failed",
-          data: { error: getApiErrorMessage(e) },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
-      // #endregion
-      toast.error(getApiErrorMessage(e));
-    },
+    onError: (e) => toast.error(getApiErrorMessage(e)),
   });
+
+  useEffect(() => {
+    onPendingChange?.(mut.isPending);
+  }, [mut.isPending, onPendingChange]);
 
   function resetWizard() {
     setStep(0);
@@ -176,6 +180,7 @@ export function StaffJobIntakeWizard({
     setConfirmationCode("");
     setClientIdVerified(false);
     setPackagingOk(false);
+    setCreatedJob(null);
   }
 
   const applySampleCount = (raw: number) => {
@@ -256,7 +261,7 @@ export function StaffJobIntakeWizard({
 
   const goNext = () => {
     if (step === 0 && !canProceedStep0) {
-      toast.error("Select a client to continue.");
+      toast.error("Select or register a client to continue.");
       return;
     }
     if (step === 0) applySampleCount(sampleCount);
@@ -281,6 +286,7 @@ export function StaffJobIntakeWizard({
   const goBack = () => setStep((s) => Math.max(s - 1, 0));
 
   const goToStep = (target: number) => {
+    if (createdJob) return;
     if (target === step) return;
     if (target < step) {
       setStep(target);
@@ -292,7 +298,7 @@ export function StaffJobIntakeWizard({
     }
     if (target === 2 && step === 0) {
       if (!canProceedStep0) {
-        toast.error("Select a client to continue.");
+        toast.error("Select or register a client to continue.");
         return;
       }
       applySampleCount(sampleCount);
@@ -339,11 +345,6 @@ export function StaffJobIntakeWizard({
     });
   };
 
-  const reviewRows =
-    sampleCount === 1 || multiSampleMode === "uniform"
-      ? selectedListUniform
-      : selectedListActiveDistinct;
-
   const selectionHint =
     sampleCount >= 2 && multiSampleMode === "distinct"
       ? `sample ${activeSampleIndex + 1}`
@@ -353,25 +354,55 @@ export function StaffJobIntakeWizard({
 
   const selectedClient = clients.find((c) => c.id === clientId);
 
-  return (
-    <section
-      className="space-y-4 rounded-xl border border-border bg-card p-4 shadow-sm"
-      aria-labelledby="staff-intake-wizard-heading"
-    >
-      <div className="flex items-start gap-3">
-        <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-          <FilePlus2 className="size-5" aria-hidden />
+  if (createdJob) {
+    return (
+      <div className="space-y-6 py-4 text-center">
+        <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-primary/10 text-primary">
+          <CheckCircle2 className="size-8" aria-hidden />
         </div>
-        <div className="min-w-0 flex-1">
-          <h2 id="staff-intake-wizard-heading" className="font-semibold tracking-tight">
-            New job order (intake)
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            Register a client job with catalog selections from{" "}
-            <code className="rounded bg-muted px-1">/api/laboratory/tests/</code>. Jobs start in{" "}
-            <code className="rounded bg-muted px-1">pending_finance</code> — register physical
-            samples after the job is created.
+        <div>
+          <h3 className="text-lg font-semibold">Job created</h3>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {shortJobId(createdJob.id)} is ready for Finance invoicing and sample registration.
           </p>
+        </div>
+        <div className="flex flex-wrap justify-center gap-2">
+          <Button type="button" onClick={() => onViewJob(createdJob)}>
+            View job
+          </Button>
+          <Button type="button" variant="outline" onClick={resetWizard}>
+            Create another
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  const wrapperClass = embedded
+    ? "space-y-4"
+    : "space-y-4 rounded-xl border border-border bg-card p-4 shadow-sm";
+
+  return (
+    <section className={wrapperClass} aria-labelledby="staff-intake-wizard-heading">
+      <div className="flex items-start gap-3">
+        {!embedded ? (
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <FilePlus2 className="size-5" aria-hidden />
+          </div>
+        ) : null}
+        <div className="min-w-0 flex-1">
+          {!embedded ? (
+            <>
+              <h2 id="staff-intake-wizard-heading" className="font-semibold tracking-tight">
+                New job order (intake)
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                Register a client job with catalog selections. Jobs start in{" "}
+                <code className="rounded bg-muted px-1">pending_finance</code> — register physical
+                samples after the job is created.
+              </p>
+            </>
+          ) : null}
           <WizardStepNav
             steps={STEPS}
             step={step}
@@ -387,38 +418,25 @@ export function StaffJobIntakeWizard({
 
       {step === 0 ? (
         <div className="space-y-4">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="space-y-1">
-              <Label>Client</Label>
-              <select
-                required
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
-                value={clientId}
-                onChange={(e) => setClientId(e.target.value)}
-              >
-                <option value="">Choose client…</option>
-                {clients.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.email} — {c.first_name} {c.last_name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="staff-intake-priority">Priority</Label>
-              <select
-                id="staff-intake-priority"
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
-                value={priority}
-                onChange={(e) => setPriority(e.target.value)}
-              >
-                {JOB_PRIORITY_OPTIONS.map(({ value, label }) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            </div>
+          <IntakeClientLookupField
+            clients={clients}
+            clientId={clientId}
+            onClientIdChange={setClientId}
+          />
+          <div className="space-y-1">
+            <Label htmlFor="staff-intake-priority">Priority</Label>
+            <select
+              id="staff-intake-priority"
+              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
+              value={priority}
+              onChange={(e) => setPriority(e.target.value)}
+            >
+              {JOB_PRIORITY_OPTIONS.map(({ value, label }) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div className="space-y-2">
@@ -470,6 +488,22 @@ export function StaffJobIntakeWizard({
 
       {step === 1 ? (
         <div className="space-y-6">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <p className="text-sm text-muted-foreground">
+              Select services for this job — show the client the catalog before confirming.
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="gap-1.5 shrink-0"
+              onClick={() => setCatalogDialogOpen(true)}
+            >
+              <BookOpen className="size-4" />
+              Browse test catalog
+            </Button>
+          </div>
+
           {sampleCount >= 2 ? (
             <div className="space-y-2 rounded-lg border border-border bg-muted/10 p-3">
               <Label className="text-sm">Do these samples share the same tests and scope?</Label>
@@ -618,6 +652,12 @@ export function StaffJobIntakeWizard({
               onChange={(e) => setExtraNotes(e.target.value)}
             />
           </div>
+
+          <TestCatalogBrowseDialog
+            open={catalogDialogOpen}
+            onClose={() => setCatalogDialogOpen(false)}
+            onSelectTest={(test) => toggleItem(test.id)}
+          />
         </div>
       ) : null}
 
@@ -653,31 +693,44 @@ export function StaffJobIntakeWizard({
 
           <div>
             <h3 className="text-sm font-medium">Selected services</h3>
-            {reviewRows.length ? (
-              <ul className="mt-2 divide-y divide-border rounded-lg border border-border text-sm">
-                {reviewRows.map((test) => (
-                  <li
-                    key={test.id}
-                    className="flex flex-wrap items-baseline justify-between gap-2 px-3 py-2"
-                  >
-                    <span className="min-w-0">
-                      <span className="font-mono text-xs text-muted-foreground">
-                        {test.test_code}
-                      </span>
-                      <span className="block font-medium">{test.test_name}</span>
-                    </span>
-                    <span className="font-mono tabular-nums">
-                      {test.priceNumber.toFixed(2)} ETB
-                    </span>
-                  </li>
+            {reviewGroups.some((g) => g.tests.length > 0) ? (
+              <div className="mt-2 space-y-3">
+                {reviewGroups.map((group, gi) => (
+                  <div key={gi}>
+                    {group.label ? (
+                      <p className="mb-1 text-xs font-medium text-muted-foreground">{group.label}</p>
+                    ) : null}
+                    {group.tests.length > 0 ? (
+                      <ul className="divide-y divide-border rounded-lg border border-border text-sm">
+                        {group.tests.map((test) => (
+                          <li
+                            key={test.id}
+                            className="flex flex-wrap items-baseline justify-between gap-2 px-3 py-2"
+                          >
+                            <span className="min-w-0">
+                              <span className="font-mono text-xs text-muted-foreground">
+                                {test.test_code}
+                              </span>
+                              <span className="block font-medium">{test.test_name}</span>
+                            </span>
+                            <span className="font-mono tabular-nums">
+                              {test.priceNumber.toFixed(2)} ETB
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="rounded-lg border border-dashed px-3 py-2 text-xs text-muted-foreground">
+                        No catalog lines for this sample — scope is in notes.
+                      </p>
+                    )}
+                  </div>
                 ))}
-                <li className="flex justify-between gap-2 bg-muted/30 px-3 py-2 font-medium">
+                <div className="flex justify-between gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2 text-sm font-medium">
                   <span>Indicative total</span>
-                  <span className="font-mono tabular-nums">
-                    {indicativeTotal.toFixed(2)} ETB
-                  </span>
-                </li>
-              </ul>
+                  <span className="font-mono tabular-nums">{indicativeTotal.toFixed(2)} ETB</span>
+                </div>
+              </div>
             ) : (
               <p className="mt-2 rounded-lg border border-dashed px-3 py-4 text-sm text-muted-foreground">
                 No catalog lines — scope is carried in notes.
@@ -696,30 +749,12 @@ export function StaffJobIntakeWizard({
 
           <div className="flex flex-wrap gap-2">
             <Button type="button" disabled={mut.isPending} onClick={submitJob}>
-              {mut.isPending ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                "Create job"
-              )}
+              {mut.isPending ? <Loader2 className="size-4 animate-spin" /> : "Create job"}
             </Button>
             <Button type="button" variant="outline" disabled={mut.isPending} onClick={resetWizard}>
               Start over
             </Button>
           </div>
-        </div>
-      ) : null}
-
-      {lastCreated ? (
-        <div className="rounded-md border border-dashed bg-muted/20 px-3 py-2 text-sm">
-          <p>
-            Created {shortJobId(lastCreated.id)} — next step:{" "}
-            <Link
-              to={`/staff/finance?job=${lastCreated.id}`}
-              className="text-primary underline-offset-4 hover:underline"
-            >
-              Create invoice in Finance
-            </Link>
-          </p>
         </div>
       ) : null}
     </section>

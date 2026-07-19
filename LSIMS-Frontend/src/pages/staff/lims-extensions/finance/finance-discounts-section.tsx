@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -19,10 +19,12 @@ import { shortJobId } from "@/lib/job-order-labels";
 import {
   canApproveDiscountApproval,
   canRequestDiscountApproval,
+  isFinance,
 } from "@/lib/staff-permissions";
+import { dashboardKeys } from "@/pages/staff/dashboard-home/dashboard-api-keys";
 import { invalidateFinanceWorkflowQueries } from "@/pages/staff/lims-extensions/finance/finance-invoices-section";
 import { useAuthStore } from "@/stores/auth-store";
-import type { DiscountApproval, DiscountType } from "@/types/laboratory";
+import type { DiscountApproval, DiscountApprovalStatus, DiscountType } from "@/types/laboratory";
 
 const DISCOUNT_TYPES: { value: DiscountType; label: string }[] = [
   { value: "percentage", label: "Percentage" },
@@ -30,12 +32,24 @@ const DISCOUNT_TYPES: { value: DiscountType; label: string }[] = [
   { value: "free_test", label: "Free test / full waiver" },
 ];
 
-export function FinanceDiscountsSection() {
+const STATUS_FILTERS: { value: DiscountApprovalStatus; label: string }[] = [
+  { value: "pending", label: "Pending" },
+  { value: "approved", label: "Approved" },
+  { value: "rejected", label: "Rejected" },
+];
+
+export function FinanceDiscountsSection({
+  prefillJobId = "",
+}: {
+  prefillJobId?: string;
+}) {
   const queryClient = useQueryClient();
   const user = useAuthStore((s) => s.user);
   const canReview = canApproveDiscountApproval(user);
   const canRequest = canRequestDiscountApproval(user);
+  const financeUser = isFinance(user);
 
+  const [statusFilter, setStatusFilter] = useState<DiscountApprovalStatus>("pending");
   const [selected, setSelected] = useState<DiscountApproval | null>(null);
   const [reviewNote, setReviewNote] = useState("");
   const [showRequest, setShowRequest] = useState(false);
@@ -45,15 +59,24 @@ export function FinanceDiscountsSection() {
   const [requestAmount, setRequestAmount] = useState("");
   const [requestReason, setRequestReason] = useState("");
 
+  useEffect(() => {
+    if (prefillJobId.trim()) {
+      setRequestJob(prefillJobId.trim());
+      setShowRequest(true);
+    }
+  }, [prefillJobId]);
+
   const { data, isLoading, isError } = useQuery({
-    queryKey: laboratoryQueryKeys.discountApprovals({ status: "pending" }),
-    queryFn: () => fetchDiscountApprovals({ page: 1, status: "pending" }),
+    queryKey: laboratoryQueryKeys.discountApprovals({ status: statusFilter }),
+    queryFn: () => fetchDiscountApprovals({ page: 1, status: statusFilter }),
     staleTime: 20_000,
   });
 
   const invalidate = (jobId?: string) => {
     void queryClient.invalidateQueries({ queryKey: ["discount-approvals"] });
     invalidateFinanceWorkflowQueries(queryClient, jobId);
+    void queryClient.invalidateQueries({ queryKey: dashboardKeys.financeDiscountTracker });
+    void queryClient.invalidateQueries({ queryKey: dashboardKeys.financeKpis });
   };
 
   const createMut = useMutation({
@@ -68,9 +91,8 @@ export function FinanceDiscountsSection() {
     onSuccess: () => {
       toast.success("Discount request submitted for director review.");
       setShowRequest(false);
-      setRequestJob("");
       setRequestReason("");
-      invalidate();
+      invalidate(requestJob.trim());
     },
     onError: (e) => toast.error(getApiErrorMessage(e)),
   });
@@ -109,9 +131,24 @@ export function FinanceDiscountsSection() {
   return (
     <section className="space-y-4">
       <p className="text-xs text-muted-foreground">
-        Finance or reception can request discounts. Only lab director or admin can approve —
-        approved waivers bypass the payment gate on the linked invoice.
+        {financeUser
+          ? "Submit waiver requests for lab director review. Track pending, approved, and rejected decisions below — Finance cannot approve requests here."
+          : "Finance or reception can request discounts. Only lab director or admin can approve — approved waivers bypass the payment gate on the linked invoice."}
       </p>
+
+      <div className="flex flex-wrap gap-2">
+        {STATUS_FILTERS.map(({ value, label }) => (
+          <Button
+            key={value}
+            type="button"
+            size="sm"
+            variant={statusFilter === value ? "default" : "outline"}
+            onClick={() => setStatusFilter(value)}
+          >
+            {label}
+          </Button>
+        ))}
+      </div>
 
       {canRequest ? (
         <div className="space-y-2">
@@ -199,13 +236,15 @@ export function FinanceDiscountsSection() {
           <p className="p-4 text-destructive">Could not load discount approvals.</p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[640px] text-left text-sm">
+            <table className="w-full min-w-[720px] text-left text-sm">
               <thead>
                 <tr className="border-b bg-muted/40">
                   <th className="px-4 py-2 font-medium">Job</th>
+                  <th className="px-4 py-2 font-medium">Status</th>
                   <th className="px-4 py-2 font-medium">Type</th>
                   <th className="px-4 py-2 font-medium">Value</th>
                   <th className="px-4 py-2 font-medium">Reason</th>
+                  <th className="px-4 py-2 font-medium">Director note</th>
                   <th className="px-4 py-2 font-medium" />
                 </tr>
               </thead>
@@ -213,13 +252,17 @@ export function FinanceDiscountsSection() {
                 {rows.map((d) => (
                   <tr key={d.id} className="border-b">
                     <td className="px-4 py-2 font-mono text-xs">{shortJobId(d.job)}</td>
+                    <td className="px-4 py-2 capitalize">{d.status}</td>
                     <td className="px-4 py-2 capitalize">{d.discount_type.replace(/_/g, " ")}</td>
                     <td className="px-4 py-2 tabular-nums">
                       {d.percentage ? `${d.percentage}%` : d.amount ?? "—"}
                     </td>
-                    <td className="max-w-[240px] truncate px-4 py-2 text-xs">{d.reason}</td>
+                    <td className="max-w-[200px] truncate px-4 py-2 text-xs">{d.reason}</td>
+                    <td className="max-w-[160px] truncate px-4 py-2 text-xs text-muted-foreground">
+                      {d.review_note?.trim() || "—"}
+                    </td>
                     <td className="px-4 py-2">
-                      {canReview ? (
+                      {canReview && d.status === "pending" ? (
                         <Button
                           type="button"
                           size="sm"
@@ -231,9 +274,9 @@ export function FinanceDiscountsSection() {
                         >
                           Review
                         </Button>
-                      ) : (
+                      ) : d.status === "pending" ? (
                         <span className="text-xs text-muted-foreground">Awaiting director</span>
-                      )}
+                      ) : null}
                     </td>
                   </tr>
                 ))}
@@ -242,7 +285,9 @@ export function FinanceDiscountsSection() {
           </div>
         )}
         {!isLoading && rows.length === 0 ? (
-          <p className="p-6 text-sm text-muted-foreground">No pending discount requests.</p>
+          <p className="p-6 text-sm text-muted-foreground">
+            No {statusFilter} discount requests.
+          </p>
         ) : null}
       </div>
 

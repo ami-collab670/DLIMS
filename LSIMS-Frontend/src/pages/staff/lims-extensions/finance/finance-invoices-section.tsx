@@ -1,9 +1,8 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { QueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
-import { useEffect, useCallback, useMemo, useState } from "react";
+import { useEffect, useCallback, useMemo, useState, Fragment } from "react";
 import { useSearchParams } from "react-router-dom";
-import { toast } from "sonner";
 
 import { TableToolbar } from "@/components/data-table/table-toolbar";
 import { Button } from "@/components/ui/button";
@@ -13,16 +12,30 @@ import { fetchLabClients } from "@/features/accounts/lab-clients-api";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { JobRoleHoldBadge } from "@/components/jobs/job-role-hold-badge";
 import { fetchRoles } from "@/features/accounts/roles-api";
-import {
-  createFinancialRecord,
-  fetchFinancialRecords,
-  patchFinancialRecord,
-} from "@/features/laboratory/financial-records-api";
+import { fetchFinancialRecords } from "@/features/laboratory/financial-records-api";
 import { laboratoryQueryKeys } from "@/features/laboratory/laboratory-query-keys";
-import { getApiErrorMessage } from "@/lib/api-error";
-import { JOB_STATUS_LABEL, shortJobId } from "@/lib/job-order-labels";
+import { JOB_PRIORITY_LABEL, JOB_STATUS_LABEL, shortJobId } from "@/lib/job-order-labels";
+import { clientJobReferenceLabel } from "@/lib/sample-reference-display";
 import { isReceptionist } from "@/lib/staff-permissions";
-import type { FinancialRecord, JobOrder, PaymentStatus } from "@/types/laboratory";
+import type { FinancialRecord, JobOrder } from "@/types/laboratory";
+import {
+  formatMoney,
+  outstandingAmount,
+} from "@/pages/staff/finance/dashboard/finance-dashboard-utils";
+import { FinanceJobBillingBreakdown } from "@/pages/staff/finance/shared/finance-job-billing-breakdown";
+import {
+  formatPaidAt,
+  formatPaymentStatusLabel,
+} from "@/pages/staff/finance/shared/finance-payment-labels";
+import {
+  parseJobBillingSummary,
+  suggestedInvoiceAmount,
+} from "@/pages/staff/finance/shared/parse-job-billing";
+import {
+  CreateInvoiceForm,
+  EditInvoiceForm,
+  MarkPaidButton,
+} from "@/pages/staff/finance/shared/finance-invoice-actions";
 import { useAuthStore } from "@/stores/auth-store";
 
 import { dashboardKeys } from "@/pages/staff/dashboard-home/dashboard-api-keys";
@@ -32,12 +45,6 @@ import {
   matchesClientSearch,
 } from "@/pages/staff/receptionist/shared/client-search-utils";
 import type { AdminUserRow } from "@/types/account-admin";
-
-const PAYMENT_STATUSES: { value: PaymentStatus; label: string }[] = [
-  { value: "pending", label: "Pending" },
-  { value: "partial", label: "Partial" },
-  { value: "paid", label: "Paid" },
-];
 
 /** Invalidate caches that depend on payment gate / job workflow. */
 export function invalidateFinanceWorkflowQueries(
@@ -53,6 +60,18 @@ export function invalidateFinanceWorkflowQueries(
   void queryClient.invalidateQueries({ queryKey: ["lims-finance-awaiting"] });
   void queryClient.invalidateQueries({ queryKey: ["staff-dashboard"] });
   void queryClient.invalidateQueries({ queryKey: dashboardKeys.recentJobs });
+  void queryClient.invalidateQueries({ queryKey: dashboardKeys.financeKpis });
+  void queryClient.invalidateQueries({ queryKey: dashboardKeys.financeAwaitingClearance });
+  void queryClient.invalidateQueries({ queryKey: dashboardKeys.financeOutstanding });
+  void queryClient.invalidateQueries({ queryKey: dashboardKeys.financeRecentlyCleared });
+  void queryClient.invalidateQueries({ queryKey: dashboardKeys.financeHoldQueue });
+  void queryClient.invalidateQueries({ queryKey: dashboardKeys.financeDiscountTracker });
+  void queryClient.invalidateQueries({ queryKey: ["finance-reports-records"] });
+  void queryClient.invalidateQueries({ queryKey: dashboardKeys.financeAllRecords });
+  void queryClient.invalidateQueries({ queryKey: dashboardKeys.financeReportsSnapshot });
+  void queryClient.invalidateQueries({ queryKey: dashboardKeys.financeCompliancePreview });
+  void queryClient.invalidateQueries({ queryKey: dashboardKeys.financeFollowUp });
+  void queryClient.invalidateQueries({ queryKey: dashboardKeys.financeWaiverRelease });
   if (jobId) {
     void queryClient.invalidateQueries({
       queryKey: laboratoryQueryKeys.financialRecords({ job: jobId }),
@@ -61,7 +80,11 @@ export function invalidateFinanceWorkflowQueries(
   }
 }
 
-export function FinanceInvoicesSection() {
+export function FinanceInvoicesSection({
+  onOpenJob,
+}: {
+  onOpenJob?: (jobId: string) => void;
+} = {}) {
   const queryClient = useQueryClient();
   const user = useAuthStore((s) => s.user);
   const readOnlyFinance = isReceptionist(user);
@@ -74,16 +97,21 @@ export function FinanceInvoicesSection() {
   const [editing, setEditing] = useState<FinancialRecord | null>(null);
   const [editPaid, setEditPaid] = useState("");
   const [editExpected, setEditExpected] = useState("");
-  const [editStatus, setEditStatus] = useState<PaymentStatus>("pending");
+  const [editStatus, setEditStatus] = useState<FinancialRecord["payment_status"]>("pending");
   const [financeSearchInput, setFinanceSearchInput] = useState("");
   const debouncedFinanceSearch = useDebouncedValue(financeSearchInput);
+  const [expandedAwaitingIds, setExpandedAwaitingIds] = useState<Set<string>>(new Set());
+  const [createSuggestedHint, setCreateSuggestedHint] = useState("");
 
   useEffect(() => {
     if (prefillJob && !readOnlyFinance) {
       setCreateJob(prefillJob);
       setShowCreate(true);
+      if (onOpenJob) {
+        onOpenJob(prefillJob);
+      }
     }
-  }, [prefillJob, readOnlyFinance]);
+  }, [prefillJob, readOnlyFinance, onOpenJob]);
 
   const { data: roles = [] } = useQuery({
     queryKey: ["admin-roles"],
@@ -158,63 +186,57 @@ export function FinanceInvoicesSection() {
     return map;
   }, [data?.results]);
 
-  const invalidate = (jobId?: string) =>
-    invalidateFinanceWorkflowQueries(queryClient, jobId);
+  const jobById = useMemo(() => {
+    const map = new Map<string, JobOrder>();
+    for (const j of awaiting) {
+      map.set(j.id, j);
+    }
+    return map;
+  }, [awaiting]);
 
-  const createMut = useMutation({
-    mutationFn: () =>
-      createFinancialRecord({
-        job: createJob.trim(),
-        amount_expected: createExpected.trim() || undefined,
-      }),
-    onSuccess: (_record, _vars, _ctx) => {
-      toast.success("Invoice created.");
-      const jobId = createJob.trim();
-      setShowCreate(false);
-      setCreateJob("");
-      setCreateExpected("");
-      if (prefillJob) {
-        setSearchParams((prev) => {
-          const next = new URLSearchParams(prev);
-          next.delete("job");
-          return next;
-        });
-      }
-      invalidate(jobId);
-    },
-    onError: (e) => toast.error(getApiErrorMessage(e)),
-  });
+  function toggleAwaitingExpand(jobId: string) {
+    setExpandedAwaitingIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(jobId)) next.delete(jobId);
+      else next.add(jobId);
+      return next;
+    });
+  }
 
-  const patchMut = useMutation({
-    mutationFn: () =>
-      patchFinancialRecord(editing!.invoice_no, {
-        amount_expected: editExpected.trim() || undefined,
-        amount_paid: editPaid.trim() || undefined,
-        payment_status: editStatus,
-      }),
-    onSuccess: () => {
-      toast.success("Invoice updated.");
-      const jobId = editing!.job;
-      setEditing(null);
-      invalidate(jobId);
-    },
-    onError: (e) => toast.error(getApiErrorMessage(e)),
-  });
+  const applySuggestedAmount = useCallback((job: JobOrder) => {
+    const summary = parseJobBillingSummary(job.description);
+    const suggested = suggestedInvoiceAmount(summary);
+    setCreateExpected(suggested);
+    setCreateSuggestedHint(
+      suggested ? `Suggested from catalog total (${suggested} ETB).` : "",
+    );
+  }, []);
 
-  const markPaidMut = useMutation({
-    mutationFn: (record: FinancialRecord) =>
-      patchFinancialRecord(record.invoice_no, {
-        amount_paid: record.amount_expected,
-        payment_status: "paid",
-      }),
-    onSuccess: (_data, record) => {
-      toast.success("Invoice marked paid — job advances to laboratory intake.");
-      invalidate(record.job);
-    },
-    onError: (e) => toast.error(getApiErrorMessage(e)),
-  });
+  useEffect(() => {
+    if (!createJob.trim()) return;
+    const job = jobById.get(createJob.trim());
+    if (job) applySuggestedAmount(job);
+  }, [createJob, jobById, applySuggestedAmount]);
 
   const rows = data?.results ?? [];
+
+  function handleCreateSuccess() {
+    setShowCreate(false);
+    setCreateJob("");
+    setCreateExpected("");
+    setCreateSuggestedHint("");
+    if (prefillJob) {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("job");
+        return next;
+      });
+    }
+  }
+
+  function handleEditSuccess() {
+    setEditing(null);
+  }
 
   const filteredRows = useMemo(() => {
     if (!readOnlyFinance || !hasClientSearchQuery(debouncedFinanceSearch)) {
@@ -230,7 +252,7 @@ export function FinanceInvoicesSection() {
 
   function openCreateForJob(job: JobOrder) {
     setCreateJob(job.id);
-    setCreateExpected("");
+    applySuggestedAmount(job);
     setShowCreate(true);
     setEditing(null);
   }
@@ -288,81 +310,133 @@ export function FinanceInvoicesSection() {
             </p>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[640px] text-left text-sm">
+              <table className="w-full min-w-[900px] text-left text-sm">
                 <thead>
                   <tr className="border-b bg-muted/40">
-                    <th className="px-4 py-2 font-medium">Job</th>
-                    <th className="px-4 py-2 font-medium">Status</th>
+                    <th className="px-4 py-2 font-medium w-8" />
+                    <th className="px-4 py-2 font-medium">Reference</th>
                     <th className="px-4 py-2 font-medium">Client</th>
-                    <th className="px-4 py-2 font-medium">Invoice</th>
+                    <th className="px-4 py-2 font-medium">Priority</th>
+                    <th className="px-4 py-2 font-medium">Workflow</th>
+                    <th className="px-4 py-2 font-medium">Invoice / payment</th>
                     <th className="px-4 py-2 font-medium" />
                   </tr>
                 </thead>
                 <tbody>
                   {filteredAwaiting.map((j) => {
                     const invoice = invoiceByJob.get(j.id);
+                    const expanded = expandedAwaitingIds.has(j.id);
+                    const refLabel = clientJobReferenceLabel(j.description);
                     return (
-                      <tr key={j.id} className="border-b">
-                        <td className="px-4 py-2 font-mono text-xs">
-                          <div className="flex flex-col gap-1">
-                            {shortJobId(j.id)}
-                            <JobRoleHoldBadge
-                              blockedByRole={j.blocked_by_role}
-                              roles={roles}
-                            />
-                          </div>
-                        </td>
-                        <td className="px-4 py-2 text-xs text-muted-foreground">
-                          {JOB_STATUS_LABEL[j.current_status]}
-                        </td>
-                        <td className="px-4 py-2 text-muted-foreground">{j.client}</td>
-                        <td className="px-4 py-2 font-mono text-xs">
-                          {invoice ? invoice.invoice_no : "—"}
-                        </td>
-                        <td className="px-4 py-2">
-                          {readOnlyFinance ? (
-                            <span className="text-xs text-muted-foreground">
-                              {invoice
-                                ? `Status: ${invoice.payment_status}`
-                                : "No invoice yet"}
-                            </span>
-                          ) : (
-                            <div className="flex flex-wrap gap-2">
-                              {invoice ? (
-                                <>
-                                  <Button
-                                    type="button"
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => openEditForJob(j.id)}
-                                  >
-                                    Edit invoice
-                                  </Button>
-                                  {invoice.payment_status !== "paid" &&
-                                  !invoice.waiver_approved_at ? (
+                      <Fragment key={j.id}>
+                        <tr className="border-b">
+                          <td className="px-2 py-2">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="size-7"
+                              aria-label={expanded ? "Collapse billing" : "Expand billing"}
+                              onClick={() => toggleAwaitingExpand(j.id)}
+                            >
+                              {expanded ? "−" : "+"}
+                            </Button>
+                          </td>
+                          <td className="px-4 py-2">
+                            <div className="flex flex-col gap-0.5">
+                              <span className="font-medium">{refLabel}</span>
+                              {onOpenJob && !readOnlyFinance ? (
+                                <button
+                                  type="button"
+                                  className="w-fit font-mono text-xs text-primary hover:underline"
+                                  onClick={() => onOpenJob(j.id)}
+                                >
+                                  {shortJobId(j.id)}
+                                </button>
+                              ) : (
+                                <span className="font-mono text-xs text-muted-foreground">
+                                  {shortJobId(j.id)}
+                                </span>
+                              )}
+                              <JobRoleHoldBadge
+                                blockedByRole={j.blocked_by_role}
+                                roles={roles}
+                              />
+                            </div>
+                          </td>
+                          <td className="px-4 py-2">
+                            <span className="block">{j.client_name || j.client}</span>
+                            <span className="text-xs text-muted-foreground">{j.client}</span>
+                          </td>
+                          <td className="px-4 py-2 text-xs">
+                            {JOB_PRIORITY_LABEL[j.priority] ?? j.priority}
+                          </td>
+                          <td className="px-4 py-2 text-xs text-muted-foreground">
+                            {JOB_STATUS_LABEL[j.current_status]}
+                          </td>
+                          <td className="px-4 py-2 text-xs">
+                            {invoice ? (
+                              <>
+                                <span className="block font-mono">{invoice.invoice_no}</span>
+                                <span>{formatPaymentStatusLabel(invoice.payment_status)}</span>
+                              </>
+                            ) : (
+                              "No invoice yet"
+                            )}
+                          </td>
+                          <td className="px-4 py-2">
+                            {readOnlyFinance ? (
+                              <span className="text-xs text-muted-foreground">
+                                {invoice
+                                  ? formatPaymentStatusLabel(invoice.payment_status)
+                                  : "Awaiting invoice"}
+                              </span>
+                            ) : (
+                              <div className="flex flex-wrap gap-2">
+                                {invoice ? (
+                                  <>
                                     <Button
                                       type="button"
                                       size="sm"
-                                      disabled={markPaidMut.isPending}
-                                      onClick={() => markPaidMut.mutate(invoice)}
+                                      variant="outline"
+                                      onClick={() => openEditForJob(j.id)}
                                     >
-                                      Mark paid
+                                      Edit invoice
                                     </Button>
-                                  ) : null}
-                                </>
-                              ) : (
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  onClick={() => openCreateForJob(j)}
-                                >
-                                  Create invoice
-                                </Button>
-                              )}
-                            </div>
-                          )}
-                        </td>
-                      </tr>
+                                    {invoice.payment_status !== "paid" &&
+                                    !invoice.waiver_approved_at ? (
+                                      <MarkPaidButton
+                                        record={invoice}
+                                        queryClient={queryClient}
+                                      />
+                                    ) : null}
+                                  </>
+                                ) : (
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    onClick={() => openCreateForJob(j)}
+                                  >
+                                    Create invoice
+                                  </Button>
+                                )}
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                        {expanded ? (
+                          <tr key={`${j.id}-billing`} className="border-b bg-muted/10">
+                            <td colSpan={7} className="px-4 py-3">
+                              <FinanceJobBillingBreakdown
+                                job={j}
+                                invoice={invoice}
+                                collapsible={false}
+                                showMeta={false}
+                              />
+                            </td>
+                          </tr>
+                        ) : null}
+                      </Fragment>
                     );
                   })}
                 </tbody>
@@ -399,36 +473,24 @@ export function FinanceInvoicesSection() {
         </div>
 
         {!readOnlyFinance && showCreate ? (
-          <form
-            className="grid gap-3 rounded-xl border bg-card p-4 md:grid-cols-2"
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (!createJob.trim()) {
-                toast.error("Job ID is required.");
-                return;
-              }
-              createMut.mutate();
-            }}
-          >
-            <div className="space-y-1">
+          <div className="grid gap-3 rounded-xl border bg-card p-4 md:grid-cols-2">
+            <div className="space-y-1 md:col-span-2">
               <Label>Job ID (UUID)</Label>
               <Input value={createJob} onChange={(e) => setCreateJob(e.target.value)} />
             </div>
-            <div className="space-y-1">
-              <Label>Amount expected</Label>
-              <Input
-                inputMode="decimal"
-                placeholder="0.00"
-                value={createExpected}
-                onChange={(e) => setCreateExpected(e.target.value)}
+            {createSuggestedHint ? (
+              <p className="text-xs text-muted-foreground md:col-span-2">{createSuggestedHint}</p>
+            ) : null}
+            <div className="md:col-span-2">
+              <CreateInvoiceForm
+                jobId={createJob}
+                expectedAmount={createExpected}
+                onExpectedAmountChange={setCreateExpected}
+                onSuccess={handleCreateSuccess}
+                queryClient={queryClient}
               />
             </div>
-            <div className="md:col-span-2">
-              <Button type="submit" disabled={createMut.isPending}>
-                Create invoice
-              </Button>
-            </div>
-          </form>
+          </div>
         ) : null}
 
         <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
@@ -444,15 +506,17 @@ export function FinanceInvoicesSection() {
             </p>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[880px] text-left text-sm">
+              <table className="w-full min-w-[1040px] text-left text-sm">
                 <thead>
                   <tr className="border-b bg-muted/40">
                     <th className="px-4 py-2 font-medium">Invoice</th>
-                    <th className="px-4 py-2 font-medium">Job</th>
+                    <th className="px-4 py-2 font-medium">Job reference</th>
+                    <th className="px-4 py-2 font-medium">Client</th>
                     <th className="px-4 py-2 font-medium">Expected</th>
                     <th className="px-4 py-2 font-medium">Paid</th>
+                    <th className="px-4 py-2 font-medium">Outstanding</th>
                     <th className="px-4 py-2 font-medium">Status</th>
-                    <th className="px-4 py-2 font-medium">Gate</th>
+                    <th className="px-4 py-2 font-medium">Paid at</th>
                     <th className="px-4 py-2 font-medium">Waiver</th>
                     {!readOnlyFinance ? (
                       <th className="px-4 py-2 font-medium" />
@@ -460,20 +524,40 @@ export function FinanceInvoicesSection() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredRows.map((r) => (
+                  {filteredRows.map((r) => {
+                    const linkedJob = jobById.get(r.job);
+                    const refLabel = linkedJob
+                      ? clientJobReferenceLabel(linkedJob.description)
+                      : shortJobId(r.job);
+                    return (
                     <tr key={r.invoice_no} className="border-b">
                       <td className="px-4 py-2 font-mono text-xs">{r.invoice_no}</td>
-                      <td className="px-4 py-2 font-mono text-xs">{shortJobId(r.job)}</td>
+                      <td className="px-4 py-2">
+                        <span className="block text-xs font-medium">{refLabel}</span>
+                        <span className="font-mono text-xs text-muted-foreground">
+                          {shortJobId(r.job)}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2 text-xs text-muted-foreground">
+                        {r.job_client_email ?? "—"}
+                      </td>
                       <td className="px-4 py-2 tabular-nums">{r.amount_expected}</td>
                       <td className="px-4 py-2 tabular-nums">{r.amount_paid}</td>
-                      <td className="px-4 py-2 capitalize">{r.payment_status}</td>
+                      <td className="px-4 py-2 tabular-nums">
+                        {formatMoney(outstandingAmount(r))}
+                      </td>
                       <td className="px-4 py-2 text-xs">
-                        {r.payment_required ? "Payment required" : "Waived"}
+                        {formatPaymentStatusLabel(r.payment_status)}
+                      </td>
+                      <td className="px-4 py-2 text-xs text-muted-foreground">
+                        {formatPaidAt(r.paid_at)}
                       </td>
                       <td className="max-w-[160px] truncate px-4 py-2 text-xs">
                         {r.waiver_approved_at
                           ? r.waiver_reason || "Approved waiver"
-                          : "—"}
+                          : r.payment_required
+                            ? "—"
+                            : "Not required"}
                       </td>
                       {!readOnlyFinance ? (
                         <td className="px-4 py-2">
@@ -492,20 +576,14 @@ export function FinanceInvoicesSection() {
                               Edit
                             </Button>
                             {r.payment_status !== "paid" && !r.waiver_approved_at ? (
-                              <Button
-                                type="button"
-                                size="sm"
-                                disabled={markPaidMut.isPending}
-                                onClick={() => markPaidMut.mutate(r)}
-                              >
-                                Mark paid
-                              </Button>
+                              <MarkPaidButton record={r} queryClient={queryClient} />
                             ) : null}
                           </div>
                         </td>
                       ) : null}
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -522,51 +600,18 @@ export function FinanceInvoicesSection() {
         {!readOnlyFinance && editing ? (
           <div className="space-y-3 rounded-xl border bg-card p-4">
             <p className="font-mono text-sm font-medium">{editing.invoice_no}</p>
-            {editing.waiver_approved_at ? (
-              <p className="text-xs text-muted-foreground">
-                Waiver approved — payment gate bypassed.
-                {editing.waiver_reason ? ` ${editing.waiver_reason}` : ""}
-              </p>
-            ) : null}
-            <div className="grid gap-3 sm:grid-cols-3">
-              <div className="space-y-1">
-                <Label>Expected</Label>
-                <Input
-                  value={editExpected}
-                  onChange={(e) => setEditExpected(e.target.value)}
-                />
-              </div>
-              <div className="space-y-1">
-                <Label>Paid</Label>
-                <Input value={editPaid} onChange={(e) => setEditPaid(e.target.value)} />
-              </div>
-              <div className="space-y-1">
-                <Label>Payment status</Label>
-                <select
-                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
-                  value={editStatus}
-                  onChange={(e) => setEditStatus(e.target.value as PaymentStatus)}
-                >
-                  {PAYMENT_STATUSES.map(({ value, label }) => (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                disabled={patchMut.isPending}
-                onClick={() => patchMut.mutate()}
-              >
-                Save
-              </Button>
-              <Button type="button" variant="ghost" onClick={() => setEditing(null)}>
-                Cancel
-              </Button>
-            </div>
+            <EditInvoiceForm
+              record={editing}
+              expected={editExpected}
+              paid={editPaid}
+              status={editStatus}
+              onExpectedChange={setEditExpected}
+              onPaidChange={setEditPaid}
+              onStatusChange={setEditStatus}
+              onCancel={() => setEditing(null)}
+              onSuccess={handleEditSuccess}
+              queryClient={queryClient}
+            />
           </div>
         ) : null}
       </section>

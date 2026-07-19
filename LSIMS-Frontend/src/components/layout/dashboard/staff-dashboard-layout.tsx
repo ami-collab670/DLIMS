@@ -28,7 +28,7 @@ import {
   type StaffRouteKey,
 } from "@/lib/staff-route-access";
 import { getStaffNavItemLabel } from "@/lib/staff-nav-meta";
-import { isReceptionist, staffRoleName } from "@/lib/staff-permissions";
+import { isFinance, isReceptionist, staffRoleName } from "@/lib/staff-permissions";
 import { useAuthStore } from "@/stores/auth-store";
 
 type NavItem = {
@@ -75,7 +75,9 @@ export function StaffDashboardLayout() {
 
   const workspaceTitle = isReceptionist(user)
     ? "Receptionist dashboard"
-    : "Staff workspace";
+    : isFinance(user)
+      ? "Finance desk"
+      : "Staff workspace";
 
   return (
     <div className="flex min-h-dvh bg-background">

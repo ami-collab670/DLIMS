@@ -1,6 +1,7 @@
 import {
   canIntakeSamples,
   canManageJobsAndSamples,
+  isFinance,
   isReceptionist,
   isStaffAdmin,
 } from "@/lib/staff-permissions";
@@ -21,6 +22,7 @@ export function StaffDashboardIntro() {
   const manageOps = canManageJobsAndSamples(user);
   const admin = isStaffAdmin(user);
   const receptionist = isReceptionist(user);
+  const finance = isFinance(user);
 
   let subtitle =
     "Laboratory information snapshot — job pipeline, analyst workspaces, and quick access to LSIMS areas.";
@@ -31,6 +33,11 @@ export function StaffDashboardIntro() {
       "Reception desk overview — intake queue, finance coordination, and client communication.";
     roleHint =
       "Register jobs and samples, track payment clearance with Finance, and message clients from the sections below.";
+  } else if (finance) {
+    subtitle =
+      "Finance desk overview — invoices, payments, clearance queues, and payment compliance.";
+    roleHint =
+      "Use the queues below to create invoices, record payments, and track discounts. Contact clients and reception via job details; your inbox is read-only.";
   } else if (admin) {
     roleHint +=
       " As an administrator you can manage users, the test catalog, and laboratory records.";

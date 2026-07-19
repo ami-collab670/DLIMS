@@ -1,11 +1,12 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertCircle, Loader2 } from "lucide-react";
+import { AlertCircle, Loader2, Plus } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
 import { useBreadcrumbSegments } from "@/components/navigation/breadcrumb-segments-context";
 import { TablePaginationFooter } from "@/components/data-table/table-pagination-footer";
 import { TableToolbar } from "@/components/data-table/table-toolbar";
+import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { fetchJobOrder, fetchJobOrders } from "@/features/jobs/api";
 import {
@@ -30,14 +31,12 @@ import {
   canManageJobsAndSamples,
 } from "@/lib/staff-permissions";
 import { useAuthStore } from "@/stores/auth-store";
-import { ReceptionistTestCatalogBrowse } from "@/pages/staff/receptionist/shared/receptionist-test-catalog-reference";
-
 import { LABORATORY_PAGE_SIZE } from "@/pages/staff/laboratory/constants";
 import {
   LaboratoryPriorityBadge,
   LaboratoryStatusBadge,
 } from "@/pages/staff/laboratory/job-badges";
-import { StaffJobIntakeForm } from "@/pages/staff/laboratory/jobs/staff-job-intake-form";
+import { StaffJobIntakeDialog } from "@/pages/staff/laboratory/jobs/staff-job-intake-dialog";
 
 import { ReceptionistJobDetailPanel } from "./ReceptionistJobDetailPanel";
 
@@ -56,6 +55,7 @@ export function ReceptionistLaboratorySection() {
   const [statusFilter, setStatusFilter] = useState("");
   const [priorityFilter, setPriorityFilter] = useState("");
   const [sort, setSort] = useState<JobOrderSortState>(DEFAULT_JOB_ORDER_SORT);
+  const [intakeOpen, setIntakeOpen] = useState(false);
 
   useEffect(() => setPage(1), [debouncedSearch, statusFilter, priorityFilter, sort, pageSize]);
 
@@ -130,17 +130,28 @@ export function ReceptionistLaboratorySection() {
   return (
     <div className="flex min-h-[min(80vh,760px)] flex-col gap-6 lg:flex-row">
       <div className="min-w-0 flex-1 space-y-4">
-        <ReceptionistTestCatalogBrowse variant="main" />
-
         {intake ? (
-          <StaffJobIntakeForm
-            showIntakeChecklist
-            enableCatalogWizard
-            onCreated={(job) => {
-              queryClient.invalidateQueries({ queryKey: ["staff-job-orders"] });
-              openJob(job.id);
-            }}
-          />
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3 shadow-sm">
+            <div>
+              <p className="text-sm font-medium">Sample intake</p>
+              <p className="text-xs text-muted-foreground">
+                Register a client job with catalog selections and walk-in registration.
+              </p>
+            </div>
+            <Button type="button" className="gap-1.5" onClick={() => setIntakeOpen(true)}>
+              <Plus className="size-4" />
+              New job order
+            </Button>
+            <StaffJobIntakeDialog
+              open={intakeOpen}
+              onOpenChange={setIntakeOpen}
+              showIntakeChecklist
+              onCreated={(job) => {
+                queryClient.invalidateQueries({ queryKey: ["staff-job-orders"] });
+                openJob(job.id);
+              }}
+            />
+          </div>
         ) : null}
 
         <TableToolbar

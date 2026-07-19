@@ -153,7 +153,10 @@ export function StaffJobIntakeForm({
 }) {
   if (enableCatalogWizard) {
     return (
-      <StaffJobIntakeWizard onCreated={onCreated} showIntakeChecklist={showIntakeChecklist} />
+      <StaffJobIntakeWizard
+        showIntakeChecklist={showIntakeChecklist}
+        onViewJob={onCreated}
+      />
     );
   }
 

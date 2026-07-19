@@ -75,43 +75,7 @@ export type CreateStaffJobBody = {
 };
 
 export async function createStaffJob(body: CreateStaffJobBody): Promise<JobOrder> {
-  // #region agent log
-  fetch("http://127.0.0.1:7840/ingest/133e5be4-3aa4-440f-8689-c818d8f44f13", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "0148a2" },
-    body: JSON.stringify({
-      sessionId: "0148a2",
-      runId: "post-fix",
-      hypothesisId: "A",
-      location: "features/jobs/api.ts:createStaffJob",
-      message: "createStaffJob payload client field",
-      data: {
-        clientLength: body.client.length,
-        looksLikeUuid: /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-          body.client,
-        ),
-        looksLikeEmail: body.client.includes("@"),
-      },
-      timestamp: Date.now(),
-    }),
-  }).catch(() => {});
-  // #endregion
   const { data } = await apiClient.post<JobOrder>("/api/laboratory/jobs/", body);
-  // #region agent log
-  fetch("http://127.0.0.1:7840/ingest/133e5be4-3aa4-440f-8689-c818d8f44f13", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "0148a2" },
-    body: JSON.stringify({
-      sessionId: "0148a2",
-      runId: "post-fix",
-      hypothesisId: "A",
-      location: "features/jobs/api.ts:createStaffJob",
-      message: "createStaffJob success",
-      data: { jobId: data.id },
-      timestamp: Date.now(),
-    }),
-  }).catch(() => {});
-  // #endregion
   return data;
 }
 

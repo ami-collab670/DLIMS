@@ -2,6 +2,7 @@ import {
   canIntakeSamples,
   canManageJobsAndSamples,
   canManageTestCatalog,
+  isFinance,
   isReceptionist,
   staffRoleName,
 } from "@/lib/staff-permissions";
@@ -20,9 +21,15 @@ export function StaffRoleBanner() {
     (user.is_superuser ? "Superuser" : "Staff");
 
   const receptionist = isReceptionist(user);
+  const finance = isFinance(user);
 
   const caps: string[] = [];
-  if (receptionist) {
+  if (finance) {
+    caps.push("invoice create/update");
+    caps.push("payment recording");
+    caps.push("discount requests (director review)");
+    caps.push("read-only notifications inbox");
+  } else if (receptionist) {
     caps.push("intake (jobs & samples)");
     caps.push("job & sample updates");
     caps.push("finance coordination (read-only)");
@@ -45,6 +52,11 @@ export function StaffRoleBanner() {
         <span className="font-medium text-foreground">Role: </span>
         <span className="capitalize">{label}</span>
       </p>
+      {finance ? (
+        <p className="mt-1 text-xs text-muted-foreground">
+          Finance desk — invoicing, payments &amp; discount requests
+        </p>
+      ) : null}
       {receptionist ? (
         <p className="mt-1 text-xs text-muted-foreground">
           Reception desk — sample intake &amp; client coordination

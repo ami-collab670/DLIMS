@@ -113,12 +113,10 @@ const QC_MANAGER_ROUTES: StaffRouteKey[] = [
   "compliance",
 ];
 
-/** Finance: invoices and discount queue (`financial_records_visible_to`). */
+/** Finance desk: payment records and discount requests only. */
 const FINANCE_ROUTES: StaffRouteKey[] = [
   ...STAFF_SHELL,
-  "laboratory",
   "finance",
-  "scheduling",
 ];
 
 /** Procurement: test catalog / inventory management. */
