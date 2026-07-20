@@ -36,6 +36,8 @@ export const dashboardKeys = {
   qcManagerAssignmentQueue: ["staff-dashboard", "qc-manager", "assignment-queue"] as const,
   qcManagerAnalystDirectory: (departmentId: string | null) =>
     ["staff-dashboard", "qc-manager", "analyst-directory", departmentId ?? "none"] as const,
+  qcManagerLabTechDirectory: (departmentId: string | null) =>
+    ["staff-dashboard", "qc-manager", "lab-tech-directory", departmentId ?? "none"] as const,
   qcDeskKpis: ["staff-dashboard", "qc-desk", "kpis"] as const,
   qcDeskInboxPreview: ["staff-dashboard", "qc-desk", "inbox-preview"] as const,
   qcDeskRecentDecisions: ["staff-dashboard", "qc-desk", "recent-decisions"] as const,

@@ -6,7 +6,7 @@ import {
   canAccessStaffRoute,
   type StaffRouteKey,
 } from "@/lib/staff-route-access";
-import { isStaffAnalyst } from "@/lib/staff-permissions";
+import { isStaffAnalyst, isQcManager } from "@/lib/staff-permissions";
 import { useAuthStore } from "@/stores/auth-store";
 
 const linkClass =
@@ -60,6 +60,14 @@ export function StaffDashboardQuickLinks() {
           ...item,
           title: "Analyst bench",
           subtitle: "Blind listing (read-only for your role)",
+        };
+      }
+      if (item.routeKey === "laboratory" && isQcManager(user)) {
+        return {
+          ...item,
+          to: "/staff/laboratory?tab=analyst",
+          title: "Route samples",
+          subtitle: "Assign analysts and create preparation records",
         };
       }
       return item;

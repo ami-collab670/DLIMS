@@ -48,7 +48,7 @@ export function StaffDashboardIntro() {
     subtitle =
       "Quality control overview — submitted results awaiting review, recent decisions, and department QC metrics.";
     roleHint =
-      "Approve or reject analysis results submitted by analysts in your department. Client identity is hidden; use QC review for all decisions.";
+      "Route paid samples to analysts and preparation in your department, then approve or reject submitted results in QC review. Client identity is hidden.";
   } else if (analyst) {
     subtitle =
       "Analyst bench overview — samples assigned to you, draft results, and submissions awaiting QC.";

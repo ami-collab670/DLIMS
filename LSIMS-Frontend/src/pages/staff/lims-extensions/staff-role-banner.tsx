@@ -40,6 +40,7 @@ export function StaffRoleBanner() {
     caps.push("job & sample updates");
     caps.push("finance coordination (read-only)");
   } else if (qcManager) {
+    caps.push("sample routing (analyst & prep)");
     caps.push("QC review (department-scoped)");
   } else if (analyst) {
     caps.push("assigned sample bench");
@@ -79,7 +80,8 @@ export function StaffRoleBanner() {
       ) : null}
       {qcManager ? (
         <p className="mt-1 text-xs text-muted-foreground">
-          Quality control — approve or reject submitted analysis results in your department
+          Quality control — route department samples (analyst, prep, optional lab tech) and
+          approve or reject submitted analysis results
         </p>
       ) : null}
       {analyst ? (

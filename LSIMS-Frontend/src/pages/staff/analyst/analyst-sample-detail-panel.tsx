@@ -15,7 +15,7 @@ import {
   submitAnalysisResult,
 } from "@/features/laboratory/analysis-results-api";
 import { laboratoryQueryKeys } from "@/features/laboratory/laboratory-query-keys";
-import { fetchPreparationRecords } from "@/features/laboratory/preparation-records-api";
+import { fetchPreparationRecords, createPreparationRecord } from "@/features/laboratory/preparation-records-api";
 import {
   assignSampleAnalyst,
   assignTestToSample,
@@ -27,6 +27,7 @@ import {
 import { getApiErrorMessage } from "@/lib/api-error";
 import { shortJobId } from "@/lib/job-order-labels";
 import { isSampleAwaitingPayment } from "@/lib/sample-payment-gate";
+import { canCreatePreparationRecord } from "@/lib/staff-permissions";
 import { staffSampleDisplayCode } from "@/lib/sample-reference-display";
 import { dashboardKeys } from "@/pages/staff/dashboard-home/dashboard-api-keys";
 import {
@@ -34,6 +35,7 @@ import {
   isUserUuid,
   resolveInitialAnalystUserId,
 } from "@/pages/staff/qc-manager/shared/department-analyst-directory";
+import { fetchDepartmentLabTechDirectory } from "@/pages/staff/qc-manager/shared/department-lab-tech-directory";
 import { useAuthStore } from "@/stores/auth-store";
 import type { AnalysisResult, SampleRecord } from "@/types/laboratory";
 
@@ -75,6 +77,7 @@ export function AnalystSampleDetailPanel({
   canAssignAnalyst,
   hideClientSampleNames,
   showResultEntry = true,
+  showSampleRouting = false,
   onClose,
   onUpdated,
 }: {
@@ -84,12 +87,15 @@ export function AnalystSampleDetailPanel({
   hideClientSampleNames: boolean;
   /** Bench result entry — analysts and reception/admin; not department managers. */
   showResultEntry?: boolean;
+  /** QC routing — assign analyst, create prep, optional lab tech pre-assign. */
+  showSampleRouting?: boolean;
   onClose: () => void;
   onUpdated: () => void;
 }) {
   const queryClient = useQueryClient();
   const user = useAuthStore((s) => s.user);
   const departmentId = user?.department ?? null;
+  const canCreatePrep = canCreatePreparationRecord(user);
 
   const displayCode = staffSampleDisplayCode(sample);
   const isBlindView =
@@ -112,6 +118,7 @@ export function AnalystSampleDetailPanel({
   );
   const [reassignedReason, setReassignedReason] = useState(sample.reassigned_reason ?? "");
   const [testToAdd, setTestToAdd] = useState("");
+  const [selectedLabTechId, setSelectedLabTechId] = useState("");
   const [resultSampleTest, setResultSampleTest] = useState("");
   const [resultValue, setResultValue] = useState("");
   const [resultUnit, setResultUnit] = useState("");
@@ -126,13 +133,20 @@ export function AnalystSampleDetailPanel({
     enabled: showResultEntry,
   });
 
-  const { data: prepData } = useQuery({
+  const { data: prepData, isLoading: prepLoading } = useQuery({
     queryKey: laboratoryQueryKeys.preparationRecords({ sample: sample.id }),
     queryFn: () => fetchPreparationRecords({ page: 1, sample: sample.id }),
-    enabled: showResultEntry,
+    enabled: showResultEntry || showSampleRouting,
   });
 
   const prepRecord = prepData?.results[0];
+
+  const { data: labTechDirectory = [], isLoading: labTechDirectoryLoading } = useQuery({
+    queryKey: dashboardKeys.qcManagerLabTechDirectory(departmentId),
+    queryFn: () => fetchDepartmentLabTechDirectory(departmentId),
+    enabled: showSampleRouting && canCreatePrep,
+    staleTime: 120_000,
+  });
 
   const { data: analystDirectory = [], isLoading: analystDirectoryLoading } = useQuery({
     queryKey: dashboardKeys.qcManagerAnalystDirectory(departmentId),
@@ -184,6 +198,7 @@ export function AnalystSampleDetailPanel({
     setAssignedAt(formatDateTimeLocal(sample.assigned_at));
     setReassignedReason(sample.reassigned_reason ?? "");
     setTestToAdd("");
+    setSelectedLabTechId("");
     setResultSampleTest(sample.sample_tests[0]?.id ?? "");
     setResultValue("");
     setResultUnit("");
@@ -260,6 +275,30 @@ export function AnalystSampleDetailPanel({
       void queryClient.invalidateQueries({
         queryKey: dashboardKeys.qcManagerAnalystDirectory(departmentId),
       });
+      onUpdated();
+    },
+    onError: (e) => toast.error(getApiErrorMessage(e)),
+  });
+
+  const createPrepMut = useMutation({
+    mutationFn: () =>
+      createPreparationRecord({
+        sample: sample.id,
+        technician: isUserUuid(selectedLabTechId) ? selectedLabTechId : undefined,
+      }),
+    onSuccess: () => {
+      toast.success("Preparation record created.");
+      setSelectedLabTechId("");
+      void queryClient.invalidateQueries({
+        queryKey: laboratoryQueryKeys.preparationRecords({ sample: sample.id }),
+      });
+      void queryClient.invalidateQueries({ queryKey: ["preparation-records"] });
+      void queryClient.invalidateQueries({
+        queryKey: dashboardKeys.qcManagerLabTechDirectory(departmentId),
+      });
+      void queryClient.invalidateQueries({ queryKey: dashboardKeys.qcManagerPrepBacklog });
+      void queryClient.invalidateQueries({ queryKey: dashboardKeys.labTechDeskKpis });
+      void queryClient.invalidateQueries({ queryKey: dashboardKeys.labTechDeskQueuePreview });
       onUpdated();
     },
     onError: (e) => toast.error(getApiErrorMessage(e)),
@@ -368,6 +407,8 @@ export function AnalystSampleDetailPanel({
   const testsForPicker =
     testsPage?.results.filter((t) => !assignedTestIds.has(t.id)) ?? [];
   const awaitingPayment = isSampleAwaitingPayment(sample);
+  const hasAssignedTests = sample.sample_tests.length > 0;
+  const showRoutingPanel = showSampleRouting && canAssignAnalyst;
 
   return (
     <div className="rounded-xl border bg-card p-4 shadow-sm">
@@ -593,7 +634,150 @@ export function AnalystSampleDetailPanel({
         </div>
       ) : null}
 
-      {canAssignAnalyst ? (
+      {showRoutingPanel ? (
+        <div className="mt-4 space-y-4 border-t pt-4">
+          <div>
+            <p className="text-sm font-medium">Route sample</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Assign an analyst, create a preparation record, and optionally pre-assign a lab
+              technician in your department.
+            </p>
+          </div>
+
+          <div className="space-y-3">
+            <p className="text-sm font-medium">Assign analyst</p>
+            {awaitingPayment ? (
+              <p className="text-xs text-muted-foreground">
+                This sample is not yet released for laboratory work. Route samples after the
+                permanent sample code is issued.
+              </p>
+            ) : analystDirectoryLoading ? (
+              <p className="text-xs text-muted-foreground">Loading department analysts…</p>
+            ) : analystOptions.length === 0 ? (
+              <p className="text-xs text-muted-foreground">
+                No analysts found for your department yet. Analysts appear after they work on
+                department samples or results, or ask an administrator.
+              </p>
+            ) : (
+              <>
+                <div className="space-y-1">
+                  <Label>Analyst</Label>
+                  <select
+                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
+                    value={selectedAnalystId}
+                    onChange={(e) => {
+                      setAnalystSelectionTouched(true);
+                      setSelectedAnalystId(e.target.value);
+                    }}
+                  >
+                    <option value="">Unassigned</option>
+                    {analystOptions.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.email}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <Label>Reassignment reason</Label>
+                  <Input
+                    value={reassignedReason}
+                    onChange={(e) => setReassignedReason(e.target.value)}
+                  />
+                </div>
+                {analystSelectionChanged ? (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    disabled={assignAnalystMut.isPending || !isUserUuid(selectedAnalystId)}
+                    onClick={() => assignAnalystMut.mutate()}
+                  >
+                    Assign analyst
+                  </Button>
+                ) : null}
+              </>
+            )}
+          </div>
+
+          {canCreatePrep ? (
+            <div className="space-y-3 border-t pt-4">
+              <p className="text-sm font-medium">Preparation routing</p>
+              {awaitingPayment ? (
+                <p className="text-xs text-muted-foreground">
+                  Preparation records can be created after finance clears the sample.
+                </p>
+              ) : prepLoading ? (
+                <p className="text-xs text-muted-foreground">Loading preparation status…</p>
+              ) : prepRecord ? (
+                <dl className="grid gap-2 text-sm sm:grid-cols-2">
+                  <div>
+                    <dt className="text-xs text-muted-foreground">Prep reference</dt>
+                    <dd className="font-mono text-xs">{prepRecord.reference_code}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs text-muted-foreground">Status</dt>
+                    <dd className="capitalize">{prepRecord.status.replace(/_/g, " ")}</dd>
+                  </div>
+                  <div className="sm:col-span-2">
+                    <dt className="text-xs text-muted-foreground">Lab technician</dt>
+                    <dd>
+                      {prepRecord.technician_email?.trim()
+                        ? prepRecord.technician_email
+                        : "Unassigned (claimable by any dept lab tech on Start)"}
+                    </dd>
+                  </div>
+                </dl>
+              ) : !hasAssignedTests ? (
+                <p className="text-xs text-muted-foreground">
+                  Assign at least one test to this sample before creating a preparation record.
+                </p>
+              ) : (
+                <>
+                  <p className="text-xs text-muted-foreground">
+                    Creates a prep bench record for lab technicians. Leave technician unassigned
+                    if any lab tech in your department should be able to claim it on Start.
+                  </p>
+                  {labTechDirectoryLoading ? (
+                    <p className="text-xs text-muted-foreground">Loading lab technicians…</p>
+                  ) : (
+                    <div className="space-y-1">
+                      <Label>Lab technician (optional)</Label>
+                      <select
+                        className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
+                        value={selectedLabTechId}
+                        onChange={(e) => setSelectedLabTechId(e.target.value)}
+                      >
+                        <option value="">Unassigned</option>
+                        {labTechDirectory.map((tech) => (
+                          <option key={tech.id} value={tech.id}>
+                            {tech.email}
+                          </option>
+                        ))}
+                      </select>
+                      {labTechDirectory.length === 0 ? (
+                        <p className="text-xs text-muted-foreground">
+                          No lab technicians in directory yet — you can still create the prep
+                          record unassigned.
+                        </p>
+                      ) : null}
+                    </div>
+                  )}
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="secondary"
+                    disabled={createPrepMut.isPending}
+                    onClick={() => createPrepMut.mutate()}
+                  >
+                    Create preparation record
+                  </Button>
+                </>
+              )}
+            </div>
+          ) : null}
+        </div>
+      ) : canAssignAnalyst ? (
         <div className="mt-4 space-y-3 border-t pt-4">
           <p className="text-sm font-medium">Assign analyst</p>
           {awaitingPayment ? (

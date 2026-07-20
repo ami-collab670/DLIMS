@@ -50,7 +50,7 @@ export default function StaffLaboratoryPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const tabParam = searchParams.get("tab");
   const parsedTab = parseLaboratoryTabParam(tabParam);
-  const initialTab: LaboratoryTabId = parsedTab ?? "jobs";
+  const initialTab: LaboratoryTabId = parsedTab ?? (qcManager ? "analyst" : "jobs");
 
   const [tab, setTab] = useTrackedTabs<LaboratoryTabId>(initialTab);
 
@@ -91,16 +91,33 @@ export default function StaffLaboratoryPage() {
   }, [parsedTab, receptionist, setTab]);
 
   useEffect(() => {
-    if (receptionist) return;
+    if (receptionist || qcManager) return;
     if (!showAssignmentsTab && tab === "assignments") {
       setTab("jobs", { skipHistory: true });
     }
-  }, [receptionist, showAssignmentsTab, setTab, tab]);
+  }, [receptionist, qcManager, showAssignmentsTab, setTab, tab]);
+
+  useEffect(() => {
+    if (!qcManager) return;
+    if (tab !== "analyst") {
+      setTab("analyst", { skipHistory: true });
+    }
+    if (tabParam !== "analyst") {
+      setSearchParams(
+        (prev) => {
+          const params = new URLSearchParams(prev);
+          params.set("tab", "analyst");
+          return params;
+        },
+        { replace: true },
+      );
+    }
+  }, [qcManager, setSearchParams, setTab, tab, tabParam]);
 
   const tabLabels = LABORATORY_TAB_LABELS;
   const tabSegments = useMemo(
-    () => (receptionist ? [] : [{ label: tabLabels[tab] }]),
-    [receptionist, tab, tabLabels],
+    () => (receptionist || qcManager ? [] : [{ label: tabLabels[tab] }]),
+    [qcManager, receptionist, tab, tabLabels],
   );
   useBreadcrumbSegments(tabSegments, "laboratory-tab");
 
@@ -108,7 +125,7 @@ export default function StaffLaboratoryPage() {
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-semibold tracking-tight">
-          {receptionist ? "Sample intake" : "Laboratory"}
+          {receptionist ? "Sample intake" : qcManager ? "Route samples" : "Laboratory"}
         </h2>
         <p className="text-sm text-muted-foreground">
           {receptionist ? (
@@ -119,9 +136,9 @@ export default function StaffLaboratoryPage() {
             </>
           ) : qcManager ? (
             <>
-              Assign analysts to released samples with tests in your department. Samples not yet
-              released for laboratory work are hidden. Maintain your section test catalog under{" "}
-              <strong>Test catalog</strong> in the sidebar.
+              Route paid samples with assigned tests in your department: assign an analyst, create
+              a preparation record, and optionally pre-assign a lab technician. Samples awaiting
+              finance clearance are hidden.
             </>
           ) : (
             <>
@@ -137,6 +154,17 @@ export default function StaffLaboratoryPage() {
 
       {receptionist ? (
         <ReceptionistLaboratorySection />
+      ) : qcManager ? (
+        <StaffAnalystSection
+          intake={false}
+          canPatchSample={false}
+          canAssignAnalyst={canAssignAnalyst}
+          isAnalyst={false}
+          hideClientSampleNames={shouldHideClientSampleNames(user)}
+          filterAwaitingPayment
+          filterReadyForDeptAssignment
+          showSampleRouting
+        />
       ) : (
         <>
           <LaboratoryTabBar

@@ -56,6 +56,9 @@ export function getStaffNavItemLabel(
   if (routeKey === "laboratory" && isReceptionist(user)) {
     return "Sample intake";
   }
+  if (routeKey === "laboratory" && isQcManager(user)) {
+    return "Route samples";
+  }
   if (routeKey === "dashboard" && isFinance(user)) {
     return "Finance desk";
   }

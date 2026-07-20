@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { fetchSample, fetchSamples } from "@/features/laboratory/staff-api";
 import { getApiErrorMessage } from "@/lib/api-error";
 import { shortJobId } from "@/lib/job-order-labels";
-import { isSampleAwaitingPayment } from "@/lib/sample-payment-gate";
+import { isSampleAwaitingPayment, isSampleReadyForDeptAssignment } from "@/lib/sample-payment-gate";
 import {
   staffSampleDisplayCode,
   staffSampleRowLabel,
@@ -33,6 +33,8 @@ export function StaffAnalystSection({
   hideClientSampleNames,
   hidePreparation = false,
   filterAwaitingPayment = false,
+  filterReadyForDeptAssignment = false,
+  showSampleRouting = false,
   analystBenchOnly = false,
 }: {
   intake: boolean;
@@ -44,6 +46,10 @@ export function StaffAnalystSection({
   hidePreparation?: boolean;
   /** Department manager — hide samples until Finance clears payment. */
   filterAwaitingPayment?: boolean;
+  /** Department manager — hide samples without assigned tests (ready for routing). */
+  filterReadyForDeptAssignment?: boolean;
+  /** QC routing panel — assign analyst, create prep, optional lab tech. */
+  showSampleRouting?: boolean;
   /** Analyst-only bench at /staff/analyst — assignment filter + no ops copy. */
   analystBenchOnly?: boolean;
 }) {
@@ -84,16 +90,34 @@ export function StaffAnalystSection({
     if (filterAwaitingPayment) {
       rows = rows.filter((s) => !isSampleAwaitingPayment(s));
     }
+    if (filterReadyForDeptAssignment) {
+      rows = rows.filter((s) => isSampleReadyForDeptAssignment(s));
+    }
     if (isAnalyst || analystBenchOnly) {
       rows = filterMyAssignedSamples(rows, userId);
     }
     return rows;
-  }, [analystBenchOnly, data?.results, filterAwaitingPayment, isAnalyst, userId]);
+  }, [
+    analystBenchOnly,
+    data?.results,
+    filterAwaitingPayment,
+    filterReadyForDeptAssignment,
+    isAnalyst,
+    userId,
+  ]);
 
   const hiddenAwaitingPaymentCount = useMemo(() => {
     if (!filterAwaitingPayment || !data?.results.length) return 0;
     return data.results.filter((s) => isSampleAwaitingPayment(s)).length;
   }, [data?.results, filterAwaitingPayment]);
+
+  const hiddenNotReadyCount = useMemo(() => {
+    if (!filterReadyForDeptAssignment || !data?.results.length) return 0;
+    return data.results.filter(
+      (s) =>
+        !isSampleAwaitingPayment(s) && !isSampleReadyForDeptAssignment(s),
+    ).length;
+  }, [data?.results, filterReadyForDeptAssignment]);
 
   const totalPages = data
     ? Math.max(1, Math.ceil(data.count / ANALYST_LIST_PAGE_SIZE))
@@ -127,6 +151,18 @@ export function StaffAnalystSection({
           <p className="mt-1">
             Only samples assigned to your analyst account appear here. Select a row to enter a
             draft result, add calibrations, and submit to department QC.
+          </p>
+        </div>
+      ) : filterReadyForDeptAssignment ? (
+        <div
+          role="note"
+          className="rounded-lg border border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground"
+        >
+          <p className="font-medium text-foreground">Department sample routing</p>
+          <p className="mt-1">
+            Select a paid sample with assigned tests, assign an analyst, create a preparation
+            record, and optionally pre-assign a lab technician. Lab techs see prep work on their
+            bench.
           </p>
         </div>
       ) : (
@@ -182,11 +218,16 @@ export function StaffAnalystSection({
         </div>
       </div>
 
-      {filterAwaitingPayment ? (
+      {filterAwaitingPayment || filterReadyForDeptAssignment ? (
         <p className="text-xs text-muted-foreground">
-          Samples not yet released for laboratory work are hidden.
+          {filterReadyForDeptAssignment
+            ? "Only paid samples with assigned tests in your department are shown."
+            : "Samples not yet released for laboratory work are hidden."}
           {hiddenAwaitingPaymentCount > 0
-            ? ` (${hiddenAwaitingPaymentCount} hidden on this page)`
+            ? ` (${hiddenAwaitingPaymentCount} awaiting payment hidden on this page)`
+            : null}
+          {hiddenNotReadyCount > 0
+            ? ` (${hiddenNotReadyCount} without tests hidden on this page)`
             : null}
         </p>
       ) : null}
@@ -239,7 +280,7 @@ export function StaffAnalystSection({
                         </td>
                         <td className="max-w-[140px] truncate px-4 py-2 text-muted-foreground">
                           {s.assigned_analyst_email ?? s.assigned_analyst ?? (
-                            filterAwaitingPayment ? (
+                            filterAwaitingPayment || filterReadyForDeptAssignment ? (
                               <span className="text-amber-700 dark:text-amber-300">
                                 Unassigned
                               </span>
@@ -259,15 +300,23 @@ export function StaffAnalystSection({
             </table>
           </div>
         )}
-        {data && (filterAwaitingPayment ? visibleResults.length > 0 : data.count > 0) ? (
+        {data &&
+        (filterAwaitingPayment || filterReadyForDeptAssignment
+          ? visibleResults.length > 0
+          : data.count > 0) ? (
           <div className="flex items-center justify-between border-t px-4 py-2 text-xs text-muted-foreground">
             <span>
               {(page - 1) * ANALYST_LIST_PAGE_SIZE + 1}–
               {Math.min(
                 page * ANALYST_LIST_PAGE_SIZE,
-                filterAwaitingPayment ? visibleResults.length : data.count,
+                filterAwaitingPayment || filterReadyForDeptAssignment
+                  ? visibleResults.length
+                  : data.count,
               )}{" "}
-              / {filterAwaitingPayment ? visibleResults.length : data.count}
+              /{" "}
+              {filterAwaitingPayment || filterReadyForDeptAssignment
+                ? visibleResults.length
+                : data.count}
             </span>
             <div className="flex gap-2">
               <Button
@@ -300,6 +349,7 @@ export function StaffAnalystSection({
           canAssignAnalyst={canAssignAnalyst}
           hideClientSampleNames={hideClientSampleNames}
           showResultEntry={canPatchSample || isAnalyst}
+          showSampleRouting={showSampleRouting}
           onClose={() => setSelectedId(null)}
           onUpdated={() => {
             queryClient.invalidateQueries({ queryKey: ["staff-analyst"] });

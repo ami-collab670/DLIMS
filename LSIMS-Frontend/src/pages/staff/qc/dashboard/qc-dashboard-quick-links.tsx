@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { BadgeCheck, ClipboardList, History, XCircle } from "lucide-react";
+import { BadgeCheck, ClipboardList, History, TestTube, XCircle } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 type Props = {
@@ -29,6 +29,12 @@ export function QcDashboardQuickLinks() {
     <section className="space-y-3">
       <h3 className="text-sm font-semibold">Quick links</h3>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <QuickLinkCard
+          icon={TestTube}
+          label="Route samples"
+          description="Assign analysts, create prep records, and optionally pre-assign lab techs."
+          to="/staff/laboratory?tab=analyst"
+        />
         <QuickLinkCard
           icon={BadgeCheck}
           label="Open review desk"

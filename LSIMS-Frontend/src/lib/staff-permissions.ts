@@ -112,6 +112,11 @@ export function canAssignSampleAnalyst(user: AuthUser | null): boolean {
   );
 }
 
+/** Create preparation records (admin, reception, department manager). */
+export function canCreatePreparationRecord(user: AuthUser | null): boolean {
+  return canAssignSampleAnalyst(user);
+}
+
 /** Patch sample metadata (name, weight, notes) — admin/reception only. */
 export function canPatchSampleDetails(user: AuthUser | null): boolean {
   return canManageJobsAndSamples(user);
