@@ -14,6 +14,7 @@ import { Link } from "react-router-dom";
 import { fetchJobOrders } from "@/features/jobs/api";
 import { fetchDiscountApprovals } from "@/features/laboratory/discount-approvals-api";
 import { fetchUnreadNotificationCount } from "@/features/notifications/api";
+import { formatMoney } from "@/lib/money";
 import { dashboardKeys } from "@/pages/staff/dashboard-home/dashboard-api-keys";
 import { fetchAwaitingFinanceJobs } from "@/pages/staff/receptionist/shared/fetch-awaiting-finance-jobs";
 import { useAuthStore } from "@/stores/auth-store";
@@ -21,7 +22,6 @@ import { useAuthStore } from "@/stores/auth-store";
 import {
   countPaidInWindow,
   fetchAllFinancialRecords,
-  formatMoney,
   invoiceByJobMap,
   revenueCollectedInDays,
   sumOutstanding,

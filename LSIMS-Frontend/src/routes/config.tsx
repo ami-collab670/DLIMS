@@ -32,7 +32,10 @@ import StaffInstrumentsPage from "@/pages/staff/StaffInstrumentsPage";
 import StaffInventoryPage from "@/pages/staff/StaffInventoryPage";
 import StaffLaboratoryPage from "@/pages/staff/StaffLaboratoryPage";
 import StaffNotificationsPage from "@/pages/staff/StaffNotificationsPage";
-import StaffQcPage from "@/pages/staff/StaffQcPage";
+import StaffQcLayout from "@/pages/staff/qc/StaffQcLayout";
+import QcReviewDeskPage from "@/pages/staff/qc/desk/QcReviewDeskPage";
+import QcHistoryPage from "@/pages/staff/qc/history/QcHistoryPage";
+import QcRejectedPage from "@/pages/staff/qc/rejected/QcRejectedPage";
 import StaffReportsPage from "@/pages/staff/StaffReportsPage";
 import StaffResultsPage from "@/pages/staff/StaffResultsPage";
 import StaffAnalystPage from "@/pages/staff/StaffAnalystPage";
@@ -102,9 +105,14 @@ export const appRoutes: RouteObject[] = [
             path: "qc",
             element: (
               <StaffRouteGate routeKey="qc">
-                <StaffQcPage />
+                <StaffQcLayout />
               </StaffRouteGate>
             ),
+            children: [
+              { index: true, element: <QcReviewDeskPage /> },
+              { path: "history", element: <QcHistoryPage /> },
+              { path: "rejected", element: <QcRejectedPage /> },
+            ],
           },
           {
             path: "reports",

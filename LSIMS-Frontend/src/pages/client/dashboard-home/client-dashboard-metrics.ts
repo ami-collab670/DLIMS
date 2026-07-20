@@ -2,6 +2,7 @@ import { fetchJobOrders } from "@/features/jobs/api";
 import { fetchFinancialRecords } from "@/features/laboratory/financial-records-api";
 import { fetchSamples } from "@/features/laboratory/staff-api";
 import { JOB_PRIORITY_LABEL, JOB_STATUS_LABEL } from "@/lib/job-order-labels";
+import { parseMoney } from "@/lib/money";
 import { clientJobReferenceLabel } from "@/lib/sample-reference-display";
 import {
   CLIENT_PROGRESS_STEP_LABEL,
@@ -37,11 +38,6 @@ export type ChartCountRow = {
 export type InvoiceDueRow = FinancialRecord & {
   amountDue: number;
 };
-
-export function parseMoney(value: string | null | undefined): number {
-  const n = Number.parseFloat(value ?? "");
-  return Number.isFinite(n) ? n : 0;
-}
 
 export function invoiceAmountDue(record: FinancialRecord): number {
   const due = parseMoney(record.amount_expected) - parseMoney(record.amount_paid);

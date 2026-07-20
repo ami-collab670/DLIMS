@@ -9,6 +9,7 @@ import { fetchRoles } from "@/features/accounts/roles-api";
 import { fetchFinancialRecords } from "@/features/laboratory/financial-records-api";
 import { laboratoryQueryKeys } from "@/features/laboratory/laboratory-query-keys";
 import { JOB_PRIORITY_LABEL, JOB_STATUS_LABEL, shortJobId } from "@/lib/job-order-labels";
+import { formatMoneyFromApi } from "@/lib/money";
 import { clientJobReferenceLabel } from "@/lib/sample-reference-display";
 import type { FinancialRecord, JobOrder, PaymentStatus } from "@/types/laboratory";
 
@@ -141,11 +142,11 @@ export function FinanceJobDetailPanel({ job, onClose, onUpdated }: Props) {
                 </div>
                 <div>
                   <dt className="text-muted-foreground">Expected</dt>
-                  <dd className="tabular-nums">{record.amount_expected}</dd>
+                  <dd className="tabular-nums">{formatMoneyFromApi(record.amount_expected)}</dd>
                 </div>
                 <div>
                   <dt className="text-muted-foreground">Paid</dt>
-                  <dd className="tabular-nums">{record.amount_paid}</dd>
+                  <dd className="tabular-nums">{formatMoneyFromApi(record.amount_paid)}</dd>
                 </div>
                 {record.paid_at ? (
                   <div className="sm:col-span-2">

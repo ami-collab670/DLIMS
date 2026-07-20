@@ -5,6 +5,8 @@ import {
   type ClientCatalogTest,
 } from "./service-catalog";
 
+import { formatMoneyPlain } from "@/lib/money";
+
 export const MAX_JOB_REQUEST_SAMPLES = 50;
 
 export type MultiSampleMode = "uniform" | "distinct";
@@ -85,7 +87,7 @@ export function buildJobDescription(input: {
     }
     const one = sumSelectedPrices(ids, input.catalogIndex);
     lines.push(
-      `Indicative subtotal per sample: ${one.toFixed(2)} ETB × ${input.sampleCount} sample(s) = ${(one * input.sampleCount).toFixed(2)} ETB`,
+      `Indicative subtotal per sample: ${formatMoneyPlain(one)} ETB × ${input.sampleCount} sample(s) = ${formatMoneyPlain(one * input.sampleCount)} ETB`,
     );
   } else {
     let grand = 0;
@@ -111,7 +113,7 @@ export function buildJobDescription(input: {
       lines.push(input.globalNotes.trim());
       lines.push("");
     }
-    lines.push(`Indicative total (all samples): ${grand.toFixed(2)} ETB`);
+    lines.push(`Indicative total (all samples): ${formatMoneyPlain(grand)} ETB`);
   }
 
   lines.push(`Confirmation code: ${input.confirmationCode}`);

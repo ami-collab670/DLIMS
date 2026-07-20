@@ -31,6 +31,12 @@ import {
   StaffComplaintStatusBadge,
 } from "./staff-complaint-badges";
 import {
+  countHiddenComplaints,
+  filterComplaintsForDepartment,
+  filterNonPaymentComplaints,
+} from "@/pages/staff/qc-manager/shared/department-scope-utils";
+
+import {
   StaffComplaintDetailPanel,
   StaffComplaintDetailPanelLoading,
 } from "./staff-complaint-detail-panel";
@@ -38,9 +44,13 @@ import {
 export function StaffComplaintsSection({
   clientIdFilter,
   breadcrumbOwnerKey = "compliance-complaint-detail",
+  departmentJobIds,
+  readOnlyActions = false,
 }: {
   clientIdFilter?: string;
   breadcrumbOwnerKey?: string;
+  departmentJobIds?: Set<string>;
+  readOnlyActions?: boolean;
 } = {}) {
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedComplaintId = searchParams.get("complaint");
@@ -113,11 +123,28 @@ export function StaffComplaintsSection({
     });
   }, [setSearchParams]);
 
+  const visibleResults = useMemo(() => {
+    if (!listData) return [];
+    let rows = listData.results;
+    if (departmentJobIds) {
+      rows = filterComplaintsForDepartment(rows, departmentJobIds);
+    }
+    if (readOnlyActions) {
+      rows = filterNonPaymentComplaints(rows);
+    }
+    return rows;
+  }, [listData, departmentJobIds, readOnlyActions]);
+
+  const hiddenOnPage = useMemo(() => {
+    if (!listData || !departmentJobIds) return 0;
+    return countHiddenComplaints(listData.results, departmentJobIds);
+  }, [listData, departmentJobIds]);
+
   const displayComplaint = useMemo(() => {
     if (!selectedComplaintId) return null;
     if (detailComplaint) return detailComplaint;
-    return listData?.results.find((c) => c.id === selectedComplaintId) ?? null;
-  }, [selectedComplaintId, listData, detailComplaint]);
+    return visibleResults.find((c) => c.id === selectedComplaintId) ?? null;
+  }, [selectedComplaintId, visibleResults, detailComplaint]);
 
   const complaintDetailSegments = useMemo(() => {
     if (!selectedComplaintId) return [];
@@ -195,6 +222,19 @@ export function StaffComplaintsSection({
           </div>
         </TableToolbar>
 
+        {departmentJobIds || readOnlyActions ? (
+          <p className="text-xs text-muted-foreground">
+            {departmentJobIds
+              ? "Showing complaints linked to jobs in your department only. Unlinked or other-department complaints on this page are hidden"
+              : null}
+            {departmentJobIds && hiddenOnPage > 0 ? ` (${hiddenOnPage} hidden here)` : null}
+            {departmentJobIds ? "." : null}
+            {readOnlyActions
+              ? " Some complaint categories are not shown in your role. Resolve, reject, and close actions require Lab Director, Reception, or Admin."
+              : null}
+          </p>
+        ) : null}
+
         <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
           {isLoading ? (
             <div className="flex items-center justify-center gap-2 py-16 text-muted-foreground">
@@ -208,13 +248,18 @@ export function StaffComplaintsSection({
                 {getApiErrorMessage(error)}
               </p>
             </div>
-          ) : !listData?.results.length ? (
+          ) : !visibleResults.length ? (
             <div className="flex flex-col items-center gap-2 py-16 text-center text-muted-foreground">
               <MessageSquare className="size-10 opacity-40" />
-              <p className="font-medium text-foreground">No complaints logged</p>
+              <p className="font-medium text-foreground">
+                {listData?.results.length && departmentJobIds
+                  ? "No department-linked complaints on this page"
+                  : "No complaints logged"}
+              </p>
               <p className="max-w-sm text-sm">
-                Client-submitted complaints will appear here for review and
-                resolution.
+                {departmentJobIds
+                  ? "Try another page or adjust filters. Complaints without a job in your department are not shown."
+                  : "Client-submitted complaints will appear here for review and resolution."}
               </p>
             </div>
           ) : (
@@ -224,7 +269,9 @@ export function StaffComplaintsSection({
                   <tr className="border-b border-border bg-muted/40">
                     <th className="px-4 py-3 font-medium">Category</th>
                     <th className="px-4 py-3 font-medium">Description</th>
-                    <th className="px-4 py-3 font-medium">Client</th>
+                    {!readOnlyActions ? (
+                      <th className="px-4 py-3 font-medium">Client</th>
+                    ) : null}
                     <th className="px-4 py-3 font-medium">Status</th>
                     <th className="px-4 py-3 font-medium">Job</th>
                     <th className="px-4 py-3 font-medium">
@@ -236,7 +283,7 @@ export function StaffComplaintsSection({
                   </tr>
                 </thead>
                 <tbody>
-                  {listData.results.map((complaint) => (
+                  {visibleResults.map((complaint) => (
                     <tr
                       key={complaint.id}
                       className={cn(
@@ -251,9 +298,11 @@ export function StaffComplaintsSection({
                       <td className="max-w-[220px] truncate px-4 py-3 text-muted-foreground">
                         {complaint.description?.trim() || "—"}
                       </td>
-                      <td className="max-w-[160px] truncate px-4 py-3 text-xs">
-                        {complaint.client_email ?? complaint.client}
-                      </td>
+                      {!readOnlyActions ? (
+                        <td className="max-w-[160px] truncate px-4 py-3 text-xs">
+                          {complaint.client_email ?? complaint.client}
+                        </td>
+                      ) : null}
                       <td className="px-4 py-3">
                         <StaffComplaintStatusBadge status={complaint.status} />
                       </td>
@@ -272,11 +321,11 @@ export function StaffComplaintsSection({
             </div>
           )}
 
-          {listData && listData.count > 0 ? (
+          {listData && (departmentJobIds ? visibleResults.length > 0 : listData.count > 0) ? (
             <TablePaginationFooter
               page={page}
               pageSize={pageSize}
-              count={listData.count}
+              count={departmentJobIds ? visibleResults.length : listData.count}
               onPageChange={setPage}
               isFetching={isFetching && !isLoading}
             />
@@ -310,6 +359,7 @@ export function StaffComplaintsSection({
                 onClose={closeComplaint}
                 onUpdated={() => undefined}
                 onDeleted={closeComplaint}
+                readOnlyActions={readOnlyActions}
               />
             ) : (
               <div className="flex h-full items-center justify-center border-l border-border bg-card p-4 text-sm text-muted-foreground">

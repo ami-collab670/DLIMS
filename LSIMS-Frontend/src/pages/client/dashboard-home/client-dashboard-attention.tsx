@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 
 import { fetchComplaints } from "@/features/laboratory/complaints-api";
 import { JOB_STATUS_LABEL } from "@/lib/job-order-labels";
+import { formatMoney, formatMoneyFromApi } from "@/lib/money";
 import {
   clientResultsJobUrl,
   complaintsNeedingFollowUp,
@@ -167,9 +168,10 @@ export function ClientDashboardAttention() {
                     </span>
                   </div>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Expected {inv.amount_expected} ETB · Paid {inv.amount_paid} ETB · Due{" "}
+                    Expected {formatMoneyFromApi(inv.amount_expected)} · Paid{" "}
+                    {formatMoneyFromApi(inv.amount_paid)} · Due{" "}
                     <span className="font-medium text-foreground">
-                      {inv.amountDue.toFixed(2)} ETB
+                      {formatMoney(inv.amountDue)}
                     </span>
                   </p>
                 </li>

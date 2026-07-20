@@ -3,11 +3,8 @@ import { useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { JOB_PRIORITY_LABEL } from "@/lib/job-order-labels";
+import { formatMoney, parseMoney, formatMoneyFromApi } from "@/lib/money";
 import { clientJobReferenceLabel } from "@/lib/sample-reference-display";
-import {
-  formatMoney,
-  parseMoney,
-} from "@/pages/staff/finance/dashboard/finance-dashboard-utils";
 import type { FinancialRecord, JobOrder, JobPriority } from "@/types/laboratory";
 
 import { parseJobBillingSummary, type JobBillingSummary } from "./parse-job-billing";
@@ -117,7 +114,7 @@ export function FinanceJobBillingBreakdown({
         {invoice ? (
           <span className="text-muted-foreground">
             Invoice expected:{" "}
-            <span className="tabular-nums">{invoice.amount_expected} ETB</span>
+            <span className="tabular-nums">{formatMoneyFromApi(invoice.amount_expected)}</span>
           </span>
         ) : null}
       </div>

@@ -1,17 +1,31 @@
 import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle, Loader2 } from "lucide-react";
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
 
 import { fetchPriorityAlerts } from "@/features/laboratory/priority-alerts-api";
 import { laboratoryQueryKeys } from "@/features/laboratory/laboratory-query-keys";
 import { shortJobId } from "@/lib/job-order-labels";
+import { filterPriorityAlertsForDepartment } from "@/pages/staff/qc-manager/shared/department-scope-utils";
 
-export function StaffCompliancePriorityAlerts() {
+export function StaffCompliancePriorityAlerts({
+  departmentJobIds,
+}: {
+  departmentJobIds?: Set<string>;
+}) {
   const { data: alerts = [], isLoading, isError } = useQuery({
     queryKey: laboratoryQueryKeys.priorityAlerts(),
     queryFn: fetchPriorityAlerts,
     staleTime: 60_000,
   });
+
+  const { visibleAlerts, hiddenCount } = useMemo(() => {
+    if (!departmentJobIds) {
+      return { visibleAlerts: alerts, hiddenCount: 0 };
+    }
+    const visible = filterPriorityAlertsForDepartment(alerts, departmentJobIds);
+    return { visibleAlerts: visible, hiddenCount: alerts.length - visible.length };
+  }, [alerts, departmentJobIds]);
 
   if (isLoading) {
     return (
@@ -30,14 +44,24 @@ export function StaffCompliancePriorityAlerts() {
     );
   }
 
-  if (alerts.length === 0) return null;
+  if (visibleAlerts.length === 0) {
+    if (departmentJobIds && alerts.length > 0) {
+      return (
+        <p className="text-xs text-muted-foreground">
+          {hiddenCount} organization-wide priority alert{hiddenCount === 1 ? "" : "s"} hidden
+          (outside your department).
+        </p>
+      );
+    }
+    return null;
+  }
 
   return (
     <section className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 shadow-sm">
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <AlertTriangle className="size-4 text-amber-600" aria-hidden />
         <h3 className="text-sm font-semibold">
-          {alerts.length} priority job alert{alerts.length === 1 ? "" : "s"} need
+          {visibleAlerts.length} priority job alert{visibleAlerts.length === 1 ? "" : "s"} need
           attention
         </h3>
         <Link
@@ -48,11 +72,14 @@ export function StaffCompliancePriorityAlerts() {
         </Link>
       </div>
       <p className="mb-3 text-xs text-muted-foreground">
-        Overdue normal-priority jobs flagged by the laboratory priority-alerts
-        endpoint — separate from complaint status.
+        Overdue normal-priority jobs flagged by the laboratory priority-alerts endpoint — separate
+        from complaint status.
+        {hiddenCount > 0
+          ? ` ${hiddenCount} alert${hiddenCount === 1 ? "" : "s"} outside your department hidden.`
+          : null}
       </p>
       <ul className="space-y-2">
-        {alerts.slice(0, 5).map((alert) => (
+        {visibleAlerts.slice(0, 5).map((alert) => (
           <li
             key={alert.job}
             className="flex flex-wrap items-baseline gap-x-2 gap-y-1 rounded-md bg-background/80 px-3 py-2 text-sm"

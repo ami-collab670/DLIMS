@@ -32,6 +32,7 @@ type Props = {
   onClose: () => void;
   onUpdated: (updated: ComplaintRecord) => void;
   onDeleted: () => void;
+  readOnlyActions?: boolean;
 };
 
 export function StaffComplaintDetailPanel({
@@ -39,6 +40,7 @@ export function StaffComplaintDetailPanel({
   onClose,
   onUpdated,
   onDeleted,
+  readOnlyActions = false,
 }: Props) {
   const [dialog, setDialog] = useState<DialogMode>(null);
   const [displayComplaint, setDisplayComplaint] = useState(complaint);
@@ -51,10 +53,14 @@ export function StaffComplaintDetailPanel({
     displayComplaint.status === "open" || displayComplaint.status === "in_review";
 
   const rows: { label: string; value: ReactNode }[] = [
-    {
-      label: "Client",
-      value: displayComplaint.client_email ?? displayComplaint.client,
-    },
+    ...(readOnlyActions
+      ? []
+      : [
+          {
+            label: "Client",
+            value: displayComplaint.client_email ?? displayComplaint.client,
+          },
+        ]),
     {
       label: "Category",
       value: <StaffComplaintCategoryBadge category={displayComplaint.category} />,
@@ -166,45 +172,53 @@ export function StaffComplaintDetailPanel({
           </dl>
 
           <div className="mt-6 flex flex-wrap gap-2 border-t border-border pt-4">
-            {isOpen ? (
+            {readOnlyActions ? (
+              <p className="text-xs text-muted-foreground">
+                Closing complaints requires Lab Director, Reception, or Admin (backend permission).
+              </p>
+            ) : (
               <>
+                {isOpen ? (
+                  <>
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => setDialog("resolve")}
+                      disabled={Boolean(dialog)}
+                    >
+                      Resolve
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => setDialog("reject")}
+                      disabled={Boolean(dialog)}
+                    >
+                      Reject
+                    </Button>
+                  </>
+                ) : null}
                 <Button
                   type="button"
                   size="sm"
-                  onClick={() => setDialog("resolve")}
+                  variant="outline"
+                  onClick={() => setDialog("edit")}
                   disabled={Boolean(dialog)}
                 >
-                  Resolve
+                  Edit
                 </Button>
                 <Button
                   type="button"
                   size="sm"
-                  variant="destructive"
-                  onClick={() => setDialog("reject")}
+                  variant="outline"
+                  onClick={() => setDialog("delete")}
                   disabled={Boolean(dialog)}
                 >
-                  Reject
+                  Delete
                 </Button>
               </>
-            ) : null}
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => setDialog("edit")}
-              disabled={Boolean(dialog)}
-            >
-              Edit
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => setDialog("delete")}
-              disabled={Boolean(dialog)}
-            >
-              Delete
-            </Button>
+            )}
           </div>
         </div>
       </div>

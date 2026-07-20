@@ -44,10 +44,12 @@ export function StaffJobsSection({
   intake,
   manageJobs,
   financeReadOnly = false,
+  hideClientIdentity = false,
 }: {
   intake: boolean;
   manageJobs: boolean;
   financeReadOnly?: boolean;
+  hideClientIdentity?: boolean;
 }) {
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -217,12 +219,14 @@ export function StaffJobsSection({
                       sort={sort}
                       onSort={handleSort}
                     />
-                    <SortableJobTableHead
-                      label="Client"
-                      sortKey="client__email"
-                      sort={sort}
-                      onSort={handleSort}
-                    />
+                    {!hideClientIdentity ? (
+                      <SortableJobTableHead
+                        label="Client"
+                        sortKey="client__email"
+                        sort={sort}
+                        onSort={handleSort}
+                      />
+                    ) : null}
                     <SortableJobTableHead
                       label="Status"
                       sortKey="current_status"
@@ -265,9 +269,11 @@ export function StaffJobsSection({
                           <span className="ml-2 text-destructive">Cancelled</span>
                         ) : null}
                       </td>
-                      <td className="max-w-[180px] truncate px-4 py-3">
-                        {job.client_name || job.client}
-                      </td>
+                      {!hideClientIdentity ? (
+                        <td className="max-w-[180px] truncate px-4 py-3">
+                          {job.client_name || job.client}
+                        </td>
+                      ) : null}
                       <td className="px-4 py-3">
                         <LaboratoryStatusBadge status={job.current_status} />
                       </td>
@@ -317,6 +323,7 @@ export function StaffJobsSection({
                 onClose={closeJob}
                 manageJobs={manageJobs}
                 financeReadOnly={financeReadOnly}
+                hideClientIdentity={hideClientIdentity}
                 onUpdated={() => {
                   queryClient.invalidateQueries({ queryKey: ["staff-job-orders"] });
                   queryClient.invalidateQueries({

@@ -83,8 +83,9 @@ export type SampleRecord = {
   received_by_email?: string | null;
   /** Client email. */
   submitted_by?: string;
-  /** Analyst email or null. */
+  /** Assigned analyst user id (UUID) on write; may be email on legacy reads. */
   assigned_analyst: string | null;
+  assigned_analyst_email?: string | null;
   assigned_at: string | null;
   reassigned_reason: string;
   /** When true, ``sample_status`` is driven by the parent job (staff change job status to move samples). */

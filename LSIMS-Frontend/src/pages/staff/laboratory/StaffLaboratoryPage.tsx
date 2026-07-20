@@ -6,8 +6,11 @@ import { useTrackedTabs } from "@/hooks/use-tracked-tabs";
 import { StaffRoleBanner } from "@/pages/staff/lims-extensions/staff-role-banner";
 import { ReceptionistLaboratorySection } from "@/pages/staff/receptionist/laboratory/ReceptionistLaboratorySection";
 import {
+  canAssignSampleAnalyst,
   canIntakeSamples,
   canManageJobsAndSamples,
+  canPatchSampleDetails,
+  isQcManager,
   isReceptionist,
   staffRoleName,
 } from "@/lib/staff-permissions";
@@ -39,6 +42,9 @@ export default function StaffLaboratoryPage() {
 
   const intake = canIntakeSamples(user);
   const manageJobs = canManageJobsAndSamples(user);
+  const canPatchSample = canPatchSampleDetails(user);
+  const canAssignAnalyst = canAssignSampleAnalyst(user);
+  const qcManager = isQcManager(user);
 
   const showAssignmentsTab = manageJobs;
   const [searchParams, setSearchParams] = useSearchParams();
@@ -111,6 +117,12 @@ export default function StaffLaboratoryPage() {
               samples, assign tests, and check finance clearance — finance edits stay read-only
               here.
             </>
+          ) : qcManager ? (
+            <>
+              Assign analysts to released samples with tests in your department. Samples not yet
+              released for laboratory work are hidden. Maintain your section test catalog under{" "}
+              <strong>Test catalog</strong> in the sidebar.
+            </>
           ) : (
             <>
               Job orders, analyst routing, and test assignments — wired to the laboratory API.
@@ -139,14 +151,17 @@ export default function StaffLaboratoryPage() {
               intake={intake}
               manageJobs={manageJobs}
               financeReadOnly={false}
+              hideClientIdentity={shouldHideClientSampleNames(user)}
             />
           ) : null}
           {tab === "analyst" ? (
             <StaffAnalystSection
               intake={intake}
-              manage={manageJobs}
+              canPatchSample={canPatchSample}
+              canAssignAnalyst={canAssignAnalyst}
               isAnalyst={staffRoleName(user) === "analyst"}
               hideClientSampleNames={shouldHideClientSampleNames(user)}
+              filterAwaitingPayment={qcManager}
             />
           ) : null}
           {tab === "assignments" && showAssignmentsTab ? (

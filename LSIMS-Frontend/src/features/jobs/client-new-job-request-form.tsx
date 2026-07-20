@@ -24,6 +24,7 @@ import {
 } from "@/features/jobs/job-request-description";
 import { fetchClientServiceCatalog } from "@/features/laboratory/test-catalog-api";
 import { getApiErrorMessage } from "@/lib/api-error";
+import { formatMoney } from "@/lib/money";
 import { qrTextToDataUrl } from "@/lib/qr-data-url";
 import {
   JOB_PRIORITY_LABEL,
@@ -429,7 +430,7 @@ export function ClientNewJobRequestForm({ onCreated }: Props) {
     sampleCount >= 2 && multiSampleMode === "distinct"
       ? `sample ${activeSampleIndex + 1}`
       : sampleCount > 1 && multiSampleMode === "uniform"
-        ? `${subtotalUniform.toFixed(2)} ETB × ${sampleCount} samples`
+        ? `${formatMoney(subtotalUniform)} × ${sampleCount} samples`
         : undefined;
 
   return (
@@ -799,14 +800,14 @@ export function ClientNewJobRequestForm({ onCreated }: Props) {
                       ) : null}
                     </span>
                     <span className="font-mono tabular-nums">
-                      {test.priceNumber.toFixed(2)} ETB
+                      {formatMoney(test.priceNumber)}
                     </span>
                   </li>
                 ))}
                 <li className="flex justify-between gap-2 bg-muted/30 px-3 py-2 font-medium">
                   <span>Indicative total (all samples)</span>
                   <span className="font-mono tabular-nums">
-                    {indicativeTotal.toFixed(2)} ETB
+                    {formatMoney(indicativeTotal)}
                   </span>
                 </li>
               </ul>

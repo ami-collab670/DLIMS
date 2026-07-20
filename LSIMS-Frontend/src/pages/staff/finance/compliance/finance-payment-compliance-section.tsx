@@ -6,10 +6,10 @@ import { Button } from "@/components/ui/button";
 import { fetchComplaints } from "@/features/laboratory/complaints-api";
 import { shortJobId } from "@/lib/job-order-labels";
 import { isFinance } from "@/lib/staff-permissions";
+import { formatMoney, formatMoneyFromApi } from "@/lib/money";
 import { dashboardKeys } from "@/pages/staff/dashboard-home/dashboard-api-keys";
 import {
   fetchAllFinancialRecords,
-  formatMoney,
   outstandingAmount,
 } from "@/pages/staff/finance/dashboard/finance-dashboard-utils";
 import {
@@ -176,8 +176,8 @@ export function FinancePaymentComplianceSection() {
                     <tr key={r.invoice_no} className="border-b">
                       <td className="px-4 py-2 font-mono text-xs">{r.invoice_no}</td>
                       <td className="px-4 py-2 font-mono text-xs">{shortJobId(r.job)}</td>
-                      <td className="px-4 py-2 tabular-nums">{r.amount_expected}</td>
-                      <td className="px-4 py-2 tabular-nums">{r.amount_paid}</td>
+                      <td className="px-4 py-2 tabular-nums">{formatMoneyFromApi(r.amount_expected)}</td>
+                      <td className="px-4 py-2 tabular-nums">{formatMoneyFromApi(r.amount_paid)}</td>
                       <td className="px-4 py-2 tabular-nums">
                         {formatMoney(outstandingAmount(r))}
                       </td>

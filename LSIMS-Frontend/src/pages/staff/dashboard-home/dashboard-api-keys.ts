@@ -27,4 +27,16 @@ export const dashboardKeys = {
   financeRecentNotifications: ["staff-dashboard", "finance", "recent-notifications"] as const,
   financeJobContext: (jobIdsKey: string) =>
     ["staff-dashboard", "finance", "job-context", jobIdsKey] as const,
+  qcManagerJobIds: ["staff-dashboard", "qc-manager", "job-ids"] as const,
+  qcManagerKpis: ["staff-dashboard", "qc-manager", "kpis"] as const,
+  qcManagerQcQueue: ["staff-dashboard", "qc-manager", "qc-queue"] as const,
+  qcManagerPrepBacklog: ["staff-dashboard", "qc-manager", "prep-backlog"] as const,
+  qcManagerTeamRoster: ["staff-dashboard", "qc-manager", "team-roster"] as const,
+  qcManagerComplaints: ["staff-dashboard", "qc-manager", "complaints"] as const,
+  qcManagerAssignmentQueue: ["staff-dashboard", "qc-manager", "assignment-queue"] as const,
+  qcManagerAnalystDirectory: (departmentId: string | null) =>
+    ["staff-dashboard", "qc-manager", "analyst-directory", departmentId ?? "none"] as const,
+  qcDeskKpis: ["staff-dashboard", "qc-desk", "kpis"] as const,
+  qcDeskInboxPreview: ["staff-dashboard", "qc-desk", "inbox-preview"] as const,
+  qcDeskRecentDecisions: ["staff-dashboard", "qc-desk", "recent-decisions"] as const,
 } as const;

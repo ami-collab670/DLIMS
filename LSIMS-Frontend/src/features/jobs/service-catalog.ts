@@ -6,6 +6,8 @@
 import type { DepartmentRecord } from "@/types/account-admin";
 import type { TestCatalogItem } from "@/types/laboratory";
 
+import { formatMoneyPlain } from "@/lib/money";
+
 export const GENERAL_SERVICES_LABEL = "General services";
 export const OTHER_SERVICES_LABEL = "Other";
 
@@ -173,7 +175,7 @@ export function sumSelectedPrices(
 
 export function formatCatalogLine(test: ClientCatalogTest): string {
   const unitSuffix = test.unit ? ` (${test.unit})` : "";
-  return `- [${test.test_code} · ${test.departmentName}] ${test.test_name} — ${test.priceNumber.toFixed(2)} ETB${unitSuffix}`;
+  return `- [${test.test_code} · ${test.departmentName}] ${test.test_name} — ${formatMoneyPlain(test.priceNumber)} ETB${unitSuffix}`;
 }
 
 function departmentFilterLabel(group: ClientCatalogGroup): string {

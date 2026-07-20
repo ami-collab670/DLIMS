@@ -4,6 +4,8 @@ import { Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { fetchJobOrders } from "@/features/jobs/api";
 import { JOB_PRIORITY_LABEL, JOB_STATUS_LABEL, shortJobId } from "@/lib/job-order-labels";
+import { isQcManager } from "@/lib/staff-permissions";
+import { useAuthStore } from "@/stores/auth-store";
 
 import { LIMS_EXTENSION_PAGE_SIZE } from "../constants";
 import { LimsPageIntro } from "../lims-page-intro";
@@ -13,6 +15,9 @@ import { StaffRoleBanner } from "../staff-role-banner";
  * Backend: no COA/PDF — completed jobs are available via jobs API with `current_status=completed`.
  */
 export default function StaffReportsPage() {
+  const user = useAuthStore((s) => s.user);
+  const qcManager = isQcManager(user);
+
   const { data, isLoading, isError } = useQuery({
     queryKey: ["lims-reports-completed-jobs"],
     queryFn: () =>
@@ -26,24 +31,26 @@ export default function StaffReportsPage() {
 
   function downloadCsv() {
     if (!data?.results.length) return;
-    const headers = [
-      "job_short_id",
-      "client",
-      "priority",
-      "sample_count",
-      "updated_at",
-    ];
-    const rows = data.results.map((j) =>
-      [
-        shortJobId(j.id),
-        j.client,
-        j.priority,
-        String(j.sample_count),
-        j.updated_at,
-      ]
-        .map((c) => `"${String(c).replace(/"/g, '""')}"`)
-        .join(","),
-    );
+    const headers = qcManager
+      ? ["job_short_id", "priority", "sample_count", "updated_at"]
+      : ["job_short_id", "client", "priority", "sample_count", "updated_at"];
+    const rows = data.results.map((j) => {
+      const cols = qcManager
+        ? [
+            shortJobId(j.id),
+            j.priority,
+            String(j.sample_count),
+            j.updated_at,
+          ]
+        : [
+            shortJobId(j.id),
+            j.client,
+            j.priority,
+            String(j.sample_count),
+            j.updated_at,
+          ];
+      return cols.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",");
+    });
     const content = [headers.join(","), ...rows].join("\n");
     const blob = new Blob([content], {
       type: "text/csv;charset=utf-8",
@@ -64,13 +71,23 @@ export default function StaffReportsPage() {
           CSV snapshot of <strong>{JOB_STATUS_LABEL.completed}</strong> jobs from the data the
           backend already exposes.
         </p>
+        {qcManager ? (
+          <p className="mt-2 text-sm text-muted-foreground">
+            Completed jobs shown here are limited to those your department touches — the jobs API
+            enforces department scope for department managers.
+          </p>
+        ) : null}
       </LimsPageIntro>
 
       <StaffRoleBanner />
 
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3 shadow-sm">
         <p className="text-sm text-muted-foreground">
-          {data ? `${data.count} completed job(s) in the system` : "Loading totals…"}
+          {data
+            ? qcManager
+              ? `${data.count} completed job(s) in your department`
+              : `${data.count} completed job(s) in the system`
+            : "Loading totals…"}
         </p>
         <Button
           type="button"
@@ -96,7 +113,9 @@ export default function StaffReportsPage() {
               <thead>
                 <tr className="border-b bg-muted/40">
                   <th className="px-4 py-3 font-medium">Job</th>
-                  <th className="px-4 py-3 font-medium">Client</th>
+                  {!qcManager ? (
+                    <th className="px-4 py-3 font-medium">Client</th>
+                  ) : null}
                   <th className="px-4 py-3 font-medium">Priority</th>
                   <th className="px-4 py-3 font-medium">Samples</th>
                   <th className="px-4 py-3 font-medium">Completed / updated</th>
@@ -106,7 +125,9 @@ export default function StaffReportsPage() {
                 {data?.results.slice(0, LIMS_EXTENSION_PAGE_SIZE).map((j) => (
                   <tr key={j.id} className="border-b border-border">
                     <td className="px-4 py-3 font-mono text-xs">{shortJobId(j.id)}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{j.client}</td>
+                    {!qcManager ? (
+                      <td className="px-4 py-3 text-muted-foreground">{j.client}</td>
+                    ) : null}
                     <td className="px-4 py-3 capitalize">
                       {JOB_PRIORITY_LABEL[j.priority]}
                     </td>

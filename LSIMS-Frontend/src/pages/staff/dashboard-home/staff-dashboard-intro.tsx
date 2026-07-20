@@ -2,6 +2,7 @@ import {
   canIntakeSamples,
   canManageJobsAndSamples,
   isFinance,
+  isQcManager,
   isReceptionist,
   isStaffAdmin,
 } from "@/lib/staff-permissions";
@@ -23,6 +24,7 @@ export function StaffDashboardIntro() {
   const admin = isStaffAdmin(user);
   const receptionist = isReceptionist(user);
   const finance = isFinance(user);
+  const qcManager = isQcManager(user);
 
   let subtitle =
     "Laboratory information snapshot — job pipeline, analyst workspaces, and quick access to LSIMS areas.";
@@ -38,6 +40,11 @@ export function StaffDashboardIntro() {
       "Finance desk overview — invoices, payments, clearance queues, and payment compliance.";
     roleHint =
       "Use the queues below to create invoices, record payments, and track discounts. Contact clients and reception via job details; your inbox is read-only.";
+  } else if (qcManager) {
+    subtitle =
+      "Quality control overview — submitted results awaiting review, recent decisions, and department QC metrics.";
+    roleHint =
+      "Approve or reject analysis results submitted by analysts in your department. Client identity is hidden; use QC review for all decisions.";
   } else if (admin) {
     roleHint +=
       " As an administrator you can manage users, the test catalog, and laboratory records.";

@@ -27,8 +27,7 @@ import {
   canAccessStaffRoute,
   type StaffRouteKey,
 } from "@/lib/staff-route-access";
-import { getStaffNavItemLabel } from "@/lib/staff-nav-meta";
-import { isFinance, isReceptionist, staffRoleName } from "@/lib/staff-permissions";
+import { getStaffNavItemLabel, getStaffRoleStrip, getStaffWorkspaceTitle } from "@/lib/staff-nav-meta";
 import { useAuthStore } from "@/stores/auth-store";
 
 type NavItem = {
@@ -68,16 +67,8 @@ export function StaffDashboardLayout() {
     canAccessStaffRoute(item.routeKey, user),
   );
 
-  const roleStrip =
-    user?.role_detail?.display_name ??
-    staffRoleName(user)?.replace(/_/g, " ") ??
-    (user?.is_superuser ? "Superuser" : null);
-
-  const workspaceTitle = isReceptionist(user)
-    ? "Receptionist dashboard"
-    : isFinance(user)
-      ? "Finance desk"
-      : "Staff workspace";
+  const roleStrip = getStaffRoleStrip(user);
+  const workspaceTitle = getStaffWorkspaceTitle(user);
 
   return (
     <div className="flex min-h-dvh bg-background">

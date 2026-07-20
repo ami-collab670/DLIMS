@@ -1,1 +1,1 @@
-export { default } from "./lims-extensions/qc/StaffQcPage";
+export { default } from "./qc/StaffQcLayout";

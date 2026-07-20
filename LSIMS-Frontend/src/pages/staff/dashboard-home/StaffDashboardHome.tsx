@@ -1,7 +1,8 @@
-import { isFinance, isReceptionist, isStaffAdmin, staffRoleName } from "@/lib/staff-permissions";
+import { isFinance, isQcManager, isReceptionist, isStaffAdmin, staffRoleName } from "@/lib/staff-permissions";
 import { useAuthStore } from "@/stores/auth-store";
 
 import FinanceDashboardHome from "@/pages/staff/finance/dashboard/FinanceDashboardHome";
+import QcDashboardHome from "@/pages/staff/qc/dashboard/QcDashboardHome";
 import ReceptionistDashboardHome from "@/pages/staff/receptionist/dashboard/ReceptionistDashboardHome";
 import { StaffRoleBanner } from "@/pages/staff/lims-extensions/staff-role-banner";
 
@@ -21,6 +22,7 @@ export default function StaffDashboardHome() {
   const isAnalyst = staffRoleName(user) === "analyst";
   const receptionist = isReceptionist(user);
   const finance = isFinance(user);
+  const qcManager = isQcManager(user);
 
   if (finance) {
     return <FinanceDashboardHome />;
@@ -28,6 +30,10 @@ export default function StaffDashboardHome() {
 
   if (receptionist) {
     return <ReceptionistDashboardHome />;
+  }
+
+  if (qcManager) {
+    return <QcDashboardHome />;
   }
 
   return (

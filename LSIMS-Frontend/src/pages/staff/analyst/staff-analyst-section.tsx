@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { fetchSample, fetchSamples } from "@/features/laboratory/staff-api";
 import { getApiErrorMessage } from "@/lib/api-error";
 import { shortJobId } from "@/lib/job-order-labels";
+import { isSampleAwaitingPayment } from "@/lib/sample-payment-gate";
 import {
   staffSampleDisplayCode,
   staffSampleRowLabel,
@@ -25,17 +26,22 @@ import { RegisterSampleForm } from "./register-sample-form";
 
 export function StaffAnalystSection({
   intake,
-  manage,
+  canPatchSample,
+  canAssignAnalyst,
   isAnalyst,
   hideClientSampleNames,
   hidePreparation = false,
+  filterAwaitingPayment = false,
 }: {
   intake: boolean;
-  manage: boolean;
+  canPatchSample: boolean;
+  canAssignAnalyst: boolean;
   isAnalyst: boolean;
   hideClientSampleNames: boolean;
   /** Reception desk — prep start/complete is lab tech only. */
   hidePreparation?: boolean;
+  /** Department manager — hide samples until Finance clears payment. */
+  filterAwaitingPayment?: boolean;
 }) {
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
@@ -66,6 +72,17 @@ export function StaffAnalystSection({
     queryFn: () => fetchSample(selectedId!),
     enabled: Boolean(selectedId),
   });
+
+  const visibleResults = useMemo(() => {
+    const rows = data?.results ?? [];
+    if (!filterAwaitingPayment) return rows;
+    return rows.filter((s) => !isSampleAwaitingPayment(s));
+  }, [data?.results, filterAwaitingPayment]);
+
+  const hiddenAwaitingPaymentCount = useMemo(() => {
+    if (!filterAwaitingPayment || !data?.results.length) return 0;
+    return data.results.filter((s) => isSampleAwaitingPayment(s)).length;
+  }, [data?.results, filterAwaitingPayment]);
 
   const totalPages = data
     ? Math.max(1, Math.ceil(data.count / ANALYST_LIST_PAGE_SIZE))
@@ -151,6 +168,15 @@ export function StaffAnalystSection({
         </div>
       </div>
 
+      {filterAwaitingPayment ? (
+        <p className="text-xs text-muted-foreground">
+          Samples not yet released for laboratory work are hidden.
+          {hiddenAwaitingPaymentCount > 0
+            ? ` (${hiddenAwaitingPaymentCount} hidden on this page)`
+            : null}
+        </p>
+      ) : null}
+
       <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
         {isLoading ? (
           <div className="flex justify-center py-12">
@@ -177,7 +203,7 @@ export function StaffAnalystSection({
                 </tr>
               </thead>
               <tbody>
-                {data?.results.map((s) => (
+                {visibleResults.map((s) => (
                   <tr
                     key={s.id}
                     className={cn(
@@ -198,7 +224,15 @@ export function StaffAnalystSection({
                           {s.job ? shortJobId(s.job) : "—"}
                         </td>
                         <td className="max-w-[140px] truncate px-4 py-2 text-muted-foreground">
-                          {s.assigned_analyst ?? "—"}
+                          {s.assigned_analyst_email ?? s.assigned_analyst ?? (
+                            filterAwaitingPayment ? (
+                              <span className="text-amber-700 dark:text-amber-300">
+                                Unassigned
+                              </span>
+                            ) : (
+                              "—"
+                            )
+                          )}
                         </td>
                       </>
                     )}
@@ -211,11 +245,15 @@ export function StaffAnalystSection({
             </table>
           </div>
         )}
-        {data && data.count > 0 ? (
+        {data && (filterAwaitingPayment ? visibleResults.length > 0 : data.count > 0) ? (
           <div className="flex items-center justify-between border-t px-4 py-2 text-xs text-muted-foreground">
             <span>
               {(page - 1) * ANALYST_LIST_PAGE_SIZE + 1}–
-              {Math.min(page * ANALYST_LIST_PAGE_SIZE, data.count)} / {data.count}
+              {Math.min(
+                page * ANALYST_LIST_PAGE_SIZE,
+                filterAwaitingPayment ? visibleResults.length : data.count,
+              )}{" "}
+              / {filterAwaitingPayment ? visibleResults.length : data.count}
             </span>
             <div className="flex gap-2">
               <Button
@@ -244,8 +282,10 @@ export function StaffAnalystSection({
       {selectedId && detail ? (
         <AnalystSampleDetailPanel
           sample={detail}
-          manage={manage}
+          canPatchSample={canPatchSample}
+          canAssignAnalyst={canAssignAnalyst}
           hideClientSampleNames={hideClientSampleNames}
+          showResultEntry={canPatchSample || isAnalyst}
           onClose={() => setSelectedId(null)}
           onUpdated={() => {
             queryClient.invalidateQueries({ queryKey: ["staff-analyst"] });

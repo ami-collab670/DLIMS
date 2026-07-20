@@ -31,6 +31,7 @@ import {
 } from "@/features/jobs/service-catalog";
 import { fetchClientServiceCatalog } from "@/features/laboratory/test-catalog-api";
 import { getApiErrorMessage } from "@/lib/api-error";
+import { formatMoney } from "@/lib/money";
 import {
   JOB_PRIORITY_LABEL,
   JOB_PRIORITY_OPTIONS,
@@ -349,7 +350,7 @@ export function StaffJobIntakeWizard({
     sampleCount >= 2 && multiSampleMode === "distinct"
       ? `sample ${activeSampleIndex + 1}`
       : sampleCount > 1 && multiSampleMode === "uniform"
-        ? `${subtotalUniform.toFixed(2)} ETB × ${sampleCount} samples`
+        ? `${formatMoney(subtotalUniform)} × ${sampleCount} samples`
         : undefined;
 
   const selectedClient = clients.find((c) => c.id === clientId);
@@ -714,7 +715,7 @@ export function StaffJobIntakeWizard({
                               <span className="block font-medium">{test.test_name}</span>
                             </span>
                             <span className="font-mono tabular-nums">
-                              {test.priceNumber.toFixed(2)} ETB
+                              {formatMoney(test.priceNumber)}
                             </span>
                           </li>
                         ))}
@@ -728,7 +729,7 @@ export function StaffJobIntakeWizard({
                 ))}
                 <div className="flex justify-between gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2 text-sm font-medium">
                   <span>Indicative total</span>
-                  <span className="font-mono tabular-nums">{indicativeTotal.toFixed(2)} ETB</span>
+                  <span className="font-mono tabular-nums">{formatMoney(indicativeTotal)}</span>
                 </div>
               </div>
             ) : (

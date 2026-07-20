@@ -3,6 +3,7 @@ import {
   canManageJobsAndSamples,
   canManageTestCatalog,
   isFinance,
+  isQcManager,
   isReceptionist,
   staffRoleName,
 } from "@/lib/staff-permissions";
@@ -22,6 +23,7 @@ export function StaffRoleBanner() {
 
   const receptionist = isReceptionist(user);
   const finance = isFinance(user);
+  const qcManager = isQcManager(user);
 
   const caps: string[] = [];
   if (finance) {
@@ -33,6 +35,8 @@ export function StaffRoleBanner() {
     caps.push("intake (jobs & samples)");
     caps.push("job & sample updates");
     caps.push("finance coordination (read-only)");
+  } else if (qcManager) {
+    caps.push("QC review (department-scoped)");
   } else {
     if (canManageTestCatalog(user)) caps.push("catalog admin");
     if (canManageJobsAndSamples(user)) caps.push("job & sample updates");
@@ -60,6 +64,11 @@ export function StaffRoleBanner() {
       {receptionist ? (
         <p className="mt-1 text-xs text-muted-foreground">
           Reception desk — sample intake &amp; client coordination
+        </p>
+      ) : null}
+      {qcManager ? (
+        <p className="mt-1 text-xs text-muted-foreground">
+          Quality control — approve or reject submitted analysis results in your department
         </p>
       ) : null}
       {caps.length ? (

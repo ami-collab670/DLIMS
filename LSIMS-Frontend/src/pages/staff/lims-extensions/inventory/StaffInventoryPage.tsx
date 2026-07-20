@@ -1,7 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { fetchTestCatalog } from "@/features/laboratory/staff-api";
-import { canManageTestCatalog } from "@/lib/staff-permissions";
+import { formatMoneyFromApi } from "@/lib/money";
+import { canManageTestCatalog, isQcManager } from "@/lib/staff-permissions";
+import { StaffCatalogSection } from "@/pages/staff/catalog/staff-catalog-section";
 import { useAuthStore } from "@/stores/auth-store";
 
 import { LIMS_EXTENSION_PAGE_SIZE } from "../constants";
@@ -15,12 +17,36 @@ import { StaffRoleBanner } from "../staff-role-banner";
 export default function StaffInventoryPage() {
   const user = useAuthStore((s) => s.user);
   const catalogAdmin = canManageTestCatalog(user);
+  const qcManager = isQcManager(user);
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["lims-inventory-catalog"],
     queryFn: () => fetchTestCatalog({ page: 1, is_active: true }),
     staleTime: 120_000,
+    enabled: !qcManager || !catalogAdmin,
   });
+
+  if (qcManager && catalogAdmin) {
+    return (
+      <div className="space-y-8">
+        <LimsPageIntro title="Test catalog (department)">
+          <p>
+            Manage analytical tests and units for <strong>your department only</strong>.
+            The backend scopes create and edit operations to your assigned department.
+          </p>
+        </LimsPageIntro>
+
+        <StaffRoleBanner />
+
+        <StaffCatalogSection
+          canWrite={catalogAdmin}
+          hidePricing={qcManager}
+          hideDepartmentColumn={qcManager}
+          fixedDepartmentId={user?.department}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -95,7 +121,7 @@ function OverflowTable({
                 <td className="px-4 py-3 font-mono text-xs">{t.test_code}</td>
                 <td className="px-4 py-3">{t.test_name}</td>
                 <td className="px-4 py-3 text-muted-foreground">{t.unit}</td>
-                <td className="px-4 py-3 tabular-nums">{t.price}</td>
+                <td className="px-4 py-3 tabular-nums">{formatMoneyFromApi(t.price)}</td>
               </tr>
             ))}
           </tbody>

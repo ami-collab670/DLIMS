@@ -3,14 +3,13 @@ import { CheckCircle2, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { shortJobId } from "@/lib/job-order-labels";
+import { formatMoneyFromApi } from "@/lib/money";
 import { dashboardKeys } from "@/pages/staff/dashboard-home/dashboard-api-keys";
 import { formatPaidAt } from "@/pages/staff/finance/shared/finance-payment-labels";
 
 import {
   fetchAllFinancialRecords,
-  formatMoney,
   isWithinDays,
-  parseMoney,
 } from "./finance-dashboard-utils";
 
 export function FinanceRecentlyClearedQueue() {
@@ -87,7 +86,7 @@ export function FinanceRecentlyClearedQueue() {
                     {formatPaidAt(record.paid_at)}
                   </td>
                   <td className="px-3 py-2 tabular-nums">
-                    {formatMoney(parseMoney(record.amount_paid))}
+                    {formatMoneyFromApi(record.amount_paid)}
                   </td>
                 </tr>
               ))}

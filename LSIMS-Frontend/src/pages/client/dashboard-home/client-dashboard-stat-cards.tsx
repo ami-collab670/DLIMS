@@ -16,6 +16,7 @@ import { Link } from "react-router-dom";
 import { fetchJobOrders } from "@/features/jobs/api";
 import { fetchComplaints } from "@/features/laboratory/complaints-api";
 import { fetchUnreadNotificationCount } from "@/features/notifications/api";
+import { formatMoney } from "@/lib/money";
 import {
   countInProgressJobs,
   countInvoicesDue,
@@ -182,7 +183,7 @@ export function ClientDashboardStatCards() {
           loading={financeQuery.isLoading}
           context={
             outstanding > 0
-              ? `${outstanding.toFixed(2)} ETB outstanding`
+              ? `${formatMoney(outstanding)} outstanding`
               : invoicesDue > 0
                 ? "Payment required"
                 : "No pending invoices"

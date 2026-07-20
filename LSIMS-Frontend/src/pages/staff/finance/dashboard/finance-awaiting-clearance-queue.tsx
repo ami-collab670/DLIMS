@@ -3,12 +3,13 @@ import { FilePlus2, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { JOB_PRIORITY_LABEL, shortJobId } from "@/lib/job-order-labels";
+import { formatMoney } from "@/lib/money";
 import { clientJobReferenceLabel } from "@/lib/sample-reference-display";
 import { dashboardKeys } from "@/pages/staff/dashboard-home/dashboard-api-keys";
 import { parseJobBillingSummary } from "@/pages/staff/finance/shared/parse-job-billing";
 import { fetchAwaitingFinanceJobs } from "@/pages/staff/receptionist/shared/fetch-awaiting-finance-jobs";
 
-import { fetchAllFinancialRecords, formatMoney, invoiceByJobMap } from "./finance-dashboard-utils";
+import { fetchAllFinancialRecords, invoiceByJobMap } from "./finance-dashboard-utils";
 
 export function FinanceAwaitingClearanceQueue() {
   const { data, isLoading, isError } = useQuery({

@@ -16,6 +16,7 @@ import {
   JOB_STATUS_LABEL,
   shortJobId,
 } from "@/lib/job-order-labels";
+import { formatMoneyFromApi } from "@/lib/money";
 import { resolveRoleLabel } from "@/lib/resolve-role-label";
 import {
   mergeStaffJobDescriptionEdit,
@@ -29,6 +30,7 @@ export function StaffJobDetailPanel({
   manageJobs,
   onUpdated,
   financeReadOnly = false,
+  hideClientIdentity = false,
 }: {
   job: JobOrder;
   onClose: () => void;
@@ -36,6 +38,8 @@ export function StaffJobDetailPanel({
   onUpdated: () => void;
   /** Reception desk — view payment status only; no invoice create/edit. */
   financeReadOnly?: boolean;
+  /** Blind view — hide client and finance blocks (e.g. department manager). */
+  hideClientIdentity?: boolean;
 }) {
   const [priority, setPriority] = useState(job.priority);
   const [desc, setDesc] = useState(() => sanitizeJobDescriptionForStaff(job.description));
@@ -52,6 +56,7 @@ export function StaffJobDetailPanel({
     queryKey: laboratoryQueryKeys.financialRecords({ job: job.id }),
     queryFn: () => fetchFinancialRecords({ job: job.id }),
     staleTime: 60_000,
+    enabled: !hideClientIdentity,
   });
   const invoice = financialData?.results[0];
 
@@ -102,12 +107,14 @@ export function StaffJobDetailPanel({
       </div>
 
       <dl className="space-y-3 text-sm">
-        <div>
-          <dt className="text-xs text-muted-foreground">Client</dt>
-          <dd>
-            {job.client_name} ({job.client})
-          </dd>
-        </div>
+        {!hideClientIdentity ? (
+          <div>
+            <dt className="text-xs text-muted-foreground">Client</dt>
+            <dd>
+              {job.client_name} ({job.client})
+            </dd>
+          </div>
+        ) : null}
         <div>
           <dt className="text-xs text-muted-foreground">Workflow status</dt>
           <dd>{JOB_STATUS_LABEL[job.current_status]}</dd>
@@ -122,40 +129,45 @@ export function StaffJobDetailPanel({
           <dt className="text-xs text-muted-foreground">Samples</dt>
           <dd>{job.sample_count}</dd>
         </div>
-        <div>
-          <dt className="text-xs text-muted-foreground">Invoice</dt>
-          <dd>
-            {invoice ? (
-              <span className="font-mono text-xs">
-                {invoice.invoice_no} · {invoice.payment_status} · paid {invoice.amount_paid} /{" "}
-                {invoice.amount_expected}
-                {!invoice.payment_required ? " · waived" : ""}
-              </span>
-            ) : (
-              <span className="text-muted-foreground">No invoice yet</span>
-            )}
-          </dd>
-        </div>
-        {!job.is_cancelled ? (
-          <div>
-            <dt className="text-xs text-muted-foreground">Finance action</dt>
-            <dd>
-              {financeReadOnly ? (
-                <Link
-                  to={`/staff/finance?job=${job.id}`}
-                  className="text-sm font-medium text-primary hover:underline"
-                >
-                  Check payment status →
-                </Link>
-              ) : (
-                <Button type="button" size="sm" variant="outline" asChild>
-                  <Link to={`/staff/finance?job=${job.id}`}>
-                    {invoice ? "View / edit invoice" : "Create invoice"}
-                  </Link>
-                </Button>
-              )}
-            </dd>
-          </div>
+        {!hideClientIdentity ? (
+          <>
+            <div>
+              <dt className="text-xs text-muted-foreground">Invoice</dt>
+              <dd>
+                {invoice ? (
+                  <span className="font-mono text-xs">
+                    {invoice.invoice_no} · {invoice.payment_status} · paid{" "}
+                    {formatMoneyFromApi(invoice.amount_paid)} /{" "}
+                    {formatMoneyFromApi(invoice.amount_expected)}
+                    {!invoice.payment_required ? " · waived" : ""}
+                  </span>
+                ) : (
+                  <span className="text-muted-foreground">No invoice yet</span>
+                )}
+              </dd>
+            </div>
+            {!job.is_cancelled ? (
+              <div>
+                <dt className="text-xs text-muted-foreground">Finance action</dt>
+                <dd>
+                  {financeReadOnly ? (
+                    <Link
+                      to={`/staff/finance?job=${job.id}`}
+                      className="text-sm font-medium text-primary hover:underline"
+                    >
+                      Check payment status →
+                    </Link>
+                  ) : (
+                    <Button type="button" size="sm" variant="outline" asChild>
+                      <Link to={`/staff/finance?job=${job.id}`}>
+                        {invoice ? "View / edit invoice" : "Create invoice"}
+                      </Link>
+                    </Button>
+                  )}
+                </dd>
+              </div>
+            ) : null}
+          </>
         ) : null}
         {blockedLabel ? (
           <div>
@@ -174,8 +186,10 @@ export function StaffJobDetailPanel({
       {manageJobs && !job.is_cancelled ? (
         <div className="mt-4 space-y-3 border-t pt-4">
           <p className="text-xs text-muted-foreground">
-            Workflow status, role holds, and cancellation reason are read-only on PATCH. Finance
-            clears jobs via invoices; cancel uses DELETE only.
+            Workflow status, role holds, and cancellation reason are read-only on PATCH.
+            {hideClientIdentity
+              ? " Cancel uses DELETE only."
+              : " Finance clears jobs via invoices; cancel uses DELETE only."}
           </p>
           <div className="space-y-1">
             <Label>Priority</Label>

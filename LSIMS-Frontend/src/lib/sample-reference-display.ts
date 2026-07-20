@@ -1,4 +1,5 @@
 import {
+  isQcManager,
   isStaffAnalyst,
   isStaffLabTechnician,
 } from "@/lib/staff-permissions";
@@ -56,7 +57,7 @@ export function mergeStaffJobDescriptionEdit(
 }
 
 export function shouldHideClientSampleNames(user: AuthUser | null): boolean {
-  return isStaffAnalyst(user) || isStaffLabTechnician(user);
+  return isStaffAnalyst(user) || isStaffLabTechnician(user) || isQcManager(user);
 }
 
 export function staffSampleDisplayCode(sample: SampleRecord): string {

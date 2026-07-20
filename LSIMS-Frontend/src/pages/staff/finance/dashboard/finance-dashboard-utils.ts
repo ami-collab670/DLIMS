@@ -1,16 +1,8 @@
 import { fetchJobOrder } from "@/features/jobs/api";
 import { fetchFinancialRecords } from "@/features/laboratory/financial-records-api";
+import { parseMoney } from "@/lib/money";
 import { fetchAwaitingFinanceJobs } from "@/pages/staff/receptionist/shared/fetch-awaiting-finance-jobs";
 import type { FinancialRecord, JobOrder } from "@/types/laboratory";
-
-export function parseMoney(value: string): number {
-  const n = parseFloat(value);
-  return Number.isFinite(n) ? n : 0;
-}
-
-export function formatMoney(value: number): string {
-  return `${value.toFixed(2)} ETB`;
-}
 
 export function isToday(iso: string): boolean {
   const d = new Date(iso);

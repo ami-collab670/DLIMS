@@ -1,4 +1,5 @@
 import { parseClientReferenceId } from "@/lib/sample-reference-display";
+import { formatMoneyPlain } from "@/lib/money";
 import type { SampleRecord, TestCatalogItem } from "@/types/laboratory";
 
 export type JobBillingLine = {
@@ -158,5 +159,5 @@ export function enrichBillingFromSamples(
 
 export function suggestedInvoiceAmount(summary: JobBillingSummary): string {
   if (summary.indicativeTotal == null || summary.indicativeTotal <= 0) return "";
-  return summary.indicativeTotal.toFixed(2);
+  return formatMoneyPlain(summary.indicativeTotal);
 }

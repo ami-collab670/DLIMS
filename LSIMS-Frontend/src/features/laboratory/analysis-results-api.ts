@@ -9,6 +9,7 @@ const BASE = "/api/laboratory/analysis-results/";
 
 export async function fetchAnalysisResults(params?: {
   page?: number;
+  page_size?: number;
   search?: string;
   state?: AnalysisResultState;
   sample?: string;
@@ -16,6 +17,7 @@ export async function fetchAnalysisResults(params?: {
 }): Promise<DrfPaginated<AnalysisResult>> {
   const query: Record<string, string | number> = {};
   if (params?.page && params.page > 0) query.page = params.page;
+  if (params?.page_size && params.page_size > 0) query.page_size = params.page_size;
   if (params?.search?.trim()) query.search = params.search.trim();
   if (params?.state) query.state = params.state;
   if (params?.sample) query.sample = params.sample;

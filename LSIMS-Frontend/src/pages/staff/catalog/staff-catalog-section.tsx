@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { TablePaginationFooter } from "@/components/data-table/table-pagination-footer";
@@ -33,7 +33,18 @@ const DEFAULT_CATALOG_SORT: SortState<CatalogSortKey> = {
   direction: "asc",
 };
 
-export function StaffCatalogSection({ canWrite }: { canWrite: boolean }) {
+export function StaffCatalogSection({
+  canWrite,
+  hidePricing = false,
+  hideDepartmentColumn = false,
+  fixedDepartmentId,
+}: {
+  canWrite: boolean;
+  hidePricing?: boolean;
+  hideDepartmentColumn?: boolean;
+  /** Lock create form department (e.g. department manager). */
+  fixedDepartmentId?: string | null;
+}) {
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<TablePageSize>(CATALOG_PAGE_SIZE);
@@ -54,7 +65,7 @@ export function StaffCatalogSection({ canWrite }: { canWrite: boolean }) {
   const { data: departmentsData } = useQuery({
     queryKey: ["departments", "catalog-form"],
     queryFn: () => fetchDepartments({ page: 1 }),
-    enabled: canWrite,
+    enabled: canWrite && !fixedDepartmentId,
   });
   const departments = departmentsData?.results ?? [];
 
@@ -64,8 +75,14 @@ export function StaffCatalogSection({ canWrite }: { canWrite: boolean }) {
     unit: "",
     price: "0",
     description: "",
-    department: "",
+    department: fixedDepartmentId ?? "",
   });
+
+  useEffect(() => {
+    if (fixedDepartmentId) {
+      setForm((f) => ({ ...f, department: fixedDepartmentId }));
+    }
+  }, [fixedDepartmentId]);
 
   const createMut = useMutation({
     mutationFn: () =>
@@ -86,7 +103,7 @@ export function StaffCatalogSection({ canWrite }: { canWrite: boolean }) {
         unit: "",
         price: "0",
         description: "",
-        department: "",
+        department: fixedDepartmentId ?? "",
       });
       queryClient.invalidateQueries({ queryKey: ["test-catalog"] });
     },
@@ -158,26 +175,30 @@ export function StaffCatalogSection({ canWrite }: { canWrite: boolean }) {
             value={form.unit}
             onChange={(e) => setForm((f) => ({ ...f, unit: e.target.value }))}
           />
-          <Input
-            type="number"
-            step="0.01"
-            placeholder="Price"
-            value={form.price}
-            onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))}
-          />
-          <select
-            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm md:col-span-2"
-            value={form.department}
-            onChange={(e) => setForm((f) => ({ ...f, department: e.target.value }))}
-          >
-            <option value="">Department (optional for admin)</option>
-            {departments.map((d) => (
-              <option key={d.id} value={d.id}>
-                {d.name}
-              </option>
-            ))}
-          </select>
-          {departments.length === 0 ? (
+          {!hidePricing ? (
+            <Input
+              type="number"
+              step="0.01"
+              placeholder="Price"
+              value={form.price}
+              onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))}
+            />
+          ) : null}
+          {!fixedDepartmentId ? (
+            <select
+              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm md:col-span-2"
+              value={form.department}
+              onChange={(e) => setForm((f) => ({ ...f, department: e.target.value }))}
+            >
+              <option value="">Department (optional for admin)</option>
+              {departments.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.name}
+                </option>
+              ))}
+            </select>
+          ) : null}
+          {!fixedDepartmentId && departments.length === 0 ? (
             <p className="md:col-span-2 text-xs text-muted-foreground">
               No departments loaded — qc_manager accounts use their profile department automatically.
             </p>
@@ -241,18 +262,22 @@ export function StaffCatalogSection({ canWrite }: { canWrite: boolean }) {
                     sort={sort}
                     onSort={handleSort}
                   />
-                  <SortableTableHead
-                    label="Price"
-                    sortKey="price"
-                    sort={sort}
-                    onSort={handleSort}
-                  />
-                  <SortableTableHead
-                    label="Department"
-                    sortKey="department"
-                    sort={sort}
-                    onSort={handleSort}
-                  />
+                  {!hidePricing ? (
+                    <SortableTableHead
+                      label="Price"
+                      sortKey="price"
+                      sort={sort}
+                      onSort={handleSort}
+                    />
+                  ) : null}
+                  {!hideDepartmentColumn ? (
+                    <SortableTableHead
+                      label="Department"
+                      sortKey="department"
+                      sort={sort}
+                      onSort={handleSort}
+                    />
+                  ) : null}
                   <SortableTableHead
                     label="Active"
                     sortKey="is_active"
@@ -268,6 +293,8 @@ export function StaffCatalogSection({ canWrite }: { canWrite: boolean }) {
                     key={t.id}
                     test={t}
                     canWrite={canWrite}
+                    hidePricing={hidePricing}
+                    hideDepartmentColumn={hideDepartmentColumn}
                     onPatched={() =>
                       queryClient.invalidateQueries({ queryKey: ["test-catalog"] })
                     }

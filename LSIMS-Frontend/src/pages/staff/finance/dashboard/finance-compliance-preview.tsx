@@ -3,13 +3,13 @@ import { Loader2, Shield } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { shortJobId } from "@/lib/job-order-labels";
+import { formatMoney } from "@/lib/money";
 import { dashboardKeys } from "@/pages/staff/dashboard-home/dashboard-api-keys";
 import { formatPaymentStatusLabel } from "@/pages/staff/finance/shared/finance-payment-labels";
 
 import {
   daysSince,
   fetchAllFinancialRecords,
-  formatMoney,
   outstandingAmount,
 } from "./finance-dashboard-utils";
 

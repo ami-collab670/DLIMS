@@ -99,3 +99,37 @@ export function canApproveDiscountApproval(user: AuthUser | null): boolean {
       roleName(user) === "lab_director",
   );
 }
+
+/** Assign an analyst to a sample (admin, reception, department manager). */
+export function canAssignSampleAnalyst(user: AuthUser | null): boolean {
+  if (!user?.is_active) return false;
+  const r = roleName(user);
+  return Boolean(
+    user.is_superuser === true ||
+      r === "admin" ||
+      r === "receptionist" ||
+      r === "qc_manager",
+  );
+}
+
+/** Patch sample metadata (name, weight, notes) — admin/reception only. */
+export function canPatchSampleDetails(user: AuthUser | null): boolean {
+  return canManageJobsAndSamples(user);
+}
+
+/** Resolve/reject/edit complaints — not department managers. */
+export function canCloseComplaints(user: AuthUser | null): boolean {
+  if (!user?.is_active) return false;
+  const r = roleName(user);
+  return Boolean(
+    user.is_superuser === true ||
+      r === "admin" ||
+      r === "receptionist" ||
+      r === "lab_director",
+  );
+}
+
+/** Read-only department team roster on dashboard. */
+export function canViewDepartmentTeamRoster(user: AuthUser | null): boolean {
+  return isQcManager(user) && Boolean(user?.department);
+}

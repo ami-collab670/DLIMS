@@ -12,6 +12,7 @@ import { createComplaint } from "@/features/laboratory/complaints-api";
 import { fetchFinancialRecords } from "@/features/laboratory/financial-records-api";
 import { fetchSamples } from "@/features/laboratory/staff-api";
 import { getApiErrorMessage } from "@/lib/api-error";
+import { formatMoney, parseMoney } from "@/lib/money";
 import { cn } from "@/lib/utils";
 import type { ComplaintCategory, ComplaintRecord } from "@/types/laboratory";
 
@@ -40,11 +41,6 @@ type ClientComplaintFormProps = {
   compact?: boolean;
   onCreated?: (complaint: ComplaintRecord) => void;
 };
-
-function parseMoney(value: string | null | undefined): number {
-  const n = Number.parseFloat(value ?? "");
-  return Number.isFinite(n) ? n : 0;
-}
 
 export function ClientComplaintForm({
   defaultJobId,
@@ -387,10 +383,10 @@ export function ClientComplaintForm({
                 {invoiceSummary.status}
               </p>
               <p className="mt-1 text-muted-foreground">
-                Expected {invoiceSummary.expected.toFixed(2)} ETB · Paid{" "}
-                {invoiceSummary.paid.toFixed(2)} ETB · Due{" "}
+                Expected {formatMoney(invoiceSummary.expected)} · Paid{" "}
+                {formatMoney(invoiceSummary.paid)} · Due{" "}
                 <span className="font-medium text-foreground">
-                  {invoiceSummary.due.toFixed(2)} ETB
+                  {formatMoney(invoiceSummary.due)}
                 </span>
               </p>
             </div>

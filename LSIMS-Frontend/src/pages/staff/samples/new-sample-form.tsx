@@ -112,7 +112,7 @@ export function NewSampleForm({ onCreated }: { onCreated: () => void }) {
           >
             <option value="">Unassigned</option>
             {analysts.map((a) => (
-              <option key={a.id} value={a.email}>
+              <option key={a.id} value={a.id}>
                 {a.email}
               </option>
             ))}

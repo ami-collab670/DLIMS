@@ -3,10 +3,10 @@ import { BarChart3, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { dashboardKeys } from "@/pages/staff/dashboard-home/dashboard-api-keys";
+import { formatMoney } from "@/lib/money";
 
 import {
   fetchAllFinancialRecords,
-  formatMoney,
   revenueCollectedInDays,
   sumOutstanding,
   waiverMetrics,

@@ -5,11 +5,10 @@ import { useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { fetchJobOrder } from "@/features/jobs/api";
 import { shortJobId } from "@/lib/job-order-labels";
+import { formatMoney, parseMoney } from "@/lib/money";
 import {
   fetchAllFinancialRecords,
-  formatMoney,
   outstandingAmount,
-  parseMoney,
 } from "@/pages/staff/finance/dashboard/finance-dashboard-utils";
 
 async function fetchJobCreatedAtMap(records: Awaited<ReturnType<typeof fetchAllFinancialRecords>>) {

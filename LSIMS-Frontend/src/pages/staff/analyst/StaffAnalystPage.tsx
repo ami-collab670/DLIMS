@@ -1,7 +1,9 @@
 import { StaffRoleBanner } from "@/pages/staff/lims-extensions/staff-role-banner";
 import {
+  canAssignSampleAnalyst,
   canIntakeSamples,
-  canManageJobsAndSamples,
+  canPatchSampleDetails,
+  isQcManager,
   isStaffAnalyst,
   isStaffLabTechnician,
 } from "@/lib/staff-permissions";
@@ -13,9 +15,11 @@ import { StaffAnalystSection } from "./staff-analyst-section";
 export default function StaffAnalystPage() {
   const user = useAuthStore((s) => s.user);
   const intake = canIntakeSamples(user);
-  const manage = canManageJobsAndSamples(user);
+  const canPatchSample = canPatchSampleDetails(user);
+  const canAssignAnalyst = canAssignSampleAnalyst(user);
   const analyst = isStaffAnalyst(user);
   const labTechnician = isStaffLabTechnician(user);
+  const qcManager = isQcManager(user);
 
   return (
     <div className="space-y-6">
@@ -25,7 +29,9 @@ export default function StaffAnalystPage() {
             ? "Preparation bench"
             : analyst
               ? "Assigned to you"
-              : "Analyst"}
+              : qcManager
+                ? "Department assignment"
+                : "Analyst"}
         </h2>
         <p className="text-sm text-muted-foreground">
           {labTechnician ? (
@@ -37,6 +43,11 @@ export default function StaffAnalystPage() {
             <>
               Work assigned to your analyst account. Listing is blind (no client identifiers);
               enter results on each sample detail panel and submit for QC.
+            </>
+          ) : qcManager ? (
+            <>
+              Assign analysts to samples released for laboratory work. Unreleased samples are
+              hidden from this list. Client identifiers are not shown.
             </>
           ) : (
             <>
@@ -51,9 +62,11 @@ export default function StaffAnalystPage() {
 
       <StaffAnalystSection
         intake={intake}
-        manage={manage}
+        canPatchSample={canPatchSample}
+        canAssignAnalyst={canAssignAnalyst}
         isAnalyst={analyst}
         hideClientSampleNames={shouldHideClientSampleNames(user)}
+        filterAwaitingPayment={qcManager}
       />
     </div>
   );

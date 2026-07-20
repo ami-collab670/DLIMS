@@ -15,13 +15,11 @@ import { fetchRoles } from "@/features/accounts/roles-api";
 import { fetchFinancialRecords } from "@/features/laboratory/financial-records-api";
 import { laboratoryQueryKeys } from "@/features/laboratory/laboratory-query-keys";
 import { JOB_PRIORITY_LABEL, JOB_STATUS_LABEL, shortJobId } from "@/lib/job-order-labels";
+import { formatMoney, formatMoneyFromApi, parseMoney } from "@/lib/money";
 import { clientJobReferenceLabel } from "@/lib/sample-reference-display";
 import { isReceptionist } from "@/lib/staff-permissions";
 import type { FinancialRecord, JobOrder } from "@/types/laboratory";
-import {
-  formatMoney,
-  outstandingAmount,
-} from "@/pages/staff/finance/dashboard/finance-dashboard-utils";
+import { outstandingAmount } from "@/pages/staff/finance/dashboard/finance-dashboard-utils";
 import { FinanceJobBillingBreakdown } from "@/pages/staff/finance/shared/finance-job-billing-breakdown";
 import {
   formatPaidAt,
@@ -208,7 +206,7 @@ export function FinanceInvoicesSection({
     const suggested = suggestedInvoiceAmount(summary);
     setCreateExpected(suggested);
     setCreateSuggestedHint(
-      suggested ? `Suggested from catalog total (${suggested} ETB).` : "",
+      suggested ? `Suggested from catalog total (${formatMoney(parseMoney(suggested))}).` : "",
     );
   }, []);
 
@@ -541,8 +539,8 @@ export function FinanceInvoicesSection({
                       <td className="px-4 py-2 text-xs text-muted-foreground">
                         {r.job_client_email ?? "—"}
                       </td>
-                      <td className="px-4 py-2 tabular-nums">{r.amount_expected}</td>
-                      <td className="px-4 py-2 tabular-nums">{r.amount_paid}</td>
+                      <td className="px-4 py-2 tabular-nums">{formatMoneyFromApi(r.amount_expected)}</td>
+                      <td className="px-4 py-2 tabular-nums">{formatMoneyFromApi(r.amount_paid)}</td>
                       <td className="px-4 py-2 tabular-nums">
                         {formatMoney(outstandingAmount(r))}
                       </td>

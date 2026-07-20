@@ -102,16 +102,8 @@ const LAB_DIRECTOR_ROUTES: StaffRouteKey[] = [
   "compliance",
 ];
 
-/** QC manager: department-scoped analysis review and complaint handling. */
-const QC_MANAGER_ROUTES: StaffRouteKey[] = [
-  ...STAFF_SHELL,
-  "laboratory",
-  "results",
-  "qc",
-  "reports",
-  "scheduling",
-  "compliance",
-];
+/** Department Manager: QC review desk only (operations via direct URL if needed). */
+const QC_MANAGER_ROUTES: StaffRouteKey[] = [...STAFF_SHELL, "qc"];
 
 /** Finance desk: payment records and discount requests only. */
 const FINANCE_ROUTES: StaffRouteKey[] = [

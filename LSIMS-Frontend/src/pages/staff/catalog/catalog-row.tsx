@@ -13,10 +13,14 @@ import type { TestCatalogItem } from "@/types/laboratory";
 export function CatalogRow({
   test,
   canWrite,
+  hidePricing = false,
+  hideDepartmentColumn = false,
   onPatched,
 }: {
   test: TestCatalogItem;
   canWrite: boolean;
+  hidePricing?: boolean;
+  hideDepartmentColumn?: boolean;
   onPatched: () => void;
 }) {
   const patchMut = useMutation({
@@ -43,10 +47,14 @@ export function CatalogRow({
       <td className="px-4 py-2 font-mono text-xs">{test.test_code}</td>
       <td className="px-4 py-2">{test.test_name}</td>
       <td className="px-4 py-2">{test.unit}</td>
-      <td className="px-4 py-2 tabular-nums">{test.price}</td>
-      <td className="px-4 py-2 text-xs text-muted-foreground">
-        {test.department ?? "—"}
-      </td>
+      {!hidePricing ? (
+        <td className="px-4 py-2 tabular-nums">{test.price}</td>
+      ) : null}
+      {!hideDepartmentColumn ? (
+        <td className="px-4 py-2 text-xs text-muted-foreground">
+          {test.department ?? "—"}
+        </td>
+      ) : null}
       <td className="px-4 py-2">
         {canWrite ? (
           <label className="inline-flex items-center gap-2 text-xs">

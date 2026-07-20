@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -23,6 +24,8 @@ import { StaffRoleBanner } from "../staff-role-banner";
 
 export default function StaffInstrumentsPage() {
   const queryClient = useQueryClient();
+  const [searchParams] = useSearchParams();
+  const analysisResultFilter = searchParams.get("analysis_result") ?? "";
   const [showCreate, setShowCreate] = useState(false);
   const [editing, setEditing] = useState<CalibrationRecord | null>(null);
   const [form, setForm] = useState({
@@ -34,10 +37,22 @@ export default function StaffInstrumentsPage() {
   });
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: laboratoryQueryKeys.calibrationRecords(),
-    queryFn: () => fetchCalibrationRecords({ page: 1 }),
+    queryKey: laboratoryQueryKeys.calibrationRecords(
+      analysisResultFilter ? { analysis_result: analysisResultFilter } : undefined,
+    ),
+    queryFn: () =>
+      fetchCalibrationRecords({
+        page: 1,
+        analysis_result: analysisResultFilter || undefined,
+      }),
     staleTime: 30_000,
   });
+
+  useEffect(() => {
+    if (analysisResultFilter) {
+      setForm((f) => ({ ...f, analysis_result: analysisResultFilter }));
+    }
+  }, [analysisResultFilter]);
 
   const { data: approvedResults } = useQuery({
     queryKey: laboratoryQueryKeys.analysisResults({ state: "approved" }),

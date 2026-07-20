@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 
 import { shortJobId } from "@/lib/job-order-labels";
 import { clientJobReferenceLabel } from "@/lib/sample-reference-display";
+import { formatMoney } from "@/lib/money";
 import { dashboardKeys } from "@/pages/staff/dashboard-home/dashboard-api-keys";
 import { formatPaymentStatusLabel } from "@/pages/staff/finance/shared/finance-payment-labels";
 
@@ -11,7 +12,6 @@ import {
   buildJobOrderMap,
   daysSince,
   fetchAllFinancialRecords,
-  formatMoney,
   outstandingAmount,
 } from "./finance-dashboard-utils";
 

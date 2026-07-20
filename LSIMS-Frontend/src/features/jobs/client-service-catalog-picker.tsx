@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { getApiErrorMessage } from "@/lib/api-error";
+import { formatMoney } from "@/lib/money";
 import { cn } from "@/lib/utils";
 
 import {
@@ -87,7 +88,7 @@ function TestCard({
         ) : null}
         <span className="mt-1.5 block text-xs text-muted-foreground">
           <span className="font-mono tabular-nums">
-            {test.priceNumber.toFixed(2)} ETB
+            {formatMoney(test.priceNumber)}
           </span>
           {test.unit ? (
             <>
@@ -299,10 +300,9 @@ export function ClientServiceCatalogPicker({
           ) : null}
         </span>
         <span className="font-mono font-medium tabular-nums text-foreground">
-          {typeof indicativeTotal === "number"
-            ? indicativeTotal.toFixed(2)
-            : selectedTotal.toFixed(2)}{" "}
-          ETB
+          {formatMoney(
+            typeof indicativeTotal === "number" ? indicativeTotal : selectedTotal,
+          )}{" "}
           <span className="ml-1 text-xs font-normal text-muted-foreground">
             indicative
           </span>

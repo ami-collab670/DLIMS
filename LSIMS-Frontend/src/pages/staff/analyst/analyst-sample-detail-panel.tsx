@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Trash2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -22,7 +22,15 @@ import {
 } from "@/features/laboratory/staff-api";
 import { getApiErrorMessage } from "@/lib/api-error";
 import { shortJobId } from "@/lib/job-order-labels";
+import { isSampleAwaitingPayment } from "@/lib/sample-payment-gate";
 import { staffSampleDisplayCode } from "@/lib/sample-reference-display";
+import { dashboardKeys } from "@/pages/staff/dashboard-home/dashboard-api-keys";
+import {
+  fetchDepartmentAnalystDirectory,
+  isUserUuid,
+  resolveInitialAnalystUserId,
+} from "@/pages/staff/qc-manager/shared/department-analyst-directory";
+import { useAuthStore } from "@/stores/auth-store";
 import type { SampleRecord } from "@/types/laboratory";
 
 function formatDateForInput(isoOrDate: string | null | undefined): string {
@@ -57,18 +65,26 @@ function formatDisplayDateTime(iso: string | null | undefined): string {
 
 export function AnalystSampleDetailPanel({
   sample,
-  manage,
+  canPatchSample,
+  canAssignAnalyst,
   hideClientSampleNames,
+  showResultEntry = true,
   onClose,
   onUpdated,
 }: {
   sample: SampleRecord;
-  manage: boolean;
+  canPatchSample: boolean;
+  canAssignAnalyst: boolean;
   hideClientSampleNames: boolean;
+  /** Bench result entry — analysts and reception/admin; not department managers. */
+  showResultEntry?: boolean;
   onClose: () => void;
   onUpdated: () => void;
 }) {
   const queryClient = useQueryClient();
+  const user = useAuthStore((s) => s.user);
+  const departmentId = user?.department ?? null;
+
   const displayCode = staffSampleDisplayCode(sample);
   const isBlindView =
     hideClientSampleNames || (!sample.sample_code && Boolean(sample.blind_alias_code));
@@ -76,7 +92,8 @@ export function AnalystSampleDetailPanel({
 
   const [sampleName, setSampleName] = useState(sample.sample_name ?? "");
   const [notes, setNotes] = useState(sample.notes);
-  const [analystId, setAnalystId] = useState(sample.assigned_analyst ?? "");
+  const [selectedAnalystId, setSelectedAnalystId] = useState("");
+  const [analystSelectionTouched, setAnalystSelectionTouched] = useState(false);
   const [sampleWeight, setSampleWeight] = useState(
     sample.sample_weight != null ? String(sample.sample_weight) : "",
   );
@@ -93,22 +110,50 @@ export function AnalystSampleDetailPanel({
   const [resultValue, setResultValue] = useState("");
   const [resultUnit, setResultUnit] = useState("");
 
-  const { data: analysts = [] } = useQuery({
+  const { data: analystDirectory = [], isLoading: analystDirectoryLoading } = useQuery({
+    queryKey: dashboardKeys.qcManagerAnalystDirectory(departmentId),
+    queryFn: () => fetchDepartmentAnalystDirectory(departmentId),
+    enabled: canAssignAnalyst,
+    staleTime: 120_000,
+  });
+
+  const { data: labAnalysts = [] } = useQuery({
     queryKey: ["lab-analysts"],
     queryFn: fetchLabAnalysts,
-    enabled: manage,
+    enabled: canAssignAnalyst,
+    retry: false,
   });
+
+  const analystOptions = useMemo(() => {
+    const map = new Map<string, { id: string; email: string }>();
+    for (const a of labAnalysts) {
+      map.set(a.id, { id: a.id, email: a.email });
+    }
+    for (const a of analystDirectory) {
+      map.set(a.id, a);
+    }
+    return [...map.values()].sort((a, b) => a.email.localeCompare(b.email));
+  }, [analystDirectory, labAnalysts]);
+
+  const currentAssignedAnalystId = useMemo(
+    () => resolveInitialAnalystUserId(sample, analystOptions),
+    [sample, analystOptions],
+  );
+
+  const analystSelectionChanged =
+    Boolean(selectedAnalystId) && selectedAnalystId !== currentAssignedAnalystId;
 
   const { data: testsPage } = useQuery({
     queryKey: ["test-catalog-analyst-detail", sample.id],
     queryFn: () => fetchTestCatalog({ page: 1, is_active: true }),
-    enabled: manage,
+    enabled: canPatchSample,
   });
 
   useEffect(() => {
+    setAnalystSelectionTouched(false);
+    setSelectedAnalystId("");
     setSampleName(sample.sample_name ?? "");
     setNotes(sample.notes);
-    setAnalystId(sample.assigned_analyst ?? "");
     setSampleWeight(sample.sample_weight != null ? String(sample.sample_weight) : "");
     setPackagingType(sample.packaging_type ?? "");
     setCollectionDate(formatDateForInput(sample.collection_date));
@@ -118,7 +163,18 @@ export function AnalystSampleDetailPanel({
     setResultSampleTest(sample.sample_tests[0]?.id ?? "");
     setResultValue("");
     setResultUnit("");
-  }, [sample]);
+  }, [sample.id]);
+
+  useEffect(() => {
+    if (analystSelectionTouched) return;
+    setSelectedAnalystId(resolveInitialAnalystUserId(sample, analystOptions));
+  }, [
+    sample.id,
+    sample.assigned_analyst,
+    sample.assigned_analyst_email,
+    analystOptions,
+    analystSelectionTouched,
+  ]);
 
   const patchMut = useMutation({
     mutationFn: () => {
@@ -151,11 +207,15 @@ export function AnalystSampleDetailPanel({
   const assignAnalystMut = useMutation({
     mutationFn: () =>
       assignSampleAnalyst(sample.id, {
-        assigned_analyst: analystId,
+        assigned_analyst: selectedAnalystId,
         reassigned_reason: reassignedReason.trim() || undefined,
       }),
     onSuccess: () => {
       toast.success("Analyst assigned.");
+      setAnalystSelectionTouched(false);
+      void queryClient.invalidateQueries({
+        queryKey: dashboardKeys.qcManagerAnalystDirectory(departmentId),
+      });
       onUpdated();
     },
     onError: (e) => toast.error(getApiErrorMessage(e)),
@@ -220,6 +280,7 @@ export function AnalystSampleDetailPanel({
   const assignedTestIds = new Set(sample.sample_tests.map((t) => t.test));
   const testsForPicker =
     testsPage?.results.filter((t) => !assignedTestIds.has(t.id)) ?? [];
+  const awaitingPayment = isSampleAwaitingPayment(sample);
 
   return (
     <div className="rounded-xl border bg-card p-4 shadow-sm">
@@ -231,12 +292,12 @@ export function AnalystSampleDetailPanel({
           <p className="font-mono font-semibold">{displayCode}</p>
           {isBlindView ? (
             <p className="mt-1 text-xs text-muted-foreground">
-              Analyst view hides client identifiers; workflow status follows the parent job.
+              Client identifiers are hidden; workflow status follows the parent job.
             </p>
           ) : null}
           {pendingPermanentCode ? (
             <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
-              Permanent sample code pending payment or waiver.
+              Sample not yet released for laboratory work (permanent code pending).
             </p>
           ) : null}
         </div>
@@ -274,7 +335,7 @@ export function AnalystSampleDetailPanel({
         ) : null}
       </dl>
 
-      {!manage ? (
+      {!canPatchSample ? (
         <div className="mt-4 space-y-3 border-t pt-4">
           <p className="text-sm font-medium">Technical details</p>
           <dl className="grid gap-3 text-sm sm:grid-cols-2">
@@ -307,7 +368,7 @@ export function AnalystSampleDetailPanel({
                 <span className="font-mono text-xs">
                   {t.test_code} — {t.test_name}
                 </span>
-                {manage ? (
+                {canPatchSample ? (
                   <Button
                     type="button"
                     variant="ghost"
@@ -331,7 +392,7 @@ export function AnalystSampleDetailPanel({
         )}
       </div>
 
-      {sample.sample_tests.length ? (
+      {showResultEntry && sample.sample_tests.length ? (
         <div className="mt-4 space-y-3 border-t pt-4">
           <p className="text-sm font-medium">Enter analysis result</p>
           <p className="text-xs text-muted-foreground">
@@ -377,7 +438,7 @@ export function AnalystSampleDetailPanel({
         </div>
       ) : null}
 
-      {manage && testsForPicker.length ? (
+      {canPatchSample && testsForPicker.length ? (
         <div className="mt-4 space-y-2 border-t pt-4">
           <Label>Assign catalog test</Label>
           <div className="flex flex-wrap gap-2">
@@ -404,7 +465,65 @@ export function AnalystSampleDetailPanel({
         </div>
       ) : null}
 
-      {manage ? (
+      {canAssignAnalyst ? (
+        <div className="mt-4 space-y-3 border-t pt-4">
+          <p className="text-sm font-medium">Assign analyst</p>
+          {awaitingPayment ? (
+            <p className="text-xs text-muted-foreground">
+              This sample is not yet released for laboratory work. Assign analysts after the
+              permanent sample code is issued.
+            </p>
+          ) : analystDirectoryLoading ? (
+            <p className="text-xs text-muted-foreground">Loading department analysts…</p>
+          ) : analystOptions.length === 0 ? (
+            <p className="text-xs text-muted-foreground">
+              No analysts found for your department yet. Analysts appear after they work on
+              department samples or results, or ask an administrator.
+            </p>
+          ) : (
+            <>
+              <div className="space-y-1">
+                <Label>Analyst</Label>
+                <select
+                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
+                  value={selectedAnalystId}
+                  onChange={(e) => {
+                    setAnalystSelectionTouched(true);
+                    setSelectedAnalystId(e.target.value);
+                  }}
+                >
+                  <option value="">Unassigned</option>
+                  {analystOptions.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.email}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1">
+                <Label>Reassignment reason</Label>
+                <Input
+                  value={reassignedReason}
+                  onChange={(e) => setReassignedReason(e.target.value)}
+                />
+              </div>
+              {analystSelectionChanged ? (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  disabled={assignAnalystMut.isPending || !isUserUuid(selectedAnalystId)}
+                  onClick={() => assignAnalystMut.mutate()}
+                >
+                  Assign analyst
+                </Button>
+              ) : null}
+            </>
+          )}
+        </div>
+      ) : null}
+
+      {canPatchSample ? (
         <div className="mt-4 space-y-3 border-t pt-4">
           <p className="text-sm font-medium">Edit sample (reception/admin)</p>
           {!isBlindView && !hideClientSampleNames ? (
@@ -412,39 +531,6 @@ export function AnalystSampleDetailPanel({
               <Label>Sample name</Label>
               <Input value={sampleName} onChange={(e) => setSampleName(e.target.value)} />
             </div>
-          ) : null}
-          <div className="space-y-1">
-            <Label>Analyst</Label>
-            <select
-              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
-              value={analystId}
-              onChange={(e) => setAnalystId(e.target.value)}
-            >
-              <option value="">Unassigned</option>
-              {analysts.map((a) => (
-                <option key={a.id} value={a.email}>
-                  {a.email}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="space-y-1">
-            <Label>Reassignment reason</Label>
-            <Input
-              value={reassignedReason}
-              onChange={(e) => setReassignedReason(e.target.value)}
-            />
-          </div>
-          {analystId ? (
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              disabled={assignAnalystMut.isPending}
-              onClick={() => assignAnalystMut.mutate()}
-            >
-              Assign analyst
-            </Button>
           ) : null}
           <div className="space-y-1">
             <Label>Notes</Label>
