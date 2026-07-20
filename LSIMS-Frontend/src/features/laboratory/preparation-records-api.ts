@@ -6,6 +6,7 @@ const BASE = "/api/laboratory/preparation-records/";
 
 export async function fetchPreparationRecords(params?: {
   page?: number;
+  page_size?: number;
   search?: string;
   status?: PreparationStatus;
   sample?: string;
@@ -13,6 +14,7 @@ export async function fetchPreparationRecords(params?: {
 }): Promise<DrfPaginated<PreparationRecord>> {
   const query: Record<string, string | number> = {};
   if (params?.page && params.page > 0) query.page = params.page;
+  if (params?.page_size && params.page_size > 0) query.page_size = params.page_size;
   if (params?.search?.trim()) query.search = params.search.trim();
   if (params?.status) query.status = params.status;
   if (params?.sample) query.sample = params.sample;

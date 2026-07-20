@@ -10,8 +10,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { fetchLabAnalysts } from "@/features/accounts/lab-analysts-api";
 import {
   createAnalysisResult,
+  fetchAnalysisResults,
+  patchAnalysisResult,
   submitAnalysisResult,
 } from "@/features/laboratory/analysis-results-api";
+import { laboratoryQueryKeys } from "@/features/laboratory/laboratory-query-keys";
+import { fetchPreparationRecords } from "@/features/laboratory/preparation-records-api";
 import {
   assignSampleAnalyst,
   assignTestToSample,
@@ -31,7 +35,9 @@ import {
   resolveInitialAnalystUserId,
 } from "@/pages/staff/qc-manager/shared/department-analyst-directory";
 import { useAuthStore } from "@/stores/auth-store";
-import type { SampleRecord } from "@/types/laboratory";
+import type { AnalysisResult, SampleRecord } from "@/types/laboratory";
+
+import { AnalystCalibrationSection } from "./analyst-calibration-section";
 
 function formatDateForInput(isoOrDate: string | null | undefined): string {
   if (!isoOrDate) return "";
@@ -109,6 +115,24 @@ export function AnalystSampleDetailPanel({
   const [resultSampleTest, setResultSampleTest] = useState("");
   const [resultValue, setResultValue] = useState("");
   const [resultUnit, setResultUnit] = useState("");
+  const [activeDraftId, setActiveDraftId] = useState<string | null>(null);
+
+  const { data: sampleResults = [] } = useQuery({
+    queryKey: laboratoryQueryKeys.analysisResults({ sample: sample.id }),
+    queryFn: async () => {
+      const data = await fetchAnalysisResults({ page: 1, page_size: 50, sample: sample.id });
+      return data.results;
+    },
+    enabled: showResultEntry,
+  });
+
+  const { data: prepData } = useQuery({
+    queryKey: laboratoryQueryKeys.preparationRecords({ sample: sample.id }),
+    queryFn: () => fetchPreparationRecords({ page: 1, sample: sample.id }),
+    enabled: showResultEntry,
+  });
+
+  const prepRecord = prepData?.results[0];
 
   const { data: analystDirectory = [], isLoading: analystDirectoryLoading } = useQuery({
     queryKey: dashboardKeys.qcManagerAnalystDirectory(departmentId),
@@ -163,7 +187,27 @@ export function AnalystSampleDetailPanel({
     setResultSampleTest(sample.sample_tests[0]?.id ?? "");
     setResultValue("");
     setResultUnit("");
+    setActiveDraftId(null);
   }, [sample.id]);
+
+  useEffect(() => {
+    if (!resultSampleTest) {
+      setActiveDraftId(null);
+      setResultValue("");
+      setResultUnit("");
+      return;
+    }
+    const existing = findEditableResult(sampleResults, resultSampleTest);
+    if (existing) {
+      setActiveDraftId(existing.id);
+      setResultValue(existing.value ?? "");
+      setResultUnit(existing.unit ?? "");
+    } else {
+      setActiveDraftId(null);
+      setResultValue("");
+      setResultUnit("");
+    }
+  }, [resultSampleTest, sampleResults]);
 
   useEffect(() => {
     if (analystSelectionTouched) return;
@@ -221,20 +265,63 @@ export function AnalystSampleDetailPanel({
     onError: (e) => toast.error(getApiErrorMessage(e)),
   });
 
-  const createResultMut = useMutation({
+  const saveDraftMut = useMutation({
     mutationFn: async () => {
-      const created = await createAnalysisResult({
+      if (activeDraftId) {
+        return patchAnalysisResult(activeDraftId, {
+          value: resultValue.trim(),
+          unit: resultUnit.trim() || undefined,
+        });
+      }
+      return createAnalysisResult({
         sample_test: resultSampleTest,
         value: resultValue.trim(),
         unit: resultUnit.trim() || undefined,
       });
-      return submitAnalysisResult(created.id);
+    },
+    onSuccess: (result) => {
+      toast.success("Draft saved.");
+      setActiveDraftId(result.id);
+      void queryClient.invalidateQueries({ queryKey: ["analysis-results"] });
+      void queryClient.invalidateQueries({
+        queryKey: laboratoryQueryKeys.analysisResults({ sample: sample.id }),
+      });
+      void queryClient.invalidateQueries({ queryKey: dashboardKeys.analystDeskKpis });
+      onUpdated();
+    },
+    onError: (e) => toast.error(getApiErrorMessage(e)),
+  });
+
+  const submitMut = useMutation({
+    mutationFn: async () => {
+      let draftId = activeDraftId;
+      if (!draftId) {
+        const created = await createAnalysisResult({
+          sample_test: resultSampleTest,
+          value: resultValue.trim(),
+          unit: resultUnit.trim() || undefined,
+        });
+        draftId = created.id;
+        setActiveDraftId(created.id);
+      } else if (resultValue.trim()) {
+        await patchAnalysisResult(draftId, {
+          value: resultValue.trim(),
+          unit: resultUnit.trim() || undefined,
+        });
+      }
+      return submitAnalysisResult(draftId!);
     },
     onSuccess: () => {
       toast.success("Result submitted for QC.");
       setResultValue("");
       setResultUnit("");
+      setActiveDraftId(null);
       void queryClient.invalidateQueries({ queryKey: ["analysis-results"] });
+      void queryClient.invalidateQueries({
+        queryKey: laboratoryQueryKeys.analysisResults({ sample: sample.id }),
+      });
+      void queryClient.invalidateQueries({ queryKey: dashboardKeys.analystDeskKpis });
+      void queryClient.invalidateQueries({ queryKey: dashboardKeys.analystDeskRecentSubmissions });
       onUpdated();
     },
     onError: (e) => toast.error(getApiErrorMessage(e)),
@@ -392,11 +479,24 @@ export function AnalystSampleDetailPanel({
         )}
       </div>
 
+      {showResultEntry && prepRecord ? (
+        <div className="mt-3 rounded-md border border-border bg-muted/30 px-3 py-2 text-xs">
+          <span className="font-medium text-foreground">Prep status: </span>
+          <span className="capitalize">{prepRecord.status.replace(/_/g, " ")}</span>
+          {prepRecord.completed_at ? (
+            <span className="text-muted-foreground">
+              {" "}
+              · completed {formatDisplayDateTime(prepRecord.completed_at)}
+            </span>
+          ) : null}
+        </div>
+      ) : null}
+
       {showResultEntry && sample.sample_tests.length ? (
         <div className="mt-4 space-y-3 border-t pt-4">
           <p className="text-sm font-medium">Enter analysis result</p>
           <p className="text-xs text-muted-foreground">
-            Creates a draft result and submits it for QC in one step.
+            Save a draft, add calibrations below, then submit to your department QC manager.
           </p>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1 sm:col-span-2">
@@ -425,16 +525,44 @@ export function AnalystSampleDetailPanel({
               <Input value={resultUnit} onChange={(e) => setResultUnit(e.target.value)} />
             </div>
           </div>
-          <Button
-            type="button"
-            size="sm"
-            disabled={
-              !resultSampleTest || !resultValue.trim() || createResultMut.isPending
-            }
-            onClick={() => createResultMut.mutate()}
-          >
-            Submit for QC
-          </Button>
+          {activeDraftId ? (
+            <p className="text-xs text-muted-foreground">
+              Draft saved
+              {findEditableResult(sampleResults, resultSampleTest)?.state === "rejected"
+                ? " (rejected — revise and resubmit)"
+                : ""}
+              .
+            </p>
+          ) : null}
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              disabled={
+                !resultSampleTest || !resultValue.trim() || saveDraftMut.isPending
+              }
+              onClick={() => saveDraftMut.mutate()}
+            >
+              Save draft
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              disabled={
+                !resultSampleTest ||
+                !resultValue.trim() ||
+                submitMut.isPending ||
+                saveDraftMut.isPending
+              }
+              onClick={() => submitMut.mutate()}
+            >
+              Submit for QC
+            </Button>
+          </div>
+          {activeDraftId ? (
+            <AnalystCalibrationSection analysisResultId={activeDraftId} />
+          ) : null}
         </div>
       ) : null}
 
@@ -555,5 +683,16 @@ export function AnalystSampleDetailPanel({
         </div>
       ) : null}
     </div>
+  );
+}
+
+function findEditableResult(
+  results: AnalysisResult[],
+  sampleTestId: string,
+): AnalysisResult | undefined {
+  return results.find(
+    (r) =>
+      r.sample_test === sampleTestId &&
+      (r.state === "draft" || r.state === "rejected"),
   );
 }

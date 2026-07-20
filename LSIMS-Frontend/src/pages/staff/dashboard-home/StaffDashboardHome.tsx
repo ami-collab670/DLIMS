@@ -1,7 +1,16 @@
-import { isFinance, isQcManager, isReceptionist, isStaffAdmin, staffRoleName } from "@/lib/staff-permissions";
+import {
+  isFinance,
+  isQcManager,
+  isReceptionist,
+  isStaffAdmin,
+  isStaffAnalyst,
+  isStaffLabTechnician,
+} from "@/lib/staff-permissions";
 import { useAuthStore } from "@/stores/auth-store";
 
+import AnalystDashboardHome from "@/pages/staff/analyst/dashboard/AnalystDashboardHome";
 import FinanceDashboardHome from "@/pages/staff/finance/dashboard/FinanceDashboardHome";
+import LabTechDashboardHome from "@/pages/staff/prep/dashboard/LabTechDashboardHome";
 import QcDashboardHome from "@/pages/staff/qc/dashboard/QcDashboardHome";
 import ReceptionistDashboardHome from "@/pages/staff/receptionist/dashboard/ReceptionistDashboardHome";
 import { StaffRoleBanner } from "@/pages/staff/lims-extensions/staff-role-banner";
@@ -19,7 +28,8 @@ import { StaffDashboardStatsGrid } from "./staff-dashboard-stats-grid";
 export default function StaffDashboardHome() {
   const user = useAuthStore((s) => s.user);
   const showAdmin = isStaffAdmin(user);
-  const isAnalyst = staffRoleName(user) === "analyst";
+  const analyst = isStaffAnalyst(user);
+  const labTechnician = isStaffLabTechnician(user);
   const receptionist = isReceptionist(user);
   const finance = isFinance(user);
   const qcManager = isQcManager(user);
@@ -36,6 +46,14 @@ export default function StaffDashboardHome() {
     return <QcDashboardHome />;
   }
 
+  if (analyst) {
+    return <AnalystDashboardHome />;
+  }
+
+  if (labTechnician) {
+    return <LabTechDashboardHome />;
+  }
+
   return (
     <div className="space-y-8">
       <StaffDashboardIntro />
@@ -43,7 +61,7 @@ export default function StaffDashboardHome() {
       {showAdmin ? <StaffAdminPromoCard /> : null}
       <StaffDashboardPriorityAlerts />
       <StaffDashboardQuickLinks />
-      {!isAnalyst ? <StaffDashboardAttentionQueue /> : null}
+      {!analyst ? <StaffDashboardAttentionQueue /> : null}
       <StaffDashboardJobPipeline />
       <StaffDashboardSampleSnapshot />
       <StaffDashboardStatsGrid />

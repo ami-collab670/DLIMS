@@ -47,6 +47,7 @@ const STAFF_NAV_ITEMS: NavItem[] = [
     icon: Package,
   },
   { routeKey: "analyst", to: "/staff/analyst", icon: TestTube },
+  { routeKey: "prep", to: "/staff/prep", icon: FlaskConical },
   { routeKey: "results", to: "/staff/results", icon: ClipboardList },
   { routeKey: "qc", to: "/staff/qc", icon: BadgeCheck },
   { routeKey: "reports", to: "/staff/reports", icon: FileText },

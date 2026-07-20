@@ -1,0 +1,1 @@
+export const LAB_TECH_DESK_PREVIEW_LIMIT = 5;

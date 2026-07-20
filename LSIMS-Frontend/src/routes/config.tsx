@@ -38,7 +38,8 @@ import QcHistoryPage from "@/pages/staff/qc/history/QcHistoryPage";
 import QcRejectedPage from "@/pages/staff/qc/rejected/QcRejectedPage";
 import StaffReportsPage from "@/pages/staff/StaffReportsPage";
 import StaffResultsPage from "@/pages/staff/StaffResultsPage";
-import StaffAnalystPage from "@/pages/staff/StaffAnalystPage";
+import StaffAnalystPage from "@/pages/staff/analyst/StaffAnalystPage";
+import LabTechPrepPage from "@/pages/staff/prep/bench/LabTechPrepPage";
 import StaffSchedulingPage from "@/pages/staff/StaffSchedulingPage";
 import StaffSettingsPage from "@/pages/staff/StaffSettingsPage";
 import StaffUserManagementPage from "@/pages/staff/StaffUserManagementPage";
@@ -189,6 +190,14 @@ export const appRoutes: RouteObject[] = [
             element: (
               <StaffRouteGate routeKey="analyst">
                 <StaffAnalystPage />
+              </StaffRouteGate>
+            ),
+          },
+          {
+            path: "prep",
+            element: (
+              <StaffRouteGate routeKey="prep">
+                <LabTechPrepPage />
               </StaffRouteGate>
             ),
           },

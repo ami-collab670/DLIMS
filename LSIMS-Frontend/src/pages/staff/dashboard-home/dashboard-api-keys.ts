@@ -39,4 +39,9 @@ export const dashboardKeys = {
   qcDeskKpis: ["staff-dashboard", "qc-desk", "kpis"] as const,
   qcDeskInboxPreview: ["staff-dashboard", "qc-desk", "inbox-preview"] as const,
   qcDeskRecentDecisions: ["staff-dashboard", "qc-desk", "recent-decisions"] as const,
+  analystDeskKpis: ["staff-dashboard", "analyst-desk", "kpis"] as const,
+  analystDeskAssignedPreview: ["staff-dashboard", "analyst-desk", "assigned-preview"] as const,
+  analystDeskRecentSubmissions: ["staff-dashboard", "analyst-desk", "recent-submissions"] as const,
+  labTechDeskKpis: ["staff-dashboard", "lab-tech-desk", "kpis"] as const,
+  labTechDeskQueuePreview: ["staff-dashboard", "lab-tech-desk", "queue-preview"] as const,
 } as const;

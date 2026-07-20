@@ -8,6 +8,7 @@ const STAFF_ROUTE_KEYS = new Set<StaffRouteKey>([
   "dashboard",
   "laboratory",
   "analyst",
+  "prep",
   "results",
   "qc",
   "reports",

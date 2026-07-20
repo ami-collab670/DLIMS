@@ -4,6 +4,8 @@ import {
   isFinance,
   isQcManager,
   isReceptionist,
+  isStaffAnalyst,
+  isStaffLabTechnician,
   isStaffAdmin,
 } from "@/lib/staff-permissions";
 import { useAuthStore } from "@/stores/auth-store";
@@ -25,6 +27,8 @@ export function StaffDashboardIntro() {
   const receptionist = isReceptionist(user);
   const finance = isFinance(user);
   const qcManager = isQcManager(user);
+  const analyst = isStaffAnalyst(user);
+  const labTechnician = isStaffLabTechnician(user);
 
   let subtitle =
     "Laboratory information snapshot — job pipeline, analyst workspaces, and quick access to LSIMS areas.";
@@ -45,6 +49,16 @@ export function StaffDashboardIntro() {
       "Quality control overview — submitted results awaiting review, recent decisions, and department QC metrics.";
     roleHint =
       "Approve or reject analysis results submitted by analysts in your department. Client identity is hidden; use QC review for all decisions.";
+  } else if (analyst) {
+    subtitle =
+      "Analyst bench overview — samples assigned to you, draft results, and submissions awaiting QC.";
+    roleHint =
+      "Enter analysis results on assigned samples, add calibrations inline, and submit to your department QC manager. Only your assigned work is shown.";
+  } else if (labTechnician) {
+    subtitle =
+      "Preparation bench overview — your assigned prep queue and in-progress work.";
+    roleHint =
+      "Start and complete preparation on records assigned to you or pending records you can claim. Hand off to analysts when prep is done.";
   } else if (admin) {
     roleHint +=
       " As an administrator you can manage users, the test catalog, and laboratory records.";
@@ -53,9 +67,9 @@ export function StaffDashboardIntro() {
       " Submitted client requests appear in the attention queue until they are acknowledged into the laboratory.";
   } else if (manageOps) {
     roleHint += " You can update jobs, samples, and test assignments from the Laboratory hub.";
-  } else if (user && !manageOps) {
+  } else if (user && !manageOps && !analyst && !labTechnician) {
     roleHint +=
-      " Your assigned analyst work and blind identifiers are available under Laboratory and Analyst.";
+      " Your assigned work and blind identifiers are available from the areas in your sidebar.";
   }
 
   return (

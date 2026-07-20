@@ -11,6 +11,7 @@ import {
   isReceptionist,
   isStaffAdmin,
   isStaffAnalyst,
+  isStaffLabTechnician,
   staffRoleName,
 } from "@/lib/staff-permissions";
 
@@ -19,6 +20,7 @@ export const STAFF_ROUTE_LABELS: Record<StaffRouteKey, string> = {
   dashboard: "Dashboard",
   laboratory: "Laboratory",
   analyst: "Analyst",
+  prep: "Preparation",
   results: "Results",
   qc: "QC",
   reports: "Reports",
@@ -40,7 +42,16 @@ export function getStaffNavItemLabel(
   user: AuthUser | null,
 ): string {
   if (routeKey === "analyst" && isStaffAnalyst(user)) {
-    return "Analyst bench";
+    return "My samples";
+  }
+  if (routeKey === "prep" && isStaffLabTechnician(user)) {
+    return "Preparation bench";
+  }
+  if (routeKey === "dashboard" && isStaffAnalyst(user)) {
+    return "Analyst dashboard";
+  }
+  if (routeKey === "dashboard" && isStaffLabTechnician(user)) {
+    return "Prep dashboard";
   }
   if (routeKey === "laboratory" && isReceptionist(user)) {
     return "Sample intake";
@@ -65,6 +76,8 @@ export function getStaffWorkspaceTitle(user: AuthUser | null): string {
   if (isReceptionist(user)) return "Receptionist dashboard";
   if (isFinance(user)) return "Finance desk";
   if (isQcManager(user)) return "Quality control";
+  if (isStaffAnalyst(user)) return "Analyst bench";
+  if (isStaffLabTechnician(user)) return "Preparation bench";
   if (staffRoleName(user) === "auditor") return "Compliance audit";
   if (isLabDirector(user)) return "Laboratory director";
   if (isStaffAdmin(user)) return "Admin workspace";

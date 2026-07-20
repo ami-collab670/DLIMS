@@ -11,6 +11,7 @@ export type StaffRouteKey =
   | "dashboard"
   | "laboratory"
   | "analyst"
+  | "prep"
   | "results"
   | "qc"
   | "reports"
@@ -30,6 +31,7 @@ const ALL_STAFF_ROUTES: StaffRouteKey[] = [
   "laboratory",
   "clients",
   "analyst",
+  "prep",
   "results",
   "qc",
   "reports",
@@ -66,26 +68,11 @@ const RECEPTIONIST_ROUTES: StaffRouteKey[] = [
   "finance",
 ];
 
-/**
- * Analyst: assigned samples, analysis results, calibrations.
- * Aligns with `analysis_results_visible_to` / blind sample scope in backend policies.
- */
-const ANALYST_ROUTES: StaffRouteKey[] = [
-  ...STAFF_SHELL,
-  "laboratory",
-  "analyst",
-  "results",
-  "scheduling",
-  "instruments",
-];
+/** Analyst: assigned sample bench only (results + calibration inline on sample panel). */
+const ANALYST_ROUTES: StaffRouteKey[] = [...STAFF_SHELL, "analyst"];
 
-/** Lab technician: preparation bench only (no analysis/QC visibility). */
-const LAB_TECHNICIAN_ROUTES: StaffRouteKey[] = [
-  ...STAFF_SHELL,
-  "laboratory",
-  "analyst",
-  "scheduling",
-];
+/** Lab technician: preparation bench only. */
+const LAB_TECHNICIAN_ROUTES: StaffRouteKey[] = [...STAFF_SHELL, "prep"];
 
 /**
  * Lab director: discount approvals, complaints, scheduling oversight.

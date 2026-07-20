@@ -5,6 +5,8 @@ import {
   isFinance,
   isQcManager,
   isReceptionist,
+  isStaffAnalyst,
+  isStaffLabTechnician,
   staffRoleName,
 } from "@/lib/staff-permissions";
 import { useAuthStore } from "@/stores/auth-store";
@@ -24,6 +26,8 @@ export function StaffRoleBanner() {
   const receptionist = isReceptionist(user);
   const finance = isFinance(user);
   const qcManager = isQcManager(user);
+  const analyst = isStaffAnalyst(user);
+  const labTechnician = isStaffLabTechnician(user);
 
   const caps: string[] = [];
   if (finance) {
@@ -37,6 +41,13 @@ export function StaffRoleBanner() {
     caps.push("finance coordination (read-only)");
   } else if (qcManager) {
     caps.push("QC review (department-scoped)");
+  } else if (analyst) {
+    caps.push("assigned sample bench");
+    caps.push("result entry & submit to QC");
+    caps.push("inline calibration records");
+  } else if (labTechnician) {
+    caps.push("preparation start/complete");
+    caps.push("assigned prep queue only");
   } else {
     if (canManageTestCatalog(user)) caps.push("catalog admin");
     if (canManageJobsAndSamples(user)) caps.push("job & sample updates");
@@ -69,6 +80,16 @@ export function StaffRoleBanner() {
       {qcManager ? (
         <p className="mt-1 text-xs text-muted-foreground">
           Quality control — approve or reject submitted analysis results in your department
+        </p>
+      ) : null}
+      {analyst ? (
+        <p className="mt-1 text-xs text-muted-foreground">
+          Analyst bench — assigned samples, result entry, and QC submission
+        </p>
+      ) : null}
+      {labTechnician ? (
+        <p className="mt-1 text-xs text-muted-foreground">
+          Preparation bench — start and complete assigned prep records
         </p>
       ) : null}
       {caps.length ? (

@@ -15,12 +15,13 @@ import {
 } from "@/lib/sample-reference-display";
 import { cn } from "@/lib/utils";
 import { ReceptionistTestCatalogReference } from "@/pages/staff/receptionist/shared/receptionist-test-catalog-reference";
+import { filterMyAssignedSamples } from "@/pages/staff/analyst/shared/analyst-bench-utils";
+import { useAuthStore } from "@/stores/auth-store";
 
 import {
   ANALYST_LIST_PAGE_SIZE,
   ANALYST_SAMPLE_STATUS_OPTIONS,
 } from "./analyst-workspace-constants";
-import { AnalystPreparationSection } from "./analyst-preparation-section";
 import { AnalystSampleDetailPanel } from "./analyst-sample-detail-panel";
 import { RegisterSampleForm } from "./register-sample-form";
 
@@ -32,6 +33,7 @@ export function StaffAnalystSection({
   hideClientSampleNames,
   hidePreparation = false,
   filterAwaitingPayment = false,
+  analystBenchOnly = false,
 }: {
   intake: boolean;
   canPatchSample: boolean;
@@ -42,8 +44,12 @@ export function StaffAnalystSection({
   hidePreparation?: boolean;
   /** Department manager — hide samples until Finance clears payment. */
   filterAwaitingPayment?: boolean;
+  /** Analyst-only bench at /staff/analyst — assignment filter + no ops copy. */
+  analystBenchOnly?: boolean;
 }) {
   const queryClient = useQueryClient();
+  const user = useAuthStore((s) => s.user);
+  const userId = user?.id;
   const [page, setPage] = useState(1);
   const [jobFilter, setJobFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
@@ -74,10 +80,15 @@ export function StaffAnalystSection({
   });
 
   const visibleResults = useMemo(() => {
-    const rows = data?.results ?? [];
-    if (!filterAwaitingPayment) return rows;
-    return rows.filter((s) => !isSampleAwaitingPayment(s));
-  }, [data?.results, filterAwaitingPayment]);
+    let rows = data?.results ?? [];
+    if (filterAwaitingPayment) {
+      rows = rows.filter((s) => !isSampleAwaitingPayment(s));
+    }
+    if (isAnalyst || analystBenchOnly) {
+      rows = filterMyAssignedSamples(rows, userId);
+    }
+    return rows;
+  }, [analystBenchOnly, data?.results, filterAwaitingPayment, isAnalyst, userId]);
 
   const hiddenAwaitingPaymentCount = useMemo(() => {
     if (!filterAwaitingPayment || !data?.results.length) return 0;
@@ -91,7 +102,11 @@ export function StaffAnalystSection({
   return (
     <div className="space-y-4">
 
-      {hidePreparation ? null : <AnalystPreparationSection />}
+      {hidePreparation ? null : (
+        <p className="rounded-lg border border-dashed px-4 py-3 text-sm text-muted-foreground">
+          Preparation workflows are on the lab technician preparation bench.
+        </p>
+      )}
 
       {hidePreparation ? <ReceptionistTestCatalogReference /> : null}
 
@@ -103,16 +118,15 @@ export function StaffAnalystSection({
             queryClient.invalidateQueries({ queryKey: ["staff-job-orders"] });
           }}
         />
-      ) : isAnalyst ? (
+      ) : isAnalyst || analystBenchOnly ? (
         <div
           role="note"
           className="rounded-lg border border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground"
         >
-          <p className="font-medium text-foreground">Bench view (read-only)</p>
+          <p className="font-medium text-foreground">Your assigned samples</p>
           <p className="mt-1">
-            Reception registers samples and assigns them to analysts here. Only items assigned to you
-            appear in this list. Use Laboratory → Jobs if you need more operational context after
-            handoff from staff.
+            Only samples assigned to your analyst account appear here. Select a row to enter a
+            draft result, add calibrations, and submit to department QC.
           </p>
         </div>
       ) : (
