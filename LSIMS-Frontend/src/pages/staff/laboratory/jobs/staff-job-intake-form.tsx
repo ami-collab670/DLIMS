@@ -7,11 +7,11 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { fetchLabClients } from "@/features/accounts/lab-clients-api";
+import { fetchLabClients } from "@/features/accounts/api";
 import { createStaffJob } from "@/features/jobs/api";
 import { IntakeChecklistFields } from "@/pages/staff/receptionist/shared/intake-checklist-fields";
-import { getApiErrorMessage } from "@/lib/api-error";
-import { JOB_PRIORITY_OPTIONS, shortJobId } from "@/lib/job-order-labels";
+import { getApiErrorMessage } from "@/lib/api";
+import { JOB_PRIORITY_OPTIONS, shortJobId } from "@/lib/laboratory";
 import type { JobOrder } from "@/types/laboratory";
 
 import { StaffJobIntakeWizard } from "./staff-job-intake-wizard";

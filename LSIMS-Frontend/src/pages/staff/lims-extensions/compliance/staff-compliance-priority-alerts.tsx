@@ -1,12 +1,13 @@
+import { staffPath } from "@/lib/staff";
 import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle, Loader2 } from "lucide-react";
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
 
-import { fetchPriorityAlerts } from "@/features/laboratory/priority-alerts-api";
-import { laboratoryQueryKeys } from "@/features/laboratory/laboratory-query-keys";
-import { shortJobId } from "@/lib/job-order-labels";
-import { filterPriorityAlertsForDepartment } from "@/pages/staff/qc-manager/shared/department-scope-utils";
+import { fetchPriorityAlerts } from "@/features/laboratory/api";
+import { laboratoryQueryKeys } from "@/features/laboratory/query-keys";
+import { shortJobId } from "@/lib/laboratory";
+import { filterPriorityAlertsForDepartment } from "@/lib/laboratory/qc-manager/department-scope";
 
 export function StaffCompliancePriorityAlerts({
   departmentJobIds,
@@ -65,7 +66,7 @@ export function StaffCompliancePriorityAlerts({
           attention
         </h3>
         <Link
-          to="/staff/scheduling"
+          to={staffPath("scheduling")}
           className="ml-auto text-xs font-medium text-primary underline-offset-4 hover:underline"
         >
           View scheduling →

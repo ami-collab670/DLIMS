@@ -12,17 +12,17 @@ import {
   createDiscountApproval,
   fetchDiscountApprovals,
   rejectDiscountApproval,
-} from "@/features/laboratory/discount-approvals-api";
-import { laboratoryQueryKeys } from "@/features/laboratory/laboratory-query-keys";
-import { getApiErrorMessage } from "@/lib/api-error";
-import { shortJobId } from "@/lib/job-order-labels";
+} from "@/features/laboratory/api";
+import { laboratoryQueryKeys } from "@/features/laboratory/query-keys";
+import { getApiErrorMessage } from "@/lib/api";
+import { shortJobId } from "@/lib/laboratory";
 import {
   canApproveDiscountApproval,
   canRequestDiscountApproval,
   isFinance,
-} from "@/lib/staff-permissions";
-import { dashboardKeys } from "@/pages/staff/dashboard-home/dashboard-api-keys";
-import { invalidateFinanceWorkflowQueries } from "@/pages/staff/lims-extensions/finance/finance-invoices-section";
+} from "@/lib/staff";
+import { dashboardKeys } from "@/lib/staff/dashboard/query-keys";
+import { invalidateFinanceWorkflowQueries } from "@/features/laboratory/lib/invalidate-finance-workflow-queries";
 import { useAuthStore } from "@/stores/auth-store";
 import type { DiscountApproval, DiscountApprovalStatus, DiscountType } from "@/types/laboratory";
 

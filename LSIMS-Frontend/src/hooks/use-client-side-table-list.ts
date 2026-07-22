@@ -9,7 +9,7 @@ import {
   toggleSortState,
   type SortState,
   type TablePageSize,
-} from "@/lib/table-list-utils";
+} from "@/lib/table";
 
 import { useDebouncedValue } from "./use-debounced-value";
 

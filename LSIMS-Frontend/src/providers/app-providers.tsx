@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { Toaster } from "sonner";
 
 import { AuthBootstrap } from "@/providers/auth-bootstrap";
-import { createQueryClient } from "@/lib/query-client";
+import { createQueryClient } from "@/lib/api";
 
 const queryClient = createQueryClient();
 

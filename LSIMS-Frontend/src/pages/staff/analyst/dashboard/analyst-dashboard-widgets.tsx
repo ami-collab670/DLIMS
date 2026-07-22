@@ -1,22 +1,23 @@
+import { staffPath } from "@/lib/staff";
 import { useQuery } from "@tanstack/react-query";
 import { AlertCircle, FileEdit, Loader2, Send, TestTube } from "lucide-react";
 import { Link } from "react-router-dom";
 import type { LucideIcon } from "lucide-react";
 
-import { fetchAnalysisResults } from "@/features/laboratory/analysis-results-api";
-import { fetchSamples } from "@/features/laboratory/staff-api";
-import { staffSampleDisplayCode } from "@/lib/sample-reference-display";
-import { dashboardKeys } from "@/pages/staff/dashboard-home/dashboard-api-keys";
+import { fetchAnalysisResults } from "@/features/laboratory/api";
+import { fetchSamples } from "@/features/laboratory/api";
+import { staffSampleDisplayCode } from "@/lib/laboratory";
+import { dashboardKeys } from "@/lib/staff/dashboard/query-keys";
 import { useAuthStore } from "@/stores/auth-store";
 
-import { ANALYST_DESK_PREVIEW_LIMIT } from "../shared/analyst-constants";
+import { ANALYST_DESK_PREVIEW_LIMIT } from "@/lib/staff/analyst/constants";
 import {
   computeAnalystKpis,
   filterMyAssignedSamples,
   formatAssignedAge,
   formatSubmittedAt,
   sortAssignedSamplesOldest,
-} from "../shared/analyst-bench-utils";
+} from "@/lib/laboratory/analyst/desk-utils";
 
 function KpiCard({
   label,
@@ -83,7 +84,7 @@ export function AnalystDashboardKpiGrid() {
       <KpiCard
         label="Assigned samples"
         value={kpis?.assignedSamples ?? 0}
-        href="/staff/analyst"
+        href={staffPath("analyst")}
         icon={TestTube}
         loading={isLoading}
         hint="Samples assigned to you"
@@ -91,7 +92,7 @@ export function AnalystDashboardKpiGrid() {
       <KpiCard
         label="Draft results"
         value={kpis?.draftResults ?? 0}
-        href="/staff/analyst"
+        href={staffPath("analyst")}
         icon={FileEdit}
         loading={isLoading}
         hint="Saved, not yet submitted"
@@ -99,7 +100,7 @@ export function AnalystDashboardKpiGrid() {
       <KpiCard
         label="Awaiting QC"
         value={kpis?.awaitingQc ?? 0}
-        href="/staff/analyst"
+        href={staffPath("analyst")}
         icon={Send}
         loading={isLoading}
         hint="Submitted to department manager"
@@ -107,7 +108,7 @@ export function AnalystDashboardKpiGrid() {
       <KpiCard
         label="Needs resubmit"
         value={kpis?.needsResubmit ?? 0}
-        href="/staff/analyst"
+        href={staffPath("analyst")}
         icon={AlertCircle}
         loading={isLoading}
         hint="Rejected by QC"
@@ -136,7 +137,7 @@ export function AnalystDashboardAssignedPreview() {
     <section className="rounded-xl border border-border bg-card p-4 shadow-sm">
       <div className="mb-3 flex items-center justify-between gap-2">
         <h3 className="text-sm font-semibold">Assigned to you</h3>
-        <Link to="/staff/analyst" className="text-xs text-primary hover:underline">
+        <Link to={staffPath("analyst")} className="text-xs text-primary hover:underline">
           Open bench
         </Link>
       </div>
@@ -180,7 +181,7 @@ export function AnalystDashboardRecentSubmissions() {
     <section className="rounded-xl border border-border bg-card p-4 shadow-sm">
       <div className="mb-3 flex items-center justify-between gap-2">
         <h3 className="text-sm font-semibold">Recent submissions</h3>
-        <Link to="/staff/analyst" className="text-xs text-primary hover:underline">
+        <Link to={staffPath("analyst")} className="text-xs text-primary hover:underline">
           View bench
         </Link>
       </div>

@@ -1,15 +1,18 @@
+import { staffPath } from "@/lib/staff";
 import { useQuery } from "@tanstack/react-query";
 import { FilePlus2, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 
-import { JOB_PRIORITY_LABEL, shortJobId } from "@/lib/job-order-labels";
-import { formatMoney } from "@/lib/money";
-import { clientJobReferenceLabel } from "@/lib/sample-reference-display";
-import { dashboardKeys } from "@/pages/staff/dashboard-home/dashboard-api-keys";
-import { parseJobBillingSummary } from "@/pages/staff/finance/shared/parse-job-billing";
-import { fetchAwaitingFinanceJobs } from "@/pages/staff/receptionist/shared/fetch-awaiting-finance-jobs";
+import { JOB_PRIORITY_LABEL, shortJobId } from "@/lib/laboratory";
+import { formatMoney } from "@/lib/formatting";
+import { clientJobReferenceLabel } from "@/lib/laboratory";
+import { dashboardKeys } from "@/lib/staff/dashboard/query-keys";
+import { parseJobBillingSummary } from "@/lib/laboratory/jobs/billing";
+import { fetchAwaitingFinanceJobs } from "@/features/laboratory/lib/fetch-awaiting-finance-jobs";
 
-import { fetchAllFinancialRecords, invoiceByJobMap } from "./finance-dashboard-utils";
+import { invoiceByJobMap } from "@/lib/laboratory/finance/dashboard-metrics";
+import { fetchAllFinancialRecords } from "@/features/laboratory/lib/fetch-all-financial-records";
+
 
 export function FinanceAwaitingClearanceQueue() {
   const { data, isLoading, isError } = useQuery({
@@ -53,7 +56,7 @@ export function FinanceAwaitingClearanceQueue() {
           {(data ?? []).length} job{(data ?? []).length === 1 ? "" : "s"} need first invoice
         </span>
         <Link
-          to="/staff/finance"
+          to={staffPath("finance")}
           className="ml-auto text-xs font-medium text-primary hover:underline"
         >
           Open invoices →

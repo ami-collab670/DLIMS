@@ -1,6 +1,6 @@
 import type { RoleRecord } from "@/types/account-admin";
 
-import { resolveRoleLabel } from "@/lib/resolve-role-label";
+import { resolveRoleLabel } from "@/lib/staff";
 
 export function JobRoleHoldBadge({
   blockedByRole,

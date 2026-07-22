@@ -5,20 +5,16 @@ import { Link } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
 import { fetchJobOrder } from "@/features/jobs/api";
-import { fetchSample } from "@/features/laboratory/staff-api";
-import { clientJobReferenceLabel } from "@/lib/sample-reference-display";
+import { fetchSample } from "@/features/laboratory/api";
+import { clientJobReferenceLabel, formatSampleDisplayName, parseComplaintReference } from "@/lib/laboratory";
 import type { ComplaintRecord } from "@/types/laboratory";
 
 import {
   ClientComplaintCategoryBadge,
   ClientComplaintStatusBadge,
 } from "./client-complaint-badges";
-import {
-  clientResultsJobUrl,
-  formatSampleDisplayName,
-  parseComplaintReference,
-} from "./client-complaint-labels";
-import { complaintCategoryLabel } from "./constants";
+import { clientResultsJobUrl } from "@/lib/routing";
+import { complaintCategoryLabel } from "@/lib/laboratory/complaints/constants";
 
 function formatDateTime(value: string | null | undefined): string {
   if (!value) return "—";

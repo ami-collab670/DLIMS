@@ -1,7 +1,7 @@
 import { Check } from "lucide-react";
 
-import { getAccessibleStaffAreaLabels } from "@/lib/staff-nav-meta";
-import { canAccessUserManagement } from "@/lib/staff-route-access";
+import { getAccessibleStaffAreaLabels } from "@/lib/staff";
+import { canAccessUserManagement } from "@/lib/staff";
 import {
   canRequestDiscountApproval,
   canIntakeSamples,
@@ -9,7 +9,7 @@ import {
   canManageTestCatalog,
   isReceptionist,
   staffRoleName,
-} from "@/lib/staff-permissions";
+} from "@/lib/staff";
 import type { AuthUser } from "@/types/auth";
 
 type Props = {

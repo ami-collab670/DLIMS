@@ -2,12 +2,12 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { useCallback, useState } from "react";
 
-import { fetchSamples } from "@/features/laboratory/staff-api";
-import { getApiErrorMessage } from "@/lib/api-error";
+import { fetchSamples } from "@/features/laboratory/api";
+import { getApiErrorMessage } from "@/lib/api";
 import {
   staffSampleDisplayCode,
   staffSampleRowLabel,
-} from "@/lib/sample-reference-display";
+} from "@/lib/laboratory";
 import { RegisterSampleForm } from "@/pages/staff/analyst/register-sample-form";
 import { StaffJobDetailPanel } from "@/pages/staff/laboratory/jobs/staff-job-detail-panel";
 import { ReceptionistTestCatalogBrowse } from "@/pages/staff/receptionist/shared/receptionist-test-catalog-reference";

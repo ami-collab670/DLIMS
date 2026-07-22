@@ -10,8 +10,8 @@ import {
   fetchSampleTests,
   fetchTestCatalog,
   removeSampleTestAssignment,
-} from "@/features/laboratory/staff-api";
-import { getApiErrorMessage } from "@/lib/api-error";
+} from "@/features/laboratory/api";
+import { getApiErrorMessage } from "@/lib/api";
 import type { SampleRecord, SampleTestRow } from "@/types/laboratory";
 
 function sampleLabel(sample: SampleRecord): string {

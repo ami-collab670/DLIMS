@@ -2,25 +2,27 @@ import { useQuery } from "@tanstack/react-query";
 import { AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 
-import { fetchComplaints } from "@/features/laboratory/complaints-api";
-import { JOB_STATUS_LABEL } from "@/lib/job-order-labels";
-import { formatMoney, formatMoneyFromApi } from "@/lib/money";
+import { fetchComplaints } from "@/features/laboratory/api";
+import { JOB_STATUS_LABEL } from "@/lib/laboratory";
+import { formatMoney, formatMoneyFromApi } from "@/lib/formatting";
 import {
-  clientResultsJobUrl,
+  fetchAllActiveJobs,
+  fetchClientFinancialRecords,
+} from "@/features/client/lib/dashboard-queries";
+import {
   complaintsNeedingFollowUp,
   extractClientReferenceLabel,
-  fetchAllActiveJobs,
-  fetchAllFinancialRecords,
   invoicesNeedingPayment,
   jobsNeedingAttention,
-} from "@/pages/client/dashboard-home/client-dashboard-metrics";
+} from "@/lib/client/dashboard/metrics";
+import { clientResultsJobUrl } from "@/lib/routing";
+import { truncateComplaintTitle } from "@/lib/laboratory/complaints/constants";
 import {
   ClientComplaintCategoryBadge,
   ClientComplaintStatusBadge,
 } from "@/pages/client/complaints/client-complaint-badges";
-import { truncateComplaintTitle } from "@/pages/client/complaints/constants";
 
-import { clientDashboardKeys } from "./client-dashboard-api-keys";
+import { clientDashboardKeys } from "@/lib/client/dashboard/query-keys";
 
 export function ClientDashboardAttention() {
   const jobsQuery = useQuery({
@@ -31,7 +33,7 @@ export function ClientDashboardAttention() {
 
   const financeQuery = useQuery({
     queryKey: clientDashboardKeys.allFinancialRecords,
-    queryFn: fetchAllFinancialRecords,
+    queryFn: fetchClientFinancialRecords,
     staleTime: 45_000,
   });
 

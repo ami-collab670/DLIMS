@@ -10,13 +10,13 @@ import { PhoneInput } from "@/components/ui/phone-input";
 import {
   type UpdateAdminUserBody,
   fetchAdminUser,
-} from "@/features/accounts/admin-api";
-import { fetchDepartments } from "@/features/accounts/departments-api";
-import { fetchRoles } from "@/features/accounts/roles-api";
-import { cn } from "@/lib/utils";
+} from "@/features/accounts/api";
+import { fetchDepartments } from "@/features/accounts/api";
+import { fetchRoles } from "@/features/accounts/api";
+import { cn } from "@/lib/ui";
 import type { AdminUserRow } from "@/types/account-admin";
 
-import { roleOptionLabel } from "./role-display";
+import { roleOptionLabel } from "@/lib/staff/roles/role-display";
 
 const selectClass = cn(
   "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm",

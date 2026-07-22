@@ -1,12 +1,13 @@
+import { staffPath } from "@/lib/staff";
 import { useQueries } from "@tanstack/react-query";
 import { Loader2, TestTube } from "lucide-react";
 import { Link } from "react-router-dom";
 
-import { fetchSamples } from "@/features/laboratory/staff-api";
-import { isStaffAnalyst } from "@/lib/staff-permissions";
+import { fetchSamples } from "@/features/laboratory/api";
+import { isStaffAnalyst } from "@/lib/staff";
 import { useAuthStore } from "@/stores/auth-store";
 
-import { dashboardKeys } from "./dashboard-api-keys";
+import { dashboardKeys } from "@/lib/staff/dashboard/query-keys";
 
 const SNAPSHOT = [
   { status: "received", label: "Received" },
@@ -57,7 +58,7 @@ export function StaffDashboardSampleSnapshot() {
           </div>
         </div>
         <Link
-          to="/staff/analyst"
+          to={staffPath("analyst")}
           className="text-xs font-medium text-primary hover:underline"
         >
           {analyst ? "Open analyst bench →" : "Analyst workspace →"}

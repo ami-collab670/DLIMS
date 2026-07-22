@@ -1,13 +1,14 @@
 import { NavLink, Outlet } from "react-router-dom";
 
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/ui";
+import { ROUTES } from "@/lib/routing";
 
 import { StaffRoleBanner } from "@/pages/staff/lims-extensions/staff-role-banner";
 
 const TABS = [
-  { to: "/staff/qc", label: "Review desk", end: true },
-  { to: "/staff/qc/history", label: "Decision history", end: false },
-  { to: "/staff/qc/rejected", label: "Rejected", end: false },
+  { to: ROUTES.staff.qc.root, label: "Review desk", end: true },
+  { to: ROUTES.staff.qc.history, label: "Decision history", end: false },
+  { to: ROUTES.staff.qc.rejected, label: "Rejected", end: false },
 ] as const;
 
 export default function StaffQcLayout() {

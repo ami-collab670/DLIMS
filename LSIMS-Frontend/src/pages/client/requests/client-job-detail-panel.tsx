@@ -3,10 +3,10 @@ import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
-import { shortJobId } from "@/lib/job-order-labels";
+import { shortJobId } from "@/lib/laboratory";
 import type { JobOrder } from "@/types/laboratory";
 
-import { clientComplaintsUrl } from "../complaints/client-complaint-labels";
+import { clientComplaintsUrl } from "@/lib/routing";
 import {
   ClientRequestPriorityBadge,
   ClientRequestStatusBadge,

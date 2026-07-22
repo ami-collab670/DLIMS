@@ -5,23 +5,23 @@ import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { fetchSample, fetchSamples } from "@/features/laboratory/staff-api";
-import { getApiErrorMessage } from "@/lib/api-error";
-import { shortJobId } from "@/lib/job-order-labels";
-import { isSampleAwaitingPayment, isSampleReadyForDeptAssignment } from "@/lib/sample-payment-gate";
+import { fetchSample, fetchSamples } from "@/features/laboratory/api";
+import { getApiErrorMessage } from "@/lib/api";
+import { shortJobId } from "@/lib/laboratory";
+import { isSampleAwaitingPayment, isSampleReadyForDeptAssignment } from "@/lib/laboratory";
 import {
   staffSampleDisplayCode,
   staffSampleRowLabel,
-} from "@/lib/sample-reference-display";
-import { cn } from "@/lib/utils";
+} from "@/lib/laboratory";
+import { cn } from "@/lib/ui";
 import { ReceptionistTestCatalogReference } from "@/pages/staff/receptionist/shared/receptionist-test-catalog-reference";
-import { filterMyAssignedSamples } from "@/pages/staff/analyst/shared/analyst-bench-utils";
+import { filterMyAssignedSamples } from "@/lib/laboratory/analyst/desk-utils";
 import { useAuthStore } from "@/stores/auth-store";
 
 import {
   ANALYST_LIST_PAGE_SIZE,
   ANALYST_SAMPLE_STATUS_OPTIONS,
-} from "./analyst-workspace-constants";
+} from "@/lib/staff/analyst/constants";
 import { AnalystSampleDetailPanel } from "./analyst-sample-detail-panel";
 import { RegisterSampleForm } from "./register-sample-form";
 

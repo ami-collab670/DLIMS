@@ -9,7 +9,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/ui";
 
 export type BreadcrumbSegment = {
   label: string;

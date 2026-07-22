@@ -1,3 +1,4 @@
+import { ROUTES } from "@/lib/routing";
 import type { UseFormReturn } from "react-hook-form";
 import { Link } from "react-router-dom";
 
@@ -6,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PasswordInput } from "@/components/ui/password-input";
 
-import type { LoginValues } from "./login-schema";
+import type { LoginValues } from "@/lib/validation/auth/login-schema";
 
 type Props = {
   form: UseFormReturn<LoginValues>;
@@ -59,7 +60,7 @@ export function LoginForm({ form, onSubmit, submitting }: Props) {
 
         <p className="text-center text-sm">
           <Link
-            to="/forgot-password"
+            to={ROUTES.forgotPassword}
             className="text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
           >
             Forgot password?
@@ -70,7 +71,7 @@ export function LoginForm({ form, onSubmit, submitting }: Props) {
       <p className="text-center text-sm text-muted-foreground">
         No account?{" "}
         <Link
-          to="/signup"
+          to={ROUTES.signup}
           className="text-primary underline-offset-4 hover:underline"
         >
           Create one

@@ -7,7 +7,7 @@ import {
   isStaffAnalyst,
   isStaffLabTechnician,
   isStaffAdmin,
-} from "@/lib/staff-permissions";
+} from "@/lib/staff";
 import { useAuthStore } from "@/stores/auth-store";
 
 export function StaffDashboardIntro() {

@@ -1,7 +1,7 @@
 import axios from "axios";
 
 import { env } from "@/config/env";
-import { authStorage } from "@/lib/auth-storage";
+import { authStorage } from "@/lib/auth";
 
 export async function refreshAccessToken(): Promise<string> {
   const refresh = authStorage.getRefresh();

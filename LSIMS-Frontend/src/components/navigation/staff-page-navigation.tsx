@@ -4,7 +4,7 @@ import { useLocation } from "react-router-dom";
 import { BackButton } from "@/components/navigation/back-button";
 import { Breadcrumb } from "@/components/navigation/breadcrumb";
 import { useMergedBreadcrumbSegments } from "@/components/navigation/breadcrumb-segments-context";
-import { getStaffRouteBreadcrumbs } from "@/lib/staff-route-breadcrumbs";
+import { getStaffRouteBreadcrumbs } from "@/lib/staff";
 import { useAuthStore } from "@/stores/auth-store";
 
 export function StaffPageNavigation() {

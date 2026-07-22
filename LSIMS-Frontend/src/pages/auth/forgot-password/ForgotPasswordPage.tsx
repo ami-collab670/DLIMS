@@ -1,3 +1,4 @@
+import { ROUTES } from "@/lib/routing";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
@@ -14,7 +15,7 @@ import {
   confirmPasswordReset,
   requestPasswordReset,
 } from "@/features/auth/api";
-import { getApiErrorMessage } from "@/lib/api-error";
+import { getApiErrorMessage } from "@/lib/api";
 
 import { LoginPageLayout } from "../login/login-page-layout";
 
@@ -91,7 +92,7 @@ export default function ForgotPasswordPage() {
         new_password: values.new_password,
       });
       toast.success("Password updated. You can sign in with your new password.");
-      navigate("/login", { replace: true });
+      navigate(ROUTES.login, { replace: true });
     } catch (e) {
       toast.error(getApiErrorMessage(e));
     } finally {
@@ -132,7 +133,7 @@ export default function ForgotPasswordPage() {
             {submitting ? "Sending…" : "Send reset code"}
           </Button>
           <p className="text-center text-sm text-muted-foreground">
-            <Link to="/login" className="font-medium text-primary underline-offset-4 hover:underline">
+            <Link to={ROUTES.login} className="font-medium text-primary underline-offset-4 hover:underline">
               ← Back to sign in
             </Link>
           </p>
@@ -217,7 +218,7 @@ export default function ForgotPasswordPage() {
             >
               Use a different email
             </button>
-            <Link to="/login" className="font-medium text-primary underline-offset-4 hover:underline">
+            <Link to={ROUTES.login} className="font-medium text-primary underline-offset-4 hover:underline">
               ← Back to sign in
             </Link>
           </div>

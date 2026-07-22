@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PhoneInputField } from "@/components/ui/phone-input";
-import type { ProfileFormValues } from "@/schemas/profile";
+import type { ProfileFormValues } from "@/lib/validation";
 import type { AuthUser } from "@/types/auth";
 
 type Props = {

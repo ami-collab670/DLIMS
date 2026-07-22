@@ -2,10 +2,12 @@ import { useQuery } from "@tanstack/react-query";
 import { CheckCircle2, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 
-import { shortJobId } from "@/lib/job-order-labels";
-import { dashboardKeys } from "@/pages/staff/dashboard-home/dashboard-api-keys";
+import { shortJobId } from "@/lib/laboratory";
+import { dashboardKeys } from "@/lib/staff/dashboard/query-keys";
 
-import { fetchAllFinancialRecords, needsWaiverReleaseCheck } from "./finance-dashboard-utils";
+import { needsWaiverReleaseCheck } from "@/lib/laboratory/finance/dashboard-metrics";
+import { fetchAllFinancialRecords } from "@/features/laboratory/lib/fetch-all-financial-records";
+
 
 export function FinanceWaiverReleaseQueue() {
   const { data = [], isLoading, isError } = useQuery({

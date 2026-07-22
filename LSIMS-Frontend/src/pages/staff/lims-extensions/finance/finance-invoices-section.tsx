@@ -1,5 +1,4 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import type { QueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { useEffect, useCallback, useMemo, useState, Fragment } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -8,27 +7,27 @@ import { TableToolbar } from "@/components/data-table/table-toolbar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { fetchLabClients } from "@/features/accounts/lab-clients-api";
+import { fetchLabClients } from "@/features/accounts/api";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { JobRoleHoldBadge } from "@/components/jobs/job-role-hold-badge";
-import { fetchRoles } from "@/features/accounts/roles-api";
-import { fetchFinancialRecords } from "@/features/laboratory/financial-records-api";
-import { laboratoryQueryKeys } from "@/features/laboratory/laboratory-query-keys";
-import { JOB_PRIORITY_LABEL, JOB_STATUS_LABEL, shortJobId } from "@/lib/job-order-labels";
-import { formatMoney, formatMoneyFromApi, parseMoney } from "@/lib/money";
-import { clientJobReferenceLabel } from "@/lib/sample-reference-display";
-import { isReceptionist } from "@/lib/staff-permissions";
+import { fetchRoles } from "@/features/accounts/api";
+import { fetchFinancialRecords } from "@/features/laboratory/api";
+import { laboratoryQueryKeys } from "@/features/laboratory/query-keys";
+import { JOB_PRIORITY_LABEL, JOB_STATUS_LABEL, shortJobId } from "@/lib/laboratory";
+import { formatMoney, formatMoneyFromApi, parseMoney } from "@/lib/formatting";
+import { clientJobReferenceLabel } from "@/lib/laboratory";
+import { isReceptionist } from "@/lib/staff";
 import type { FinancialRecord, JobOrder } from "@/types/laboratory";
-import { outstandingAmount } from "@/pages/staff/finance/dashboard/finance-dashboard-utils";
+import { outstandingAmount } from "@/lib/laboratory/finance/dashboard-metrics";
 import { FinanceJobBillingBreakdown } from "@/pages/staff/finance/shared/finance-job-billing-breakdown";
 import {
   formatPaidAt,
   formatPaymentStatusLabel,
-} from "@/pages/staff/finance/shared/finance-payment-labels";
+} from "@/lib/laboratory/labels/payment-labels";
 import {
   parseJobBillingSummary,
   suggestedInvoiceAmount,
-} from "@/pages/staff/finance/shared/parse-job-billing";
+} from "@/lib/laboratory/jobs/billing";
 import {
   CreateInvoiceForm,
   EditInvoiceForm,
@@ -36,47 +35,12 @@ import {
 } from "@/pages/staff/finance/shared/finance-invoice-actions";
 import { useAuthStore } from "@/stores/auth-store";
 
-import { dashboardKeys } from "@/pages/staff/dashboard-home/dashboard-api-keys";
-import { fetchAwaitingFinanceJobs } from "@/pages/staff/receptionist/shared/fetch-awaiting-finance-jobs";
+import { fetchAwaitingFinanceJobs } from "@/features/laboratory/lib/fetch-awaiting-finance-jobs";
 import {
   hasClientSearchQuery,
   matchesClientSearch,
-} from "@/pages/staff/receptionist/shared/client-search-utils";
+} from "@/lib/staff/receptionist/client-search";
 import type { AdminUserRow } from "@/types/account-admin";
-
-/** Invalidate caches that depend on payment gate / job workflow. */
-export function invalidateFinanceWorkflowQueries(
-  queryClient: QueryClient,
-  jobId?: string,
-) {
-  void queryClient.invalidateQueries({ queryKey: ["financial-records"] });
-  void queryClient.invalidateQueries({ queryKey: ["staff-job-orders"] });
-  void queryClient.invalidateQueries({ queryKey: ["staff-jobs-picker"] });
-  void queryClient.invalidateQueries({ queryKey: ["staff-samples"] });
-  void queryClient.invalidateQueries({ queryKey: ["staff-analyst"] });
-  void queryClient.invalidateQueries({ queryKey: ["client-job-orders"] });
-  void queryClient.invalidateQueries({ queryKey: ["lims-finance-awaiting"] });
-  void queryClient.invalidateQueries({ queryKey: ["staff-dashboard"] });
-  void queryClient.invalidateQueries({ queryKey: dashboardKeys.recentJobs });
-  void queryClient.invalidateQueries({ queryKey: dashboardKeys.financeKpis });
-  void queryClient.invalidateQueries({ queryKey: dashboardKeys.financeAwaitingClearance });
-  void queryClient.invalidateQueries({ queryKey: dashboardKeys.financeOutstanding });
-  void queryClient.invalidateQueries({ queryKey: dashboardKeys.financeRecentlyCleared });
-  void queryClient.invalidateQueries({ queryKey: dashboardKeys.financeHoldQueue });
-  void queryClient.invalidateQueries({ queryKey: dashboardKeys.financeDiscountTracker });
-  void queryClient.invalidateQueries({ queryKey: ["finance-reports-records"] });
-  void queryClient.invalidateQueries({ queryKey: dashboardKeys.financeAllRecords });
-  void queryClient.invalidateQueries({ queryKey: dashboardKeys.financeReportsSnapshot });
-  void queryClient.invalidateQueries({ queryKey: dashboardKeys.financeCompliancePreview });
-  void queryClient.invalidateQueries({ queryKey: dashboardKeys.financeFollowUp });
-  void queryClient.invalidateQueries({ queryKey: dashboardKeys.financeWaiverRelease });
-  if (jobId) {
-    void queryClient.invalidateQueries({
-      queryKey: laboratoryQueryKeys.financialRecords({ job: jobId }),
-    });
-    void queryClient.invalidateQueries({ queryKey: ["staff-job-order", jobId] });
-  }
-}
 
 export function FinanceInvoicesSection({
   onOpenJob,

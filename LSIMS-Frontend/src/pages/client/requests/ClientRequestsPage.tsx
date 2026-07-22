@@ -1,4 +1,4 @@
-import { ClientNewJobRequestForm } from "@/features/jobs/client-new-job-request-form";
+import { ClientNewJobRequestForm } from "@/features/jobs/components/client-new-job-request-form";
 import { useSearchParams } from "react-router-dom";
 
 import { ClientRequestsPageHeader } from "./client-requests-page-header";

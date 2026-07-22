@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
-import { fetchAnalysisResult } from "@/features/laboratory/analysis-results-api";
+import { fetchAnalysisResult } from "@/features/laboratory/api";
 
 import { QcInboxSection } from "./qc-inbox-section";
 import { QcJobsBoard, QcRecentDecisionsStrip } from "./qc-jobs-board";

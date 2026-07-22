@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
 import { Navigate } from "react-router-dom";
 
-import { canAccessStaffRoute, type StaffRouteKey } from "@/lib/staff-route-access";
+import { ROUTES } from "@/lib/routing";
+import { canAccessStaffRoute, type StaffRouteKey } from "@/lib/staff";
 import { useAuthStore } from "@/stores/auth-store";
 
 type Props = {
@@ -19,7 +20,7 @@ export function StaffRouteGate({ routeKey, children }: Props) {
   if (!user) return null;
 
   if (!allowed) {
-    return <Navigate to="/staff" replace />;
+    return <Navigate to={ROUTES.staff.root} replace />;
   }
 
   return children;

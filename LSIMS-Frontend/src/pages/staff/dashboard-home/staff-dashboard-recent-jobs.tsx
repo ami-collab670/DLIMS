@@ -1,3 +1,4 @@
+import { staffPath } from "@/lib/staff";
 import { useQuery } from "@tanstack/react-query";
 import { Clock, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -7,9 +8,9 @@ import {
   JOB_PRIORITY_LABEL,
   JOB_STATUS_LABEL,
   shortJobId,
-} from "@/lib/job-order-labels";
+} from "@/lib/laboratory";
 
-import { dashboardKeys } from "./dashboard-api-keys";
+import { dashboardKeys } from "@/lib/staff/dashboard/query-keys";
 
 const PREVIEW_LIMIT = 6;
 
@@ -40,7 +41,7 @@ export function StaffDashboardRecentJobs() {
           </div>
         </div>
         <Link
-          to="/staff/laboratory"
+          to={staffPath("laboratory")}
           className="text-xs font-medium text-primary hover:underline"
         >
           Laboratory →

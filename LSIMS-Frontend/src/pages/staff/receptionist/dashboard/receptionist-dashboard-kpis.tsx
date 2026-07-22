@@ -1,3 +1,4 @@
+import { staffFinanceTabUrl, staffPath } from "@/lib/staff";
 import { useQuery } from "@tanstack/react-query";
 import {
   Bell,
@@ -12,24 +13,15 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { Link } from "react-router-dom";
 
-import { fetchLabClients } from "@/features/accounts/lab-clients-api";
-import { fetchComplaints } from "@/features/laboratory/complaints-api";
-import { fetchDiscountApprovals } from "@/features/laboratory/discount-approvals-api";
-import { fetchFinancialRecords } from "@/features/laboratory/financial-records-api";
-import { fetchSamples } from "@/features/laboratory/staff-api";
+import { fetchLabClients } from "@/features/accounts/api";
+import { fetchComplaints } from "@/features/laboratory/api";
+import { fetchDiscountApprovals } from "@/features/laboratory/api";
+import { fetchFinancialRecords } from "@/features/laboratory/api";
+import { fetchSamples } from "@/features/laboratory/api";
 import { fetchUnreadNotificationCount } from "@/features/notifications/api";
-import { dashboardKeys } from "@/pages/staff/dashboard-home/dashboard-api-keys";
-import { fetchAwaitingFinanceJobs } from "@/pages/staff/receptionist/shared/fetch-awaiting-finance-jobs";
-
-function isToday(iso: string): boolean {
-  const d = new Date(iso);
-  const now = new Date();
-  return (
-    d.getFullYear() === now.getFullYear() &&
-    d.getMonth() === now.getMonth() &&
-    d.getDate() === now.getDate()
-  );
-}
+import { dashboardKeys } from "@/lib/staff/dashboard/query-keys";
+import { isToday } from "@/lib/formatting";
+import { fetchAwaitingFinanceJobs } from "@/features/laboratory/lib/fetch-awaiting-finance-jobs";
 
 function needsPaymentAttention(
   jobId: string,
@@ -132,7 +124,7 @@ export function ReceptionistKpiGrid() {
         <KpiCard
           label="Pending finance clearance"
           value={kpis?.pendingFinance ?? 0}
-          href="/staff/finance"
+          href={staffPath("finance")}
           icon={Landmark}
           loading={loading}
           hint="Jobs awaiting invoice or payment"
@@ -140,7 +132,7 @@ export function ReceptionistKpiGrid() {
         <KpiCard
           label="Awaiting payment"
           value={kpis?.awaitingPayment ?? 0}
-          href="/staff/finance"
+          href={staffPath("finance")}
           icon={ClipboardList}
           loading={loading}
           hint="Unpaid or no invoice yet"
@@ -148,35 +140,35 @@ export function ReceptionistKpiGrid() {
         <KpiCard
           label="Samples today"
           value={kpis?.todaysSamples ?? 0}
-          href="/staff/laboratory"
+          href={staffPath("laboratory")}
           icon={TestTube}
           loading={loading}
         />
         <KpiCard
           label="Unread notifications"
           value={kpis?.unreadNotifications ?? 0}
-          href="/staff/notifications"
+          href={staffPath("notifications")}
           icon={Bell}
           loading={loading}
         />
         <KpiCard
           label="Open complaints"
           value={kpis?.openComplaints ?? 0}
-          href="/staff/clients?tab=complaints"
+          href={staffPath("clients", { tab: "complaints" })}
           icon={MessageSquareWarning}
           loading={loading}
         />
         <KpiCard
           label="Active clients"
           value={kpis?.activeClients ?? 0}
-          href="/staff/clients"
+          href={staffPath("clients")}
           icon={Users}
           loading={loading}
         />
         <KpiCard
           label="Pending discount requests"
           value={kpis?.pendingDiscounts ?? 0}
-          href="/staff/finance?tab=discounts"
+          href={staffFinanceTabUrl("discounts")}
           icon={Percent}
           loading={loading}
         />

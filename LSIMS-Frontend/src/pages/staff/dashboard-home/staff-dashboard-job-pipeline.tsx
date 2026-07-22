@@ -1,12 +1,13 @@
+import { staffPath } from "@/lib/staff";
 import { useQueries } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { fetchJobOrders } from "@/features/jobs/api";
-import { JOB_STATUS_LABEL } from "@/lib/job-order-labels";
+import { JOB_STATUS_LABEL } from "@/lib/laboratory";
 import type { JobOrderStatus } from "@/types/laboratory";
 
-import { dashboardKeys } from "./dashboard-api-keys";
+import { dashboardKeys } from "@/lib/staff/dashboard/query-keys";
 
 const PIPELINE_STATUSES: JobOrderStatus[] = [
   "pending_finance",
@@ -48,7 +49,7 @@ export function StaffDashboardJobPipeline() {
           </p>
         </div>
         <Link
-          to="/staff/laboratory"
+          to={staffPath("laboratory")}
           className="text-xs font-medium text-primary hover:underline"
         >
           Open laboratory →

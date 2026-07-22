@@ -3,8 +3,8 @@ import * as React from "react";
 import { getCountryCallingCode, type Country } from "react-phone-number-input";
 
 import { Input } from "@/components/ui/input";
-import { getPhoneCountryMeta } from "@/lib/phone-normalize";
-import { cn } from "@/lib/utils";
+import { getPhoneCountryMeta } from "@/lib/validation";
+import { cn } from "@/lib/ui";
 
 type CountryOption = {
   value?: string;

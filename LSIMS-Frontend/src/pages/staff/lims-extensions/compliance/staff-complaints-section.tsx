@@ -11,13 +11,13 @@ import { Label } from "@/components/ui/label";
 import {
   fetchComplaint,
   fetchComplaints,
-} from "@/features/laboratory/complaints-api";
-import { laboratoryQueryKeys } from "@/features/laboratory/laboratory-query-keys";
+} from "@/features/laboratory/api";
+import { laboratoryQueryKeys } from "@/features/laboratory/query-keys";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
-import { getApiErrorMessage } from "@/lib/api-error";
-import { shortJobId } from "@/lib/job-order-labels";
-import { type TablePageSize } from "@/lib/table-list-utils";
-import { cn } from "@/lib/utils";
+import { getApiErrorMessage } from "@/lib/api";
+import { shortJobId } from "@/lib/laboratory";
+import { type TablePageSize } from "@/lib/table";
+import { cn } from "@/lib/ui";
 import type { ComplaintCategory, ComplaintStatus } from "@/types/laboratory";
 
 import {
@@ -25,7 +25,7 @@ import {
   COMPLAINT_STATUS_OPTIONS,
   STAFF_COMPLAINTS_PAGE_SIZE,
   truncateComplaintTitle,
-} from "./constants";
+} from "@/lib/laboratory/complaints/constants";
 import {
   StaffComplaintCategoryBadge,
   StaffComplaintStatusBadge,
@@ -34,7 +34,7 @@ import {
   countHiddenComplaints,
   filterComplaintsForDepartment,
   filterNonPaymentComplaints,
-} from "@/pages/staff/qc-manager/shared/department-scope-utils";
+} from "@/lib/laboratory/qc-manager/department-scope";
 
 import {
   StaffComplaintDetailPanel,

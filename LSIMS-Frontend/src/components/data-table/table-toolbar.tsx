@@ -6,8 +6,8 @@ import { Label } from "@/components/ui/label";
 import {
   TABLE_PAGE_SIZE_OPTIONS,
   type TablePageSize,
-} from "@/lib/table-list-utils";
-import { cn } from "@/lib/utils";
+} from "@/lib/table";
+import { cn } from "@/lib/ui";
 
 type TableToolbarProps = {
   searchId?: string;

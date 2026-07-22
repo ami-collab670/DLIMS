@@ -5,17 +5,17 @@ import { useMemo, useState } from "react";
 import { TablePaginationFooter } from "@/components/data-table/table-pagination-footer";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { fetchAnalysisResults } from "@/features/laboratory/analysis-results-api";
-import { laboratoryQueryKeys } from "@/features/laboratory/laboratory-query-keys";
-import { getApiErrorMessage } from "@/lib/api-error";
-import { cn } from "@/lib/utils";
-import { QC_DESK_PAGE_SIZE } from "@/pages/staff/qc/shared/qc-constants";
+import { fetchAnalysisResults } from "@/features/laboratory/api";
+import { fetchUrgentSampleIds } from "@/features/laboratory/lib/fetch-urgent-sample-ids";
+import { laboratoryQueryKeys } from "@/features/laboratory/query-keys";
+import { getApiErrorMessage } from "@/lib/api";
+import { formatSubmittedAt } from "@/lib/formatting";
+import { cn } from "@/lib/ui";
+import { QC_DESK_PAGE_SIZE } from "@/lib/staff/qc/constants";
 import {
-  fetchUrgentSampleIds,
-  formatSubmittedAt,
   sortSubmittedResults,
   type QcInboxSortMode,
-} from "@/pages/staff/qc/shared/qc-desk-utils";
+} from "@/lib/laboratory/qc/desk-utils";
 import type { AnalysisResult } from "@/types/laboratory";
 
 type Props = {

@@ -5,10 +5,10 @@ import { useEffect, useState } from "react";
 import { TablePaginationFooter } from "@/components/data-table/table-pagination-footer";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { fetchTestCatalog } from "@/features/laboratory/staff-api";
+import { fetchTestCatalog } from "@/features/laboratory/api";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
-import { getApiErrorMessage } from "@/lib/api-error";
-import { cn } from "@/lib/utils";
+import { getApiErrorMessage } from "@/lib/api";
+import { cn } from "@/lib/ui";
 import type { TestCatalogItem } from "@/types/laboratory";
 
 const CATALOG_PAGE_SIZE = 25;

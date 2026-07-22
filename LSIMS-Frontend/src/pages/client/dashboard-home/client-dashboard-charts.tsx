@@ -16,20 +16,22 @@ import {
 
 import {
   fetchAllActiveJobs,
-  fetchAllFinancialRecords,
+  fetchClientFinancialRecords,
+} from "@/features/client/lib/dashboard-queries";
+import {
   groupInvoicesByPaymentStatus,
   groupJobsByPriority,
   groupJobsByProgressStep,
   groupJobsByStatus,
-} from "@/pages/client/dashboard-home/client-dashboard-metrics";
+} from "@/lib/client/dashboard/metrics";
 import {
   chartColorForJobStatus,
   chartColorForPaymentStatus,
   chartColorForPriority,
   chartColorForProgressStep,
-} from "@/lib/client-dashboard-chart-colors";
+} from "@/lib/client";
 
-import { clientDashboardKeys } from "./client-dashboard-api-keys";
+import { clientDashboardKeys } from "@/lib/client/dashboard/query-keys";
 
 const CHART_HEIGHT = 220;
 
@@ -97,7 +99,7 @@ export function ClientDashboardCharts() {
 
   const financeQuery = useQuery({
     queryKey: clientDashboardKeys.allFinancialRecords,
-    queryFn: fetchAllFinancialRecords,
+    queryFn: fetchClientFinancialRecords,
     staleTime: 45_000,
   });
 

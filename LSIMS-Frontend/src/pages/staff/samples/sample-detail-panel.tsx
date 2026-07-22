@@ -7,8 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { fetchLabAnalysts } from "@/features/accounts/lab-analysts-api";
-import { createPreparationRecord } from "@/features/laboratory/preparation-records-api";
+import { fetchLabAnalysts } from "@/features/accounts/api";
+import { createPreparationRecord } from "@/features/laboratory/api";
 import {
   assignSampleAnalyst,
   assignTestToSample,
@@ -16,9 +16,9 @@ import {
   fetchTestCatalog,
   patchSample,
   removeSampleTestAssignment,
-} from "@/features/laboratory/staff-api";
-import { getApiErrorMessage } from "@/lib/api-error";
-import { shortJobId } from "@/lib/job-order-labels";
+} from "@/features/laboratory/api";
+import { getApiErrorMessage } from "@/lib/api";
+import { shortJobId } from "@/lib/laboratory";
 import type { SampleRecord } from "@/types/laboratory";
 
 function formatDateForInput(isoOrDate: string | null | undefined): string {

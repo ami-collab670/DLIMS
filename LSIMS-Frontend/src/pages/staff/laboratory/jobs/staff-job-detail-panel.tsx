@@ -6,22 +6,22 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { fetchRoles } from "@/features/accounts/roles-api";
+import { fetchRoles } from "@/features/accounts/api";
 import { cancelJobOrder, patchJobOrder } from "@/features/jobs/api";
-import { fetchFinancialRecords } from "@/features/laboratory/financial-records-api";
-import { laboratoryQueryKeys } from "@/features/laboratory/laboratory-query-keys";
-import { getApiErrorMessage } from "@/lib/api-error";
+import { fetchFinancialRecords } from "@/features/laboratory/api";
+import { laboratoryQueryKeys } from "@/features/laboratory/query-keys";
+import { getApiErrorMessage } from "@/lib/api";
 import {
   JOB_PRIORITY_OPTIONS,
   JOB_STATUS_LABEL,
   shortJobId,
-} from "@/lib/job-order-labels";
-import { formatMoneyFromApi } from "@/lib/money";
-import { resolveRoleLabel } from "@/lib/resolve-role-label";
+} from "@/lib/laboratory";
+import { formatMoneyFromApi } from "@/lib/formatting";
+import { resolveRoleLabel } from "@/lib/staff";
 import {
   mergeStaffJobDescriptionEdit,
   sanitizeJobDescriptionForStaff,
-} from "@/lib/sample-reference-display";
+} from "@/lib/laboratory";
 import type { JobOrder } from "@/types/laboratory";
 
 export function StaffJobDetailPanel({

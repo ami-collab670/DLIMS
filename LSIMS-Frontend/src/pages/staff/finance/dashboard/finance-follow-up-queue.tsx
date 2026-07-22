@@ -2,18 +2,18 @@ import { useQuery } from "@tanstack/react-query";
 import { Clock, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 
-import { dashboardKeys } from "@/pages/staff/dashboard-home/dashboard-api-keys";
-import { clientJobReferenceLabel } from "@/lib/sample-reference-display";
-import { formatMoney } from "@/lib/money";
-import { formatPaymentStatusLabel } from "@/pages/staff/finance/shared/finance-payment-labels";
+import { dashboardKeys } from "@/lib/staff/dashboard/query-keys";
+import { clientJobReferenceLabel } from "@/lib/laboratory";
+import { daysSince, formatMoney } from "@/lib/formatting";
+import { formatPaymentStatusLabel } from "@/lib/laboratory/labels/payment-labels";
 
+import { buildJobOrderMap } from "@/features/laboratory/lib/build-job-order-map";
+import { fetchAllFinancialRecords } from "@/features/laboratory/lib/fetch-all-financial-records";
 import {
-  buildJobOrderMap,
-  daysSince,
-  fetchAllFinancialRecords,
   needsFinanceFollowUp,
   outstandingAmount,
-} from "./finance-dashboard-utils";
+} from "@/lib/laboratory/finance/dashboard-metrics";
+
 
 export function FinanceFollowUpQueue() {
   const { data, isLoading, isError } = useQuery({

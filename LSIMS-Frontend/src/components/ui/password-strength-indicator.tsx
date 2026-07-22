@@ -4,8 +4,8 @@ import {
   checkPasswordStrength,
   getPasswordStrengthBarClass,
   getPasswordStrengthFillPercent,
-} from "@/lib/password-strength";
-import { cn } from "@/lib/utils";
+} from "@/lib/validation";
+import { cn } from "@/lib/ui";
 
 type PasswordStrengthIndicatorProps = {
   password: string;

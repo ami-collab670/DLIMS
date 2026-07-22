@@ -11,9 +11,9 @@ import {
   createCalibrationRecord,
   deleteCalibrationRecord,
   fetchCalibrationRecords,
-} from "@/features/laboratory/calibration-records-api";
-import { laboratoryQueryKeys } from "@/features/laboratory/laboratory-query-keys";
-import { getApiErrorMessage } from "@/lib/api-error";
+} from "@/features/laboratory/api";
+import { laboratoryQueryKeys } from "@/features/laboratory/query-keys";
+import { getApiErrorMessage } from "@/lib/api";
 
 type Props = {
   analysisResultId: string;

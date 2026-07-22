@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { DEFAULT_HOME_PAGE } from "@/features/cms/defaults";
 import { useHomePage } from "@/features/cms/hooks";
-import { getDashboardPath } from "@/lib/dashboard-path";
+import { getDashboardPath, ROUTES } from "@/lib/routing";
 import type { AuthUser } from "@/types/auth";
 
 export function HomeAuthActions({
@@ -33,10 +33,10 @@ export function HomeAuthActions({
   return (
     <div className="flex flex-wrap gap-3">
       <Button asChild size="lg">
-        <Link to="/login">{primaryLabel}</Link>
+        <Link to={ROUTES.login}>{primaryLabel}</Link>
       </Button>
       <Button asChild variant="outline" size="lg">
-        <Link to="/signup">{secondaryLabel}</Link>
+        <Link to={ROUTES.signup}>{secondaryLabel}</Link>
       </Button>
     </div>
   );

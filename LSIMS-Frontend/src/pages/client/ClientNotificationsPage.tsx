@@ -1,4 +1,4 @@
-import { NotificationsCenter } from "@/features/notifications/notifications-center";
+import { NotificationsCenter } from "@/features/notifications/components/notifications-center";
 
 export default function ClientNotificationsPage() {
   return (

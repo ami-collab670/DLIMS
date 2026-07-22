@@ -1,3 +1,4 @@
+import { staffPath } from "@/lib/staff";
 import { Link as LinkIcon, Users } from "lucide-react";
 import { Link } from "react-router-dom";
 
@@ -17,7 +18,7 @@ export function StaffAdminPromoCard() {
           </div>
         </div>
         <Button asChild className="shrink-0 gap-2">
-          <Link to="/staff/users">
+          <Link to={staffPath("users")}>
             <LinkIcon className="size-4" />
             Open user management
           </Link>

@@ -1,19 +1,20 @@
+import { staffPath } from "@/lib/staff";
 import { useQuery } from "@tanstack/react-query";
 import { CheckCircle2, Clock, Loader2, PlayCircle } from "lucide-react";
 import { Link } from "react-router-dom";
 import type { LucideIcon } from "lucide-react";
 
-import { fetchPreparationRecords } from "@/features/laboratory/preparation-records-api";
-import { staffPreparationSampleCode } from "@/lib/sample-reference-display";
-import { dashboardKeys } from "@/pages/staff/dashboard-home/dashboard-api-keys";
+import { fetchPreparationRecords } from "@/features/laboratory/api";
+import { staffPreparationSampleCode } from "@/lib/laboratory";
+import { dashboardKeys } from "@/lib/staff/dashboard/query-keys";
 import { useAuthStore } from "@/stores/auth-store";
 
-import { LAB_TECH_DESK_PREVIEW_LIMIT } from "../shared/lab-tech-constants";
+import { LAB_TECH_DESK_PREVIEW_LIMIT } from "@/lib/staff/prep/constants";
 import {
   computeLabTechKpis,
   filterMyPrepRecords,
   sortPrepQueueOldest,
-} from "../shared/lab-tech-utils";
+} from "@/lib/laboratory/prep/desk-utils";
 
 function KpiCard({
   label,
@@ -69,7 +70,7 @@ export function LabTechDashboardKpiGrid() {
       <KpiCard
         label="Pending (claimable)"
         value={kpis?.pendingClaimable ?? 0}
-        href="/staff/prep"
+        href={staffPath("prep")}
         icon={PlayCircle}
         loading={isLoading}
         hint="Assigned to you or unassigned pending"
@@ -77,7 +78,7 @@ export function LabTechDashboardKpiGrid() {
       <KpiCard
         label="In progress"
         value={kpis?.inProgressMine ?? 0}
-        href="/staff/prep"
+        href={staffPath("prep")}
         icon={Clock}
         loading={isLoading}
         hint="Preparation you started"
@@ -85,7 +86,7 @@ export function LabTechDashboardKpiGrid() {
       <KpiCard
         label="Completed today"
         value={kpis?.completedToday ?? 0}
-        href="/staff/prep"
+        href={staffPath("prep")}
         icon={CheckCircle2}
         loading={isLoading}
         hint="Finished prep today"
@@ -114,7 +115,7 @@ export function LabTechDashboardQueuePreview() {
     <section className="rounded-xl border border-border bg-card p-4 shadow-sm">
       <div className="mb-3 flex items-center justify-between gap-2">
         <h3 className="text-sm font-semibold">Prep queue</h3>
-        <Link to="/staff/prep" className="text-xs text-primary hover:underline">
+        <Link to={staffPath("prep")} className="text-xs text-primary hover:underline">
           Open bench
         </Link>
       </div>

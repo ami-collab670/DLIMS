@@ -9,19 +9,19 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { createNotification } from "@/features/notifications/api";
-import { getApiErrorMessage } from "@/lib/api-error";
+import { getApiErrorMessage } from "@/lib/api";
 import {
   JOB_PRIORITY_LABEL,
   JOB_STATUS_LABEL,
   shortJobId,
-} from "@/lib/job-order-labels";
+} from "@/lib/laboratory";
 import type { AdminUserRow } from "@/types/account-admin";
 import type { JobOrder } from "@/types/laboratory";
 import type { NotificationKind } from "@/types/notification";
 
 import {
   RECEPTIONIST_MESSAGE_TEMPLATES,
-} from "@/pages/staff/receptionist/shared/receptionist-message-templates";
+} from "@/lib/staff/receptionist/message-templates";
 
 import { StaffClientComplaintForm } from "./staff-client-complaint-form";
 

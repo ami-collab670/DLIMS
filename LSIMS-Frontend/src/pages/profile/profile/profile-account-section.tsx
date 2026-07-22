@@ -1,5 +1,5 @@
-import { shortId } from "@/lib/short-id";
-import { cn } from "@/lib/utils";
+import { shortId } from "@/lib/formatting";
+import { cn } from "@/lib/ui";
 import type { AuthUser } from "@/types/auth";
 
 type Props = {

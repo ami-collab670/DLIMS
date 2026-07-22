@@ -1,3 +1,5 @@
+import { ROUTES } from "@/lib/routing";
+import { staffPath } from "@/lib/staff";
 import { type RouteObject, Navigate } from "react-router-dom";
 
 import { AdminOnlyRoute } from "@/components/auth/admin-only-route";
@@ -49,19 +51,19 @@ export const appRoutes: RouteObject[] = [
     element: <RootLayout />,
     children: [
       // ── Public zone ──
-      { path: "/", element: <Home /> },
-      { path: "/about", element: <MarketingPage slug="about" /> },
-      { path: "/services", element: <MarketingPage slug="services" /> },
-      { path: "/contact", element: <MarketingPage slug="contact" /> },
+      { path: ROUTES.home, element: <Home /> },
+      { path: ROUTES.about, element: <MarketingPage slug="about" /> },
+      { path: ROUTES.services, element: <MarketingPage slug="services" /> },
+      { path: ROUTES.contact, element: <MarketingPage slug="contact" /> },
 
       // ── Auth zone ──
-      { path: "/login", element: <LoginPage /> },
-      { path: "/signup", element: <SignupPage /> },
-      { path: "/forgot-password", element: <ForgotPasswordPage /> },
+      { path: ROUTES.login, element: <LoginPage /> },
+      { path: ROUTES.signup, element: <SignupPage /> },
+      { path: ROUTES.forgotPassword, element: <ForgotPasswordPage /> },
 
       // ── Staff zone ──
       {
-        path: "/staff",
+        path: ROUTES.staff.root,
         element: (
           <ProtectedRoute>
             <StaffOnlyRoute>
@@ -183,7 +185,7 @@ export const appRoutes: RouteObject[] = [
           },
           {
             path: "samples",
-            element: <Navigate to="/staff/analyst" replace />,
+            element: <Navigate to={staffPath("analyst")} replace />,
           },
           {
             path: "analyst",
@@ -227,7 +229,7 @@ export const appRoutes: RouteObject[] = [
 
       // ── Client zone ──
       {
-        path: "/client",
+        path: ROUTES.client.root,
         element: (
           <ProtectedRoute>
             <ClientOnlyRoute>

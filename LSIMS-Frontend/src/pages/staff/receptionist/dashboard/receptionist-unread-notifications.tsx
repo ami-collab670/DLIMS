@@ -1,3 +1,4 @@
+import { staffPath } from "@/lib/staff";
 import { useQuery } from "@tanstack/react-query";
 import { Bell, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -33,7 +34,7 @@ export function ReceptionistUnreadNotifications() {
           </span>
         )}
         <Link
-          to="/staff/notifications"
+          to={staffPath("notifications")}
           className="ml-auto text-xs font-medium text-primary hover:underline"
         >
           Open inbox →

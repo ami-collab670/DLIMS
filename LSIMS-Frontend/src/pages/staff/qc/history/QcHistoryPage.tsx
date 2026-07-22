@@ -4,13 +4,13 @@ import { useMemo, useState } from "react";
 
 import { TablePaginationFooter } from "@/components/data-table/table-pagination-footer";
 import { Label } from "@/components/ui/label";
-import { fetchAnalysisResult } from "@/features/laboratory/analysis-results-api";
-import { fetchQCDecisions } from "@/features/laboratory/qc-decisions-api";
-import { laboratoryQueryKeys } from "@/features/laboratory/laboratory-query-keys";
-import { getApiErrorMessage } from "@/lib/api-error";
+import { fetchAnalysisResult } from "@/features/laboratory/api";
+import { fetchQCDecisions } from "@/features/laboratory/api";
+import { laboratoryQueryKeys } from "@/features/laboratory/query-keys";
+import { getApiErrorMessage } from "@/lib/api";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
-import { QC_DESK_PAGE_SIZE } from "@/pages/staff/qc/shared/qc-constants";
-import { formatDecidedAt } from "@/pages/staff/qc/shared/qc-desk-utils";
+import { QC_DESK_PAGE_SIZE } from "@/lib/staff/qc/constants";
+import { formatDecidedAt } from "@/lib/formatting";
 import type { AnalysisResult, QCDecision, QCDecisionValue } from "@/types/laboratory";
 
 type EnrichedDecision = QCDecision & {

@@ -3,17 +3,14 @@ import { ArrowLeft, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
-import { fetchSamples } from "@/features/laboratory/staff-api";
-import { cn } from "@/lib/utils";
+import { fetchSamples } from "@/features/laboratory/api";
+import { cn } from "@/lib/ui";
 import type { SampleRecord } from "@/types/laboratory";
 
-import { clientComplaintsUrl } from "../complaints/client-complaint-labels";
+import { clientComplaintsUrl } from "@/lib/routing";
 
-import {
-  ClientProgressBadge,
-  formatClientDate,
-  formatClientDateTime,
-} from "./client-results-progress";
+import { ClientProgressBadge } from "./client-results-progress";
+import { formatClientDate, formatClientDateTime } from "@/lib/client";
 import { ClientResultsSampleTests } from "./client-results-sample-tests";
 
 function SampleFields({ sample }: { sample: SampleRecord }) {

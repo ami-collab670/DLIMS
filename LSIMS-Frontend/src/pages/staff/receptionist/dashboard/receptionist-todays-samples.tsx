@@ -1,21 +1,13 @@
+import { staffPath } from "@/lib/staff";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2, TestTube } from "lucide-react";
 import { Link } from "react-router-dom";
 
-import { fetchSamples } from "@/features/laboratory/staff-api";
-import { shortJobId } from "@/lib/job-order-labels";
+import { fetchSamples } from "@/features/laboratory/api";
+import { isToday } from "@/lib/formatting";
+import { shortJobId } from "@/lib/laboratory";
 
-import { dashboardKeys } from "@/pages/staff/dashboard-home/dashboard-api-keys";
-
-function isToday(iso: string): boolean {
-  const d = new Date(iso);
-  const now = new Date();
-  return (
-    d.getFullYear() === now.getFullYear() &&
-    d.getMonth() === now.getMonth() &&
-    d.getDate() === now.getDate()
-  );
-}
+import { dashboardKeys } from "@/lib/staff/dashboard/query-keys";
 
 export function ReceptionistTodaysSamples() {
   const { data, isLoading, isError } = useQuery({
@@ -53,7 +45,7 @@ export function ReceptionistTodaysSamples() {
           {todaySamples.length} registered today
         </span>
         <Link
-          to="/staff/laboratory"
+          to={staffPath("laboratory")}
           className="ml-auto text-xs font-medium text-primary hover:underline"
         >
           Register sample →

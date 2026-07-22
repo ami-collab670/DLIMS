@@ -1,11 +1,12 @@
+import { staffPath } from "@/lib/staff";
 import { useQuery } from "@tanstack/react-query";
 import { ClipboardList, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 
-import { JOB_PRIORITY_LABEL, JOB_STATUS_LABEL, shortJobId } from "@/lib/job-order-labels";
+import { JOB_PRIORITY_LABEL, JOB_STATUS_LABEL, shortJobId } from "@/lib/laboratory";
 
-import { dashboardKeys } from "@/pages/staff/dashboard-home/dashboard-api-keys";
-import { fetchAwaitingFinanceJobs } from "@/pages/staff/receptionist/shared/fetch-awaiting-finance-jobs";
+import { dashboardKeys } from "@/lib/staff/dashboard/query-keys";
+import { fetchAwaitingFinanceJobs } from "@/features/laboratory/lib/fetch-awaiting-finance-jobs";
 
 export function ReceptionistIntakeQueue() {
   const { data: jobs = [], isLoading, isError } = useQuery({
@@ -42,7 +43,7 @@ export function ReceptionistIntakeQueue() {
           {jobs.length} job{jobs.length === 1 ? "" : "s"} awaiting finance
         </span>
         <Link
-          to="/staff/laboratory"
+          to={staffPath("laboratory")}
           className="ml-auto text-xs font-medium text-primary hover:underline"
         >
           Sample intake →

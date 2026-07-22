@@ -8,7 +8,7 @@ import {
   isStaffAnalyst,
   isStaffLabTechnician,
   staffRoleName,
-} from "@/lib/staff-permissions";
+} from "@/lib/staff";
 import { useAuthStore } from "@/stores/auth-store";
 
 /**

@@ -1,0 +1,82 @@
+import { daysSince, isToday, isWithinDays, parseMoney } from "@/lib/formatting";
+import type { FinancialRecord } from "@/types/laboratory";
+
+export function invoiceByJobMap(
+  records: FinancialRecord[],
+): Map<string, FinancialRecord> {
+  const map = new Map<string, FinancialRecord>();
+  for (const r of records) {
+    if (!map.has(r.job)) map.set(r.job, r);
+  }
+  return map;
+}
+
+export function outstandingAmount(record: FinancialRecord): number {
+  if (record.payment_status === "paid") return 0;
+  return Math.max(parseMoney(record.amount_expected) - parseMoney(record.amount_paid), 0);
+}
+
+export function sumOutstanding(records: FinancialRecord[]): number {
+  let total = 0;
+  for (const r of records) {
+    total += outstandingAmount(r);
+  }
+  return total;
+}
+
+export function revenueCollectedInDays(records: FinancialRecord[], days: number): number {
+  let total = 0;
+  for (const r of records) {
+    if (r.paid_at && isWithinDays(r.paid_at, days)) {
+      total += parseMoney(r.amount_paid);
+    }
+  }
+  return total;
+}
+
+export function countPaidInWindow(
+  records: FinancialRecord[],
+  todayOnly: boolean,
+): { today: number; week: number } {
+  let today = 0;
+  let week = 0;
+  for (const r of records) {
+    if (r.payment_status !== "paid" || !r.paid_at) continue;
+    if (isToday(r.paid_at)) today += 1;
+    if (isWithinDays(r.paid_at, 7)) week += 1;
+  }
+  if (todayOnly) return { today, week };
+  return { today, week };
+}
+
+export function waiverMetrics(records: FinancialRecord[]): {
+  count: number;
+  amount: number;
+} {
+  let count = 0;
+  let amount = 0;
+  for (const r of records) {
+    if (r.waiver_approved_at) {
+      count += 1;
+      amount += parseMoney(r.amount_expected);
+    }
+  }
+  return { count, amount };
+}
+
+export function needsFinanceFollowUp(record: FinancialRecord): boolean {
+  if (record.payment_status === "partial") return true;
+  if (record.payment_status === "pending" && !record.waiver_approved_at) {
+    const age = daysSince(record.created_at);
+    return age != null && age >= 7;
+  }
+  return false;
+}
+
+export function needsWaiverReleaseCheck(record: FinancialRecord): boolean {
+  if (!record.waiver_approved_at) return false;
+  return (
+    record.job_status === "pending_finance" ||
+    (record.payment_required && record.payment_status !== "paid")
+  );
+}

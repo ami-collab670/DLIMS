@@ -4,13 +4,13 @@ import { TableColumnFilterSelect } from "@/components/data-table/table-column-fi
 import { TablePageSizeSelect } from "@/components/data-table/table-toolbar";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { type TablePageSize } from "@/lib/table-list-utils";
-import { cn } from "@/lib/utils";
+import { type TablePageSize } from "@/lib/table";
+import { cn } from "@/lib/ui";
 import type { ComplaintCategory, ComplaintStatus, JobOrder, SampleRecord } from "@/types/laboratory";
 
-import { formatSampleDisplayName } from "./client-complaint-labels";
+import { formatSampleDisplayName } from "@/lib/laboratory";
 import { ClientJobRequestSelect } from "./client-job-request-select";
-import { COMPLAINT_CATEGORY_OPTIONS, COMPLAINT_STATUS_OPTIONS } from "./constants";
+import { COMPLAINT_CATEGORY_OPTIONS, COMPLAINT_STATUS_OPTIONS } from "@/lib/laboratory/complaints/constants";
 
 type ClientComplaintsTableFiltersProps = {
   categoryFilter: ComplaintCategory | "";

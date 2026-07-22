@@ -4,11 +4,11 @@ import { useEffect, useId, useRef } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { deleteComplaint } from "@/features/laboratory/complaints-api";
-import { laboratoryQueryKeys } from "@/features/laboratory/laboratory-query-keys";
+import { deleteComplaint } from "@/features/laboratory/api";
+import { laboratoryQueryKeys } from "@/features/laboratory/query-keys";
 import type { ComplaintRecord } from "@/types/laboratory";
 
-import { toastApiError } from "./staff-complaint-api-error";
+import { toastApiError } from "@/lib/api/toast-api-error";
 
 type Props = {
   complaint: ComplaintRecord;

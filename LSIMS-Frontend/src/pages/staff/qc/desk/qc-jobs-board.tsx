@@ -1,15 +1,16 @@
+import { ROUTES } from "@/lib/routing";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { JobRoleHoldBadge } from "@/components/jobs/job-role-hold-badge";
-import { fetchRoles } from "@/features/accounts/roles-api";
+import { fetchRoles } from "@/features/accounts/api";
 import { fetchJobOrders } from "@/features/jobs/api";
-import { fetchQCDecisions } from "@/features/laboratory/qc-decisions-api";
-import { getApiErrorMessage } from "@/lib/api-error";
-import { JOB_STATUS_LABEL, shortJobId } from "@/lib/job-order-labels";
-import { shouldHideClientSampleNames } from "@/lib/sample-reference-display";
-import { isQcManager } from "@/lib/staff-permissions";
+import { fetchQCDecisions } from "@/features/laboratory/api";
+import { getApiErrorMessage } from "@/lib/api";
+import { JOB_STATUS_LABEL, shortJobId } from "@/lib/laboratory";
+import { shouldHideClientSampleNames } from "@/lib/laboratory";
+import { isQcManager } from "@/lib/staff";
 import { useAuthStore } from "@/stores/auth-store";
 
 export function QcJobsBoard() {
@@ -113,7 +114,7 @@ export function QcRecentDecisionsStrip() {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-sm font-semibold">Recent QC decisions</h3>
         <Link
-          to="/staff/qc/history"
+          to={ROUTES.staff.qc.history}
           className="text-xs font-medium text-primary underline-offset-4 hover:underline"
         >
           Full history →

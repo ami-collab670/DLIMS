@@ -6,8 +6,8 @@ import { Button } from "@/components/ui/button";
 import {
   deleteTestCatalogItem,
   patchTestCatalogItem,
-} from "@/features/laboratory/staff-api";
-import { getApiErrorMessage } from "@/lib/api-error";
+} from "@/features/laboratory/api";
+import { getApiErrorMessage } from "@/lib/api";
 import type { TestCatalogItem } from "@/types/laboratory";
 
 export function CatalogRow({

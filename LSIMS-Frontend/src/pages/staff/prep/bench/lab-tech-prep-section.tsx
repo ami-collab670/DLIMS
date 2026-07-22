@@ -7,15 +7,15 @@ import { TablePaginationFooter } from "@/components/data-table/table-pagination-
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { laboratoryQueryKeys } from "@/features/laboratory/laboratory-query-keys";
+import { laboratoryQueryKeys } from "@/features/laboratory/query-keys";
 import {
   completePreparationRecord,
   fetchPreparationRecords,
   startPreparationRecord,
-} from "@/features/laboratory/preparation-records-api";
-import { getApiErrorMessage } from "@/lib/api-error";
-import { staffPreparationSampleCode } from "@/lib/sample-reference-display";
-import { dashboardKeys } from "@/pages/staff/dashboard-home/dashboard-api-keys";
+} from "@/features/laboratory/api";
+import { getApiErrorMessage } from "@/lib/api";
+import { staffPreparationSampleCode } from "@/lib/laboratory";
+import { dashboardKeys } from "@/lib/staff/dashboard/query-keys";
 import { useAuthStore } from "@/stores/auth-store";
 import type { PreparationRecord, PreparationStatus } from "@/types/laboratory";
 
@@ -23,7 +23,7 @@ import {
   canClaimPrepRecord,
   filterMyPrepRecords,
   LAB_TECH_PREP_PAGE_SIZE,
-} from "../shared/lab-tech-utils";
+} from "@/lib/laboratory/prep/desk-utils";
 
 type StatusTab = "all" | PreparationStatus;
 

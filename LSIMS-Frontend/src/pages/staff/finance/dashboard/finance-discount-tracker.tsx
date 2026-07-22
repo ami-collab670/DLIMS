@@ -1,12 +1,13 @@
+import { staffFinanceTabUrl } from "@/lib/staff";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2, Percent } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
-import { fetchDiscountApprovals } from "@/features/laboratory/discount-approvals-api";
-import { shortJobId } from "@/lib/job-order-labels";
-import { dashboardKeys } from "@/pages/staff/dashboard-home/dashboard-api-keys";
+import { fetchDiscountApprovals } from "@/features/laboratory/api";
+import { shortJobId } from "@/lib/laboratory";
+import { dashboardKeys } from "@/lib/staff/dashboard/query-keys";
 import type { DiscountApprovalStatus } from "@/types/laboratory";
 
 const STATUS_TABS: { value: DiscountApprovalStatus; label: string }[] = [
@@ -65,7 +66,7 @@ export function FinanceDiscountTracker() {
           Discount / waiver tracker
         </h3>
         <Link
-          to="/staff/finance?tab=discounts"
+          to={staffFinanceTabUrl("discounts")}
           className="ml-auto text-xs font-medium text-primary hover:underline"
         >
           Manage requests →

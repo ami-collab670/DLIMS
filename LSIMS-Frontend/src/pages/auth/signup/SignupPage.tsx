@@ -5,12 +5,12 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 import { registerRequest } from "@/features/auth/api";
-import { getApiErrorMessage } from "@/lib/api-error";
+import { getApiErrorMessage } from "@/lib/api";
 import { useAuthStore } from "@/stores/auth-store";
 
 import { SignupForm } from "./signup-form";
 import { SignupPageLayout } from "./signup-page-layout";
-import { signupSchema, type SignupValues } from "./signup-schema";
+import { signupSchema, type SignupValues } from "@/lib/validation/auth/signup-schema";
 
 export default function SignupPage() {
   const navigate = useNavigate();

@@ -5,8 +5,9 @@ import { Link } from "react-router-dom";
 import {
   canAccessStaffRoute,
   type StaffRouteKey,
-} from "@/lib/staff-route-access";
-import { isStaffAnalyst, isQcManager } from "@/lib/staff-permissions";
+} from "@/lib/staff";
+import { isStaffAnalyst, isQcManager } from "@/lib/staff";
+import { staffPath } from "@/lib/staff";
 import { useAuthStore } from "@/stores/auth-store";
 
 const linkClass =
@@ -23,28 +24,28 @@ type QuickItem = {
 const ITEMS: QuickItem[] = [
   {
     routeKey: "laboratory",
-    to: "/staff/laboratory",
+    to: staffPath("laboratory"),
     title: "Laboratory",
     subtitle: "Jobs, assignments, analyst tab",
     icon: FlaskConical,
   },
   {
     routeKey: "analyst",
-    to: "/staff/analyst",
+    to: staffPath("analyst"),
     title: "Analyst",
     subtitle: "Analyst workspace & assignments",
     icon: TestTube,
   },
   {
     routeKey: "profile",
-    to: "/staff/profile",
+    to: staffPath("profile"),
     title: "Profile & settings",
     subtitle: "Contact, security, preferences",
     icon: User,
   },
   {
     routeKey: "users",
-    to: "/staff/users",
+    to: staffPath("users"),
     title: "Users",
     subtitle: "Accounts and roles",
     icon: Users,
@@ -65,7 +66,7 @@ export function StaffDashboardQuickLinks() {
       if (item.routeKey === "laboratory" && isQcManager(user)) {
         return {
           ...item,
-          to: "/staff/laboratory?tab=analyst",
+          to: staffPath("laboratory", { tab: "analyst" }),
           title: "Route samples",
           subtitle: "Assign analysts and create preparation records",
         };

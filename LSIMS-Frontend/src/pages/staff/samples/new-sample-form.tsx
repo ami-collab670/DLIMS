@@ -7,11 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { fetchLabAnalysts } from "@/features/accounts/lab-analysts-api";
+import { fetchLabAnalysts } from "@/features/accounts/api";
 import { fetchJobOrders } from "@/features/jobs/api";
-import { createSample } from "@/features/laboratory/staff-api";
-import { getApiErrorMessage } from "@/lib/api-error";
-import { JOB_STATUS_LABEL, shortJobId } from "@/lib/job-order-labels";
+import { createSample } from "@/features/laboratory/api";
+import { getApiErrorMessage } from "@/lib/api";
+import { JOB_STATUS_LABEL, shortJobId } from "@/lib/laboratory";
 import type { JobOrderStatus } from "@/types/laboratory";
 
 export function NewSampleForm({ onCreated }: { onCreated: () => void }) {

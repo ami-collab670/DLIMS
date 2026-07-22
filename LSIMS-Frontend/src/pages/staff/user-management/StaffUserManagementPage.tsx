@@ -13,13 +13,13 @@ import {
   fetchAdminUsers,
   patchAdminUser,
   type UpdateAdminUserBody,
-} from "@/features/accounts/admin-api";
+} from "@/features/accounts/api";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
-import { getApiErrorMessage } from "@/lib/api-error";
-import type { TablePageSize } from "@/lib/table-list-utils";
+import { getApiErrorMessage } from "@/lib/api";
+import type { TablePageSize } from "@/lib/table";
 import type { AdminUserRow } from "@/types/account-admin";
 
-import { USER_MANAGEMENT_PAGE_SIZE } from "./constants";
+import { DEFAULT_TABLE_PAGE_SIZE } from "@/lib/table";
 import { DepartmentsManagementSection } from "./departments-management-section";
 import { RolesManagementSection } from "./roles-management-section";
 import { UserCreateForm } from "./user-create-form";
@@ -37,7 +37,7 @@ const USER_MANAGEMENT_TAB_LABELS = {
 export default function StaffUserManagementPage() {
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState<TablePageSize>(USER_MANAGEMENT_PAGE_SIZE);
+  const [pageSize, setPageSize] = useState<TablePageSize>(DEFAULT_TABLE_PAGE_SIZE);
   const [search, setSearch] = useState("");
   const debounced = useDebouncedValue(search);
   const [showCreate, setShowCreate] = useState(false);

@@ -4,7 +4,7 @@ import {
   fetchHomePage,
   fetchMarketingPage,
   fetchSiteSettings,
-} from "@/features/cms/cms-api";
+} from "@/features/cms/api";
 import { CmsUnavailableError } from "@/features/cms/cms-errors";
 import { cmsQueryKeys } from "@/features/cms/query-keys";
 

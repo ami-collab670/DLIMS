@@ -1,5 +1,5 @@
 import { apiClient } from "@/api/client";
-import type { AuthUser, RegisterResponse, TokenPair } from "@/types/auth";
+import type { RegisterResponse, TokenPair } from "@/types/auth";
 
 export async function loginRequest(
   email: string,
@@ -31,11 +31,6 @@ export async function registerRequest(
     "/api/auth/register/",
     body,
   );
-  return data;
-}
-
-export async function fetchProfile(): Promise<AuthUser> {
-  const { data } = await apiClient.get<AuthUser>("/api/accounts/profile/");
   return data;
 }
 

@@ -1,21 +1,22 @@
+import { staffFinanceTabUrl } from "@/lib/staff";
 import { useQuery } from "@tanstack/react-query";
 import { BarChart3, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 
-import { dashboardKeys } from "@/pages/staff/dashboard-home/dashboard-api-keys";
-import { formatMoney } from "@/lib/money";
+import { dashboardKeys } from "@/lib/staff/dashboard/query-keys";
+import { formatMoney } from "@/lib/formatting";
 
 import {
-  fetchAllFinancialRecords,
   revenueCollectedInDays,
   sumOutstanding,
   waiverMetrics,
-} from "./finance-dashboard-utils";
+} from "@/lib/laboratory/finance/dashboard-metrics";
+import { fetchAllFinancialRecords } from "@/features/laboratory/lib/fetch-all-financial-records";
 
 export function FinanceReportsSnapshot() {
   const { data: records = [], isLoading, isError } = useQuery({
     queryKey: dashboardKeys.financeAllRecords,
-    queryFn: fetchAllFinancialRecords,
+    queryFn: () => fetchAllFinancialRecords(),
     staleTime: 60_000,
   });
 
@@ -46,7 +47,7 @@ export function FinanceReportsSnapshot() {
           Reports snapshot
         </h3>
         <Link
-          to="/staff/finance?tab=reports"
+          to={staffFinanceTabUrl("reports")}
           className="ml-auto text-xs font-medium text-primary hover:underline"
         >
           Full reports →

@@ -1,5 +1,5 @@
 import { StaffRoleBanner } from "@/pages/staff/lims-extensions/staff-role-banner";
-import { canManageTestCatalog, isQcManager } from "@/lib/staff-permissions";
+import { canManageTestCatalog, isQcManager } from "@/lib/staff";
 import { useAuthStore } from "@/stores/auth-store";
 
 import { StaffCatalogSection } from "./staff-catalog-section";

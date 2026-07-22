@@ -2,8 +2,8 @@ import { Building2, Home, LayoutDashboard, LogIn } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
-import { getDashboardPath } from "@/lib/dashboard-path";
-import { cn } from "@/lib/utils";
+import { getDashboardPath, ROUTES } from "@/lib/routing";
+import { cn } from "@/lib/ui";
 import { useAuthStore } from "@/stores/auth-store";
 
 export type NotFoundVariant = "public" | "client" | "staff";
@@ -89,7 +89,7 @@ export function NotFoundContent({ variant }: NotFoundContentProps) {
               </Button>
             ) : (
               <Button type="button" variant="outline" className="gap-2" asChild>
-                <Link to="/login">
+                <Link to={ROUTES.login}>
                   <LogIn className="size-4" aria-hidden />
                   Sign in
                 </Link>

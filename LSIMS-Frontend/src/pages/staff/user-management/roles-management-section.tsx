@@ -12,11 +12,11 @@ import {
   fetchRoles,
   patchRole,
   type RoleName,
-} from "@/features/accounts/roles-api";
-import { getApiErrorMessage } from "@/lib/api-error";
+} from "@/features/accounts/api";
+import { getApiErrorMessage } from "@/lib/api";
 import type { RoleRecord } from "@/types/account-admin";
 
-import { roleOptionLabel } from "./role-display";
+import { roleOptionLabel } from "@/lib/staff/roles/role-display";
 
 const ROLE_NAME_OPTIONS: { value: RoleName; label: string }[] = [
   { value: "admin", label: "Admin" },

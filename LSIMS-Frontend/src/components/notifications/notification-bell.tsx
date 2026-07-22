@@ -1,20 +1,16 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Bell } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import {
-  fetchNotifications,
-  fetchUnreadNotificationCount,
-  markAllNotificationsRead,
-  patchNotificationRead,
-} from "@/features/notifications/api";
-import { notificationKeys } from "@/features/notifications/query-keys";
-import { getApiErrorMessage } from "@/lib/api-error";
-import { getNotificationsPath } from "@/lib/notifications-path";
-import { cn } from "@/lib/utils";
+  useMarkAllNotificationsRead,
+  useMarkRead,
+  useNotifications,
+  useUnreadCount,
+} from "@/features/notifications/hooks";
+import { getNotificationsPath } from "@/lib/routing";
+import { cn } from "@/lib/ui";
 import { useAuthStore } from "@/stores/auth-store";
 import type { NotificationRecord } from "@/types/notification";
 
@@ -33,43 +29,26 @@ function formatTime(iso: string) {
 
 export function NotificationBell({ className }: { className?: string }) {
   const user = useAuthStore((s) => s.user);
-  const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
-  const unreadQuery = useQuery({
-    queryKey: notificationKeys.unreadCount,
-    queryFn: fetchUnreadNotificationCount,
+  const unreadQuery = useUnreadCount({
     enabled: Boolean(user),
     refetchInterval: POLL_MS,
-    staleTime: 10_000,
   });
 
-  const recentQuery = useQuery({
-    queryKey: notificationKeys.list({ page: 1 }),
-    queryFn: () => fetchNotifications({ page: 1 }),
-    enabled: Boolean(user) && open,
-    staleTime: 5_000,
-  });
-
-  const markReadMut = useMutation({
-    mutationFn: ({ id, read }: { id: string; read: boolean }) =>
-      patchNotificationRead(id, read),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: notificationKeys.all });
+  const recentQuery = useNotifications(
+    { page: 1 },
+    {
+      enabled: Boolean(user) && open,
+      staleTime: 5_000,
     },
-    onError: (e) => toast.error(getApiErrorMessage(e)),
-  });
+  );
 
-  const markAllMut = useMutation({
-    mutationFn: markAllNotificationsRead,
-    onSuccess: (n) => {
-      toast.success(
-        n === 0 ? "No unread notifications." : `Marked ${n} as read.`,
-      );
-      void queryClient.invalidateQueries({ queryKey: notificationKeys.all });
-    },
-    onError: (e) => toast.error(getApiErrorMessage(e)),
+  const markReadMut = useMarkRead();
+  const markAllMut = useMarkAllNotificationsRead({
+    emptyMessage: "No unread notifications.",
+    successMessage: (n) => `Marked ${n} as read.`,
   });
 
   useEffect(() => {

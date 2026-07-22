@@ -1,7 +1,7 @@
 import { create } from "zustand";
 
-import { fetchProfile } from "@/features/auth/api";
-import { authStorage } from "@/lib/auth-storage";
+import { fetchProfile } from "@/features/profile/api";
+import { authStorage } from "@/lib/auth";
 import type { AuthUser } from "@/types/auth";
 
 type AuthState = {

@@ -1,10 +1,11 @@
+import { staffPath } from "@/lib/staff";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2, MessageSquare } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { fetchNotifications } from "@/features/notifications/api";
 
-import { dashboardKeys } from "@/pages/staff/dashboard-home/dashboard-api-keys";
+import { dashboardKeys } from "@/lib/staff/dashboard/query-keys";
 
 function formatWhen(iso: string) {
   try {
@@ -50,7 +51,7 @@ export function ReceptionistRecentMessages() {
           Recent client messages
         </h3>
         <Link
-          to="/staff/notifications"
+          to={staffPath("notifications")}
           className="ml-auto text-xs font-medium text-primary hover:underline"
         >
           Notifications →

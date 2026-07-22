@@ -13,12 +13,12 @@ import {
   isQcManager,
   isReceptionist,
   staffRoleName,
-} from "@/lib/staff-permissions";
-import { shouldHideClientSampleNames } from "@/lib/sample-reference-display";
+} from "@/lib/staff";
+import { shouldHideClientSampleNames } from "@/lib/laboratory";
 import { useAuthStore } from "@/stores/auth-store";
 import { StaffAnalystSection } from "@/pages/staff/analyst/staff-analyst-section";
 
-import type { LaboratoryTabId } from "./constants";
+import type { LaboratoryTabId } from "@/lib/staff/laboratory/constants";
 import { StaffAssignmentsSection } from "./assignments/staff-assignments-section";
 import { StaffJobsSection } from "./jobs/staff-jobs-section";
 import { LaboratoryTabBar } from "./laboratory-tab-bar";

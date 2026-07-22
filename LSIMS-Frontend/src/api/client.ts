@@ -2,7 +2,7 @@ import axios, { type AxiosError, type InternalAxiosRequestConfig } from "axios";
 
 import { refreshAccessToken } from "@/api/token-refresh";
 import { env } from "@/config/env";
-import { authStorage } from "@/lib/auth-storage";
+import { authStorage } from "@/lib/auth";
 
 type RetryConfig = InternalAxiosRequestConfig & { _retry?: boolean };
 

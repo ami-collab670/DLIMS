@@ -20,21 +20,21 @@ import {
   toggleSortState,
   type JobOrderSortKey,
   type JobOrderSortState,
-} from "@/features/jobs/job-order-list-sort";
-import { SortableJobTableHead } from "@/features/jobs/sortable-job-table-head";
+} from "@/lib/laboratory/jobs/sort";
+import { SortableJobTableHead } from "@/features/jobs/components/sortable-job-table-head";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
-import { getApiErrorMessage } from "@/lib/api-error";
+import { getApiErrorMessage } from "@/lib/api";
 import {
   type TablePageSize,
-} from "@/lib/table-list-utils";
+} from "@/lib/table";
 import {
   JOB_PRIORITY_OPTIONS,
   JOB_STATUS_OPTIONS,
   shortJobId,
-} from "@/lib/job-order-labels";
-import { cn } from "@/lib/utils";
+} from "@/lib/laboratory";
+import { cn } from "@/lib/ui";
 
-import { CLIENT_REQUESTS_PAGE_SIZE } from "./constants";
+import { DEFAULT_TABLE_PAGE_SIZE } from "@/lib/table";
 import {
   ClientRequestPriorityBadge,
   ClientRequestStatusBadge,
@@ -47,7 +47,7 @@ export function ClientRequestsSection() {
 
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<TablePageSize>(
-    CLIENT_REQUESTS_PAGE_SIZE,
+    DEFAULT_TABLE_PAGE_SIZE,
   );
   const [searchInput, setSearchInput] = useState("");
   const debouncedSearch = useDebouncedValue(searchInput);

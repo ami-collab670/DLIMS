@@ -1,10 +1,11 @@
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/ui";
+import { complaintStatusToneClass } from "@/lib/laboratory/complaints/badge-tones";
 import type { ComplaintCategory, ComplaintStatus } from "@/types/laboratory";
 
 import {
   COMPLAINT_CATEGORY_OPTIONS,
   COMPLAINT_STATUS_LABEL,
-} from "./constants";
+} from "@/lib/laboratory/complaints/constants";
 
 export function StaffComplaintStatusBadge({
   status,
@@ -12,20 +13,12 @@ export function StaffComplaintStatusBadge({
   status: ComplaintStatus;
 }) {
   const label = COMPLAINT_STATUS_LABEL[status] ?? status.replace(/_/g, " ");
-  const tone =
-    status === "resolved"
-      ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
-      : status === "rejected"
-        ? "bg-destructive/15 text-destructive"
-        : status === "in_review"
-          ? "bg-amber-500/15 text-amber-900 dark:text-amber-300"
-          : "bg-primary/10 text-primary";
 
   return (
     <span
       className={cn(
         "inline-flex rounded-md px-2 py-0.5 text-xs font-medium",
-        tone,
+        complaintStatusToneClass(status),
       )}
     >
       {label}

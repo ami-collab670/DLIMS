@@ -1,11 +1,12 @@
+import { staffPath } from "@/lib/staff";
 import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 
-import { fetchPriorityAlerts } from "@/features/laboratory/priority-alerts-api";
-import { laboratoryQueryKeys } from "@/features/laboratory/laboratory-query-keys";
-import { canAccessStaffRoute } from "@/lib/staff-route-access";
-import { shortJobId } from "@/lib/job-order-labels";
+import { fetchPriorityAlerts } from "@/features/laboratory/api";
+import { laboratoryQueryKeys } from "@/features/laboratory/query-keys";
+import { canAccessStaffRoute } from "@/lib/staff";
+import { shortJobId } from "@/lib/laboratory";
 import { useAuthStore } from "@/stores/auth-store";
 
 export function StaffDashboardPriorityAlerts() {
@@ -37,14 +38,14 @@ export function StaffDashboardPriorityAlerts() {
         <h3 className="text-sm font-semibold">Priority alerts</h3>
         {showSchedulingLink ? (
           <Link
-            to="/staff/scheduling"
+            to={staffPath("scheduling")}
             className="ml-auto text-xs font-medium text-primary underline-offset-4 hover:underline"
           >
             View scheduling →
           </Link>
         ) : (
           <Link
-            to="/staff/laboratory"
+            to={staffPath("laboratory")}
             className="ml-auto text-xs font-medium text-primary underline-offset-4 hover:underline"
           >
             Sample intake →

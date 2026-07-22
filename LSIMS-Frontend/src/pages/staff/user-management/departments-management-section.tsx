@@ -12,8 +12,8 @@ import {
   deleteDepartment,
   fetchDepartments,
   patchDepartment,
-} from "@/features/accounts/departments-api";
-import { getApiErrorMessage } from "@/lib/api-error";
+} from "@/features/accounts/api";
+import { getApiErrorMessage } from "@/lib/api";
 import type { DepartmentRecord } from "@/types/account-admin";
 
 export function DepartmentsManagementSection() {

@@ -1,18 +1,19 @@
+import { ROUTES } from "@/lib/routing";
 import { useQuery } from "@tanstack/react-query";
 import { BadgeCheck, Clock, Loader2, XCircle } from "lucide-react";
 import { Link } from "react-router-dom";
 import type { LucideIcon } from "lucide-react";
 
 import { fetchJobOrders } from "@/features/jobs/api";
-import { fetchAnalysisResults } from "@/features/laboratory/analysis-results-api";
-import { fetchQCDecisions } from "@/features/laboratory/qc-decisions-api";
-import { dashboardKeys } from "@/pages/staff/dashboard-home/dashboard-api-keys";
+import { fetchAnalysisResults } from "@/features/laboratory/api";
+import { fetchQCDecisions } from "@/features/laboratory/api";
+import { dashboardKeys } from "@/lib/staff/dashboard/query-keys";
+import { formatSubmittedAt } from "@/lib/formatting";
 import {
   computeQcKpis,
-  formatSubmittedAt,
   sortSubmittedResults,
-} from "@/pages/staff/qc/shared/qc-desk-utils";
-import { QC_PREVIEW_LIMIT } from "@/pages/staff/qc/shared/qc-constants";
+} from "@/lib/laboratory/qc/desk-utils";
+import { QC_PREVIEW_LIMIT } from "@/lib/staff/qc/constants";
 
 function KpiCard({
   label,
@@ -74,7 +75,7 @@ export function QcDashboardKpiGrid() {
       <KpiCard
         label="Awaiting review"
         value={kpis?.awaitingReview ?? 0}
-        href="/staff/qc"
+        href={ROUTES.staff.qc.root}
         icon={BadgeCheck}
         loading={isLoading}
         hint="Submitted results in your department"
@@ -82,14 +83,14 @@ export function QcDashboardKpiGrid() {
       <KpiCard
         label="Approved today"
         value={kpis?.approvedToday ?? 0}
-        href="/staff/qc/history"
+        href={ROUTES.staff.qc.history}
         icon={BadgeCheck}
         loading={isLoading}
       />
       <KpiCard
         label="Rejected today"
         value={kpis?.rejectedToday ?? 0}
-        href="/staff/qc/rejected"
+        href={ROUTES.staff.qc.rejected}
         icon={XCircle}
         loading={isLoading}
       />
@@ -98,14 +99,14 @@ export function QcDashboardKpiGrid() {
         value={
           kpis?.averageQueueHours != null ? `${kpis.averageQueueHours} h` : "—"
         }
-        href="/staff/qc"
+        href={ROUTES.staff.qc.root}
         icon={Clock}
         loading={isLoading}
       />
       <KpiCard
         label="Jobs in QC"
         value={kpis?.jobsInQc ?? 0}
-        href="/staff/qc#jobs"
+        href={`${ROUTES.staff.qc.root}#jobs`}
         icon={Clock}
         loading={isLoading}
       />
@@ -132,7 +133,7 @@ export function QcDashboardInboxPreview() {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-sm font-semibold">Inbox preview</h3>
         <Link
-          to="/staff/qc"
+          to={ROUTES.staff.qc.root}
           className="text-xs font-medium text-primary underline-offset-4 hover:underline"
         >
           Open review desk →
@@ -187,7 +188,7 @@ export function QcDashboardRecentDecisions() {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-sm font-semibold">Recent decisions</h3>
         <Link
-          to="/staff/qc/history"
+          to={ROUTES.staff.qc.history}
           className="text-xs font-medium text-primary underline-offset-4 hover:underline"
         >
           Full history →

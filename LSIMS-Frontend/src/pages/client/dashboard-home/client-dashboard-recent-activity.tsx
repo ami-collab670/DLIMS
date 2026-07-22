@@ -1,3 +1,4 @@
+import { clientPath } from "@/lib/routing";
 import { useQuery } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
 import { Clock, Loader2, MessageSquare, Package } from "lucide-react";
@@ -5,33 +6,23 @@ import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 
 import { fetchJobOrders } from "@/features/jobs/api";
-import { fetchComplaints } from "@/features/laboratory/complaints-api";
+import { fetchComplaints } from "@/features/laboratory/api";
 import { fetchNotifications } from "@/features/notifications/api";
 import {
-  clientResultsJobUrl,
   complaintsNeedingFollowUp,
   extractClientReferenceLabel,
-} from "@/pages/client/dashboard-home/client-dashboard-metrics";
+  formatClientDateTime,
+  NOTIFICATION_KIND_LABEL,
+} from "@/lib/client";
+import { clientResultsJobUrl } from "@/lib/routing";
+import { truncateComplaintTitle } from "@/lib/laboratory/complaints/constants";
 import {
   ClientComplaintCategoryBadge,
   ClientComplaintStatusBadge,
 } from "@/pages/client/complaints/client-complaint-badges";
-import { truncateComplaintTitle } from "@/pages/client/complaints/constants";
-import {
-  ClientProgressBadge,
-  formatClientDateTime,
-} from "@/pages/client/results/client-results-progress";
-import type { NotificationKind } from "@/types/notification";
+import { ClientProgressBadge } from "@/pages/client/results/client-results-progress";
 
-import { clientDashboardKeys } from "./client-dashboard-api-keys";
-
-const KIND_LABEL: Record<NotificationKind, string> = {
-  info: "Info",
-  alert: "Alert",
-  job: "Job",
-  message: "Message",
-  system: "System",
-};
+import { clientDashboardKeys } from "@/lib/client/dashboard/query-keys";
 
 function PanelShell({
   title,
@@ -139,7 +130,7 @@ export function ClientDashboardRecentActivity() {
         <PanelShell
           title="Recent requests"
           icon={Package}
-          linkTo="/client/results"
+          linkTo={clientPath("results")}
           linkLabel="Track progress →"
           loading={jobsQuery.isLoading}
           error={jobsQuery.isError}
@@ -175,7 +166,7 @@ export function ClientDashboardRecentActivity() {
               : undefined
           }
           icon={Clock}
-          linkTo="/client/notifications"
+          linkTo={clientPath("notifications")}
           linkLabel="View all →"
           loading={notificationsQuery.isLoading || unreadJobNotificationsQuery.isLoading}
           error={notificationsQuery.isError && unreadJobNotificationsQuery.isError}
@@ -190,7 +181,7 @@ export function ClientDashboardRecentActivity() {
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-sm font-medium">{n.title}</span>
                 <span className="rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
-                  {KIND_LABEL[n.kind]}
+                  {NOTIFICATION_KIND_LABEL[n.kind]}
                 </span>
               </div>
               <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{n.body}</p>
@@ -204,7 +195,7 @@ export function ClientDashboardRecentActivity() {
         <PanelShell
           title="Complaints needing follow-up"
           icon={MessageSquare}
-          linkTo="/client/complaints"
+          linkTo={clientPath("complaints")}
           linkLabel="View complaints →"
           loading={complaintsQuery.isLoading}
           error={complaintsQuery.isError}

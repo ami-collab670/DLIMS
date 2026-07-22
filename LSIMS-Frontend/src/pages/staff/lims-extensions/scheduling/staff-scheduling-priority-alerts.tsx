@@ -2,15 +2,15 @@ import { useQuery } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { useMemo } from "react";
 
-import { fetchPriorityAlerts } from "@/features/laboratory/priority-alerts-api";
-import { laboratoryQueryKeys } from "@/features/laboratory/laboratory-query-keys";
-import { shortJobId } from "@/lib/job-order-labels";
-import { isQcManager } from "@/lib/staff-permissions";
-import { dashboardKeys } from "@/pages/staff/dashboard-home/dashboard-api-keys";
+import { fetchPriorityAlerts } from "@/features/laboratory/api";
+import { laboratoryQueryKeys } from "@/features/laboratory/query-keys";
+import { shortJobId } from "@/lib/laboratory";
+import { isQcManager } from "@/lib/staff";
+import { dashboardKeys } from "@/lib/staff/dashboard/query-keys";
+import { fetchDepartmentJobIds } from "@/features/jobs/lib/fetch-department-job-ids";
 import {
-  fetchDepartmentJobIds,
   filterPriorityAlertsForDepartment,
-} from "@/pages/staff/qc-manager/shared/department-scope-utils";
+} from "@/lib/laboratory/qc-manager/department-scope";
 import { useAuthStore } from "@/stores/auth-store";
 
 export function StaffSchedulingPriorityAlerts() {

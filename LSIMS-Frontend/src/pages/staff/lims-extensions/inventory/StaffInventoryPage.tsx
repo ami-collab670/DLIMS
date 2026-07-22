@@ -1,12 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 
-import { fetchTestCatalog } from "@/features/laboratory/staff-api";
-import { formatMoneyFromApi } from "@/lib/money";
-import { canManageTestCatalog, isQcManager } from "@/lib/staff-permissions";
+import { fetchTestCatalog } from "@/features/laboratory/api";
+import { formatMoneyFromApi } from "@/lib/formatting";
+import { canManageTestCatalog, isQcManager } from "@/lib/staff";
 import { StaffCatalogSection } from "@/pages/staff/catalog/staff-catalog-section";
 import { useAuthStore } from "@/stores/auth-store";
 
-import { LIMS_EXTENSION_PAGE_SIZE } from "../constants";
+import { LIMS_EXTENSION_PAGE_SIZE } from "@/lib/staff/lims-extensions/constants";
 import { LimsPageIntro } from "../lims-page-intro";
 import { StaffRoleBanner } from "../staff-role-banner";
 

@@ -1,3 +1,5 @@
+import { ROUTES } from "@/lib/routing";
+import { staffFinanceTabUrl, staffPath } from "@/lib/staff";
 import { useQuery } from "@tanstack/react-query";
 import {
   AlertCircle,
@@ -12,20 +14,21 @@ import type { LucideIcon } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { fetchJobOrders } from "@/features/jobs/api";
-import { fetchDiscountApprovals } from "@/features/laboratory/discount-approvals-api";
+import { fetchDiscountApprovals } from "@/features/laboratory/api";
 import { fetchUnreadNotificationCount } from "@/features/notifications/api";
-import { formatMoney } from "@/lib/money";
-import { dashboardKeys } from "@/pages/staff/dashboard-home/dashboard-api-keys";
-import { fetchAwaitingFinanceJobs } from "@/pages/staff/receptionist/shared/fetch-awaiting-finance-jobs";
+import { formatMoney } from "@/lib/formatting";
+import { dashboardKeys } from "@/lib/staff/dashboard/query-keys";
+import { fetchAwaitingFinanceJobs } from "@/features/laboratory/lib/fetch-awaiting-finance-jobs";
 import { useAuthStore } from "@/stores/auth-store";
 
 import {
   countPaidInWindow,
-  fetchAllFinancialRecords,
   invoiceByJobMap,
   revenueCollectedInDays,
   sumOutstanding,
-} from "./finance-dashboard-utils";
+} from "@/lib/laboratory/finance/dashboard-metrics";
+import { fetchAllFinancialRecords } from "@/features/laboratory/lib/fetch-all-financial-records";
+
 
 type KpiCardProps = {
   label: string;
@@ -105,7 +108,7 @@ export function FinanceKpiGrid() {
         <KpiCard
           label="Awaiting first invoice"
           value={kpis?.awaitingFirstInvoice ?? 0}
-          href="/staff/finance"
+          href={staffPath("finance")}
           icon={Landmark}
           loading={isLoading}
           hint="Jobs with no invoice yet"
@@ -113,7 +116,7 @@ export function FinanceKpiGrid() {
         <KpiCard
           label="Outstanding amount"
           value={formatMoney(kpis?.outstandingTotal ?? 0)}
-          href="/staff/finance"
+          href={staffPath("finance")}
           icon={Wallet}
           loading={isLoading}
           hint="All pending + partial invoices"
@@ -121,7 +124,7 @@ export function FinanceKpiGrid() {
         <KpiCard
           label="Revenue collected (7 days)"
           value={formatMoney(kpis?.revenue7d ?? 0)}
-          href="/staff/finance?tab=reports"
+          href={staffFinanceTabUrl("reports")}
           icon={TrendingUp}
           loading={isLoading}
           hint="Paid in the last week"
@@ -129,7 +132,7 @@ export function FinanceKpiGrid() {
         <KpiCard
           label="Paid today"
           value={kpis?.paidToday ?? 0}
-          href="/staff/finance"
+          href={staffPath("finance")}
           icon={Landmark}
           loading={isLoading}
           hint={`${kpis?.paidThisWeek ?? 0} invoices this week`}
@@ -137,7 +140,7 @@ export function FinanceKpiGrid() {
         <KpiCard
           label="Finance hold"
           value={kpis?.financeHoldCount ?? 0}
-          href="/staff#finance-hold-queue"
+          href={`${ROUTES.staff.root}#finance-hold-queue`}
           icon={AlertCircle}
           loading={isLoading}
           hint="Blocked on payment"
@@ -145,7 +148,7 @@ export function FinanceKpiGrid() {
         <KpiCard
           label="Pending discount requests"
           value={kpis?.pendingDiscounts ?? 0}
-          href="/staff/finance?tab=discounts"
+          href={staffFinanceTabUrl("discounts")}
           icon={Percent}
           loading={isLoading}
           hint="Awaiting director review"
@@ -153,7 +156,7 @@ export function FinanceKpiGrid() {
         <KpiCard
           label="Unread notifications"
           value={kpis?.unreadNotifications ?? 0}
-          href="/staff/notifications"
+          href={staffPath("notifications")}
           icon={Bell}
           loading={isLoading}
           hint="Read-only inbox"

@@ -1,3 +1,4 @@
+import { staffPath } from "@/lib/staff";
 import { Link } from "react-router-dom";
 import { FlaskConical } from "lucide-react";
 
@@ -7,7 +8,7 @@ export function LabTechDashboardQuickLinks() {
       <h3 className="text-sm font-semibold">Quick links</h3>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <Link
-          to="/staff/prep"
+          to={staffPath("prep")}
           className="group rounded-xl border border-border bg-card p-4 shadow-sm transition-colors hover:border-primary/40"
         >
           <div className="flex items-center gap-2 text-sm font-medium group-hover:text-primary">

@@ -9,13 +9,13 @@ import { Label } from "@/components/ui/label";
 import { PhoneInput } from "@/components/ui/phone-input";
 import {
   quickRegisterWalkInClient,
-} from "@/features/accounts/lab-clients-api";
-import { getApiErrorMessage } from "@/lib/api-error";
-import { cn } from "@/lib/utils";
+} from "@/features/accounts/api";
+import { getApiErrorMessage } from "@/lib/api";
+import { cn } from "@/lib/ui";
 import {
   CLIENT_SEARCH_MIN_LENGTH,
   matchesClientSearch,
-} from "@/pages/staff/receptionist/shared/client-search-utils";
+} from "@/lib/staff/receptionist/client-search";
 import type { AdminUserRow } from "@/types/account-admin";
 
 const LAB_CLIENTS_QUERY_KEY = ["lab-clients-picker"] as const;

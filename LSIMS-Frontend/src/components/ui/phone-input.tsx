@@ -14,8 +14,8 @@ import "react-phone-number-input/style.css";
 
 import { PhoneCountrySelect } from "@/components/ui/phone-country-select";
 import { Input } from "@/components/ui/input";
-import { normalizePhoneValue } from "@/lib/phone-normalize";
-import { cn } from "@/lib/utils";
+import { normalizePhoneValue } from "@/lib/validation";
+import { cn } from "@/lib/ui";
 
 const PhoneInputControl = React.forwardRef<
   HTMLInputElement,

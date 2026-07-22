@@ -1,19 +1,17 @@
+import { clientPath } from "@/lib/routing";
 import { useQuery } from "@tanstack/react-query";
 import { FlaskConical, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import {
-  clientResultsJobUrl,
   fetchAllActiveJobs,
   fetchRecentSamples,
-  sumSampleCount,
-} from "@/pages/client/dashboard-home/client-dashboard-metrics";
-import {
-  ClientProgressBadge,
-  formatClientDateTime,
-} from "@/pages/client/results/client-results-progress";
+} from "@/features/client/lib/dashboard-queries";
+import { formatClientDateTime, sumSampleCount } from "@/lib/client";
+import { clientResultsJobUrl } from "@/lib/routing";
+import { ClientProgressBadge } from "@/pages/client/results/client-results-progress";
 
-import { clientDashboardKeys } from "./client-dashboard-api-keys";
+import { clientDashboardKeys } from "@/lib/client/dashboard/query-keys";
 
 export function ClientDashboardSamplesSummary() {
   const jobsQuery = useQuery({
@@ -40,7 +38,7 @@ export function ClientDashboardSamplesSummary() {
           Sample overview
         </h3>
         <Link
-          to="/client/results"
+          to={clientPath("results")}
           className="text-xs font-medium text-primary hover:underline"
         >
           Track all samples →

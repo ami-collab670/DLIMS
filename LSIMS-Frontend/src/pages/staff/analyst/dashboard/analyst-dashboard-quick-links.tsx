@@ -1,3 +1,4 @@
+import { staffPath } from "@/lib/staff";
 import { Link } from "react-router-dom";
 import { AlertCircle, FileEdit, TestTube } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -33,19 +34,19 @@ export function AnalystDashboardQuickLinks() {
           icon={TestTube}
           label="Open my samples"
           description="Enter results and submit to department QC."
-          to="/staff/analyst"
+          to={staffPath("analyst")}
         />
         <QuickLinkCard
           icon={AlertCircle}
           label="Needs resubmit"
           description="Rejected results returned for revision."
-          to="/staff/analyst?status=rejected"
+          to={staffPath("analyst", { status: "rejected" })}
         />
         <QuickLinkCard
           icon={FileEdit}
           label="Draft results"
           description="Continue work on saved drafts."
-          to="/staff/analyst"
+          to={staffPath("analyst")}
         />
       </div>
     </section>

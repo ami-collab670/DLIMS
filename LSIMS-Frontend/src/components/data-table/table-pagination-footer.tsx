@@ -5,7 +5,7 @@ import {
   pageRangeLabel,
   totalPagesFromCount,
   type TablePageSize,
-} from "@/lib/table-list-utils";
+} from "@/lib/table";
 
 type TablePaginationFooterProps = {
   page: number;

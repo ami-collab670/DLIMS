@@ -1,1 +1,0 @@
-export const ANALYST_DESK_PREVIEW_LIMIT = 5;

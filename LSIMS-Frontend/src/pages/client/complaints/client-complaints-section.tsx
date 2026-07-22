@@ -10,19 +10,19 @@ import { fetchJobOrders } from "@/features/jobs/api";
 import {
   fetchComplaint,
   fetchComplaints,
-} from "@/features/laboratory/complaints-api";
-import { fetchSamples, fetchSample } from "@/features/laboratory/staff-api";
-import { laboratoryQueryKeys } from "@/features/laboratory/laboratory-query-keys";
+} from "@/features/laboratory/api";
+import { fetchSamples, fetchSample } from "@/features/laboratory/api";
+import { laboratoryQueryKeys } from "@/features/laboratory/query-keys";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
-import { getApiErrorMessage } from "@/lib/api-error";
-import { shortJobId } from "@/lib/job-order-labels";
+import { getApiErrorMessage } from "@/lib/api";
+import { shortJobId } from "@/lib/laboratory";
 import {
   sortRowsClientSide,
   toggleSortState,
   type SortState,
   type TablePageSize,
-} from "@/lib/table-list-utils";
-import { cn } from "@/lib/utils";
+} from "@/lib/table";
+import { cn } from "@/lib/ui";
 import type { ComplaintCategory, ComplaintStatus, ComplaintRecord } from "@/types/laboratory";
 
 import {
@@ -33,12 +33,12 @@ import {
   complaintDescriptionPreview,
   formatJobOptionLabel,
   formatSampleDisplayName,
-} from "./client-complaint-labels";
+} from "@/lib/laboratory";
 import { ClientComplaintDetailPanel } from "./client-complaint-detail-panel";
 import { ClientComplaintsTableFilters } from "./client-complaints-table-filters";
 import {
   CLIENT_COMPLAINTS_PAGE_SIZE,
-} from "./constants";
+} from "@/lib/laboratory/complaints/constants";
 
 type ComplaintSortKey =
   | "category"

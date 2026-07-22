@@ -8,6 +8,8 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { Link } from "react-router-dom";
 
+import { staffFinanceTabUrl, staffPath } from "@/lib/staff";
+
 const linkClass =
   "flex items-center gap-3 rounded-xl border border-border bg-card p-3 text-left shadow-sm transition-colors hover:border-primary/40 hover:bg-muted/30";
 
@@ -20,31 +22,31 @@ type ActionItem = {
 
 const ACTIONS: ActionItem[] = [
   {
-    to: "/staff/laboratory",
+    to: staffPath("laboratory"),
     title: "New job intake",
     subtitle: "Register a client job order",
     icon: FlaskConical,
   },
   {
-    to: "/staff/laboratory",
+    to: staffPath("laboratory"),
     title: "Register sample",
     subtitle: "Select a job to add samples",
     icon: TestTube,
   },
   {
-    to: "/staff/clients",
+    to: staffPath("clients"),
     title: "Clients",
     subtitle: "Directory and job history",
     icon: Users,
   },
   {
-    to: "/staff/finance?tab=discounts",
+    to: staffFinanceTabUrl("discounts"),
     title: "Request discount",
     subtitle: "Submit a waiver for director review",
     icon: Percent,
   },
   {
-    to: "/staff/finance",
+    to: staffPath("finance"),
     title: "Finance status",
     subtitle: "View invoices (read-only)",
     icon: Landmark,

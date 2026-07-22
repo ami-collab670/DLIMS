@@ -4,13 +4,12 @@ import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
-import { fetchProfile } from "@/features/auth/api";
-import { updateProfile } from "@/features/profile/api";
-import { getApiErrorMessage } from "@/lib/api-error";
+import { fetchProfile, updateProfile } from "@/features/profile/api";
+import { getApiErrorMessage } from "@/lib/api";
 import {
   profileFormSchema,
   type ProfileFormValues,
-} from "@/schemas/profile";
+} from "@/lib/validation";
 import { useAuthStore } from "@/stores/auth-store";
 
 import { ProfileAccountSection } from "./profile-account-section";
@@ -19,7 +18,7 @@ import { ProfilePageHeader } from "./profile-page-header";
 import { ProfilePasswordSection } from "./profile-password-section";
 import { ProfileStaffPermissionsSection } from "./profile-staff-permissions-section";
 import { ProfileWorkspaceSettingsCard } from "./profile-workspace-settings-card";
-import { emptyToUndefined } from "./utils";
+import { emptyToUndefined } from "@/lib/validation/form-normalize";
 
 type Props = {
   title?: string;

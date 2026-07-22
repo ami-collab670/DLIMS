@@ -9,21 +9,21 @@ import { TableToolbar } from "@/components/data-table/table-toolbar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { fetchDepartments } from "@/features/accounts/departments-api";
+import { fetchDepartments } from "@/features/accounts/api";
 import {
   createTestCatalogItem,
   fetchTestCatalog,
-} from "@/features/laboratory/staff-api";
+} from "@/features/laboratory/api";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
-import { getApiErrorMessage } from "@/lib/api-error";
+import { getApiErrorMessage } from "@/lib/api";
 import {
   sortRowsClientSide,
   type SortState,
   type TablePageSize,
-} from "@/lib/table-list-utils";
+} from "@/lib/table";
 import type { TestCatalogItem } from "@/types/laboratory";
 
-import { CATALOG_PAGE_SIZE } from "./catalog-page-constants";
+import { DEFAULT_TABLE_PAGE_SIZE } from "@/lib/table";
 import { CatalogRow } from "./catalog-row";
 
 type CatalogSortKey = "test_code" | "test_name" | "unit" | "price" | "department" | "is_active";
@@ -47,7 +47,7 @@ export function StaffCatalogSection({
 }) {
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState<TablePageSize>(CATALOG_PAGE_SIZE);
+  const [pageSize, setPageSize] = useState<TablePageSize>(DEFAULT_TABLE_PAGE_SIZE);
   const [search, setSearch] = useState("");
   const debounced = useDebouncedValue(search);
   const [sort, setSort] = useState(DEFAULT_CATALOG_SORT);

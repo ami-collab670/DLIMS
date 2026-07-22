@@ -5,12 +5,12 @@ import { Link } from "react-router-dom";
 
 import { JobRoleHoldBadge } from "@/components/jobs/job-role-hold-badge";
 import { Button } from "@/components/ui/button";
-import { fetchRoles } from "@/features/accounts/roles-api";
-import { fetchFinancialRecords } from "@/features/laboratory/financial-records-api";
-import { laboratoryQueryKeys } from "@/features/laboratory/laboratory-query-keys";
-import { JOB_PRIORITY_LABEL, JOB_STATUS_LABEL, shortJobId } from "@/lib/job-order-labels";
-import { formatMoneyFromApi } from "@/lib/money";
-import { clientJobReferenceLabel } from "@/lib/sample-reference-display";
+import { fetchRoles } from "@/features/accounts/api";
+import { fetchFinancialRecords } from "@/features/laboratory/api";
+import { laboratoryQueryKeys } from "@/features/laboratory/query-keys";
+import { JOB_PRIORITY_LABEL, JOB_STATUS_LABEL, shortJobId } from "@/lib/laboratory";
+import { formatMoneyFromApi } from "@/lib/formatting";
+import { clientJobReferenceLabel } from "@/lib/laboratory";
 import type { FinancialRecord, JobOrder, PaymentStatus } from "@/types/laboratory";
 
 import { FinanceContactStrip } from "@/pages/staff/finance/dashboard/finance-contact-strip";
@@ -18,8 +18,8 @@ import { FinanceJobBillingBreakdown } from "@/pages/staff/finance/shared/finance
 import {
   formatPaidAt,
   formatPaymentStatusLabel,
-} from "@/pages/staff/finance/shared/finance-payment-labels";
-import { suggestedInvoiceAmount, parseJobBillingSummary } from "@/pages/staff/finance/shared/parse-job-billing";
+} from "@/lib/laboratory/labels/payment-labels";
+import { suggestedInvoiceAmount, parseJobBillingSummary } from "@/lib/laboratory/jobs/billing";
 
 import {
   CreateInvoiceForm,

@@ -1,5 +1,5 @@
-import { NotificationsCenter } from "@/features/notifications/notifications-center";
-import { isFinance, isReceptionist } from "@/lib/staff-permissions";
+import { NotificationsCenter } from "@/features/notifications/components/notifications-center";
+import { isFinance, isReceptionist } from "@/lib/staff";
 import { useAuthStore } from "@/stores/auth-store";
 
 import { LimsPageIntro } from "../lims-page-intro";

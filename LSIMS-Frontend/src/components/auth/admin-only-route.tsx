@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
 import { Navigate } from "react-router-dom";
 
-import { getDashboardPath } from "@/lib/dashboard-path";
-import { isStaffAdmin } from "@/lib/staff-permissions";
+import { getDashboardPath } from "@/lib/routing";
+import { isStaffAdmin } from "@/lib/staff";
 import { useAuthStore } from "@/stores/auth-store";
 
 /** LSIMS `admin` role or Django `is_superuser`. */

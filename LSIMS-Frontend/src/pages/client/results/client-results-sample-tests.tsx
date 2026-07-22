@@ -1,12 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 
-import { fetchSampleTests } from "@/features/laboratory/staff-api";
+import { fetchSampleTests } from "@/features/laboratory/api";
 
-import {
-  ClientProgressBadge,
-  formatClientDateTime,
-} from "./client-results-progress";
+import { ClientProgressBadge } from "./client-results-progress";
+import { formatClientDateTime } from "@/lib/client";
 
 export function ClientResultsSampleTests({
   sampleId,

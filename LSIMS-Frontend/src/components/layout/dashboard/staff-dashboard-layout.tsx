@@ -22,12 +22,14 @@ import { StaffPageNavigation } from "@/components/navigation/staff-page-navigati
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { ThemeToggler } from "@/components/ThemeToggler";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/ui";
 import {
   canAccessStaffRoute,
   type StaffRouteKey,
-} from "@/lib/staff-route-access";
-import { getStaffNavItemLabel, getStaffRoleStrip, getStaffWorkspaceTitle } from "@/lib/staff-nav-meta";
+} from "@/lib/staff";
+import { getStaffNavItemLabel, getStaffRoleStrip, getStaffWorkspaceTitle } from "@/lib/staff";
+import { ROUTES } from "@/lib/routing";
+import { staffPath } from "@/lib/staff";
 import { useAuthStore } from "@/stores/auth-store";
 
 type NavItem = {
@@ -38,26 +40,26 @@ type NavItem = {
 };
 
 const STAFF_NAV_ITEMS: NavItem[] = [
-  { routeKey: "dashboard", to: "/staff", icon: LayoutDashboard, end: true },
-  { routeKey: "laboratory", to: "/staff/laboratory", icon: FlaskConical },
-  { routeKey: "clients", to: "/staff/clients", icon: Users },
+  { routeKey: "dashboard", to: staffPath("dashboard"), icon: LayoutDashboard, end: true },
+  { routeKey: "laboratory", to: staffPath("laboratory"), icon: FlaskConical },
+  { routeKey: "clients", to: staffPath("clients"), icon: Users },
   {
     routeKey: "inventory",
-    to: "/staff/inventory",
+    to: staffPath("inventory"),
     icon: Package,
   },
-  { routeKey: "analyst", to: "/staff/analyst", icon: TestTube },
-  { routeKey: "prep", to: "/staff/prep", icon: FlaskConical },
-  { routeKey: "results", to: "/staff/results", icon: ClipboardList },
-  { routeKey: "qc", to: "/staff/qc", icon: BadgeCheck },
-  { routeKey: "reports", to: "/staff/reports", icon: FileText },
-  { routeKey: "finance", to: "/staff/finance", icon: Landmark },
-  { routeKey: "scheduling", to: "/staff/scheduling", icon: CalendarClock },
-  { routeKey: "instruments", to: "/staff/instruments", icon: Microscope },
-  { routeKey: "compliance", to: "/staff/compliance", icon: Shield },
-  { routeKey: "notifications", to: "/staff/notifications", icon: Bell },
-  { routeKey: "users", to: "/staff/users", icon: Users },
-  { routeKey: "profile", to: "/staff/profile", icon: User },
+  { routeKey: "analyst", to: staffPath("analyst"), icon: TestTube },
+  { routeKey: "prep", to: staffPath("prep"), icon: FlaskConical },
+  { routeKey: "results", to: staffPath("results"), icon: ClipboardList },
+  { routeKey: "qc", to: staffPath("qc"), icon: BadgeCheck },
+  { routeKey: "reports", to: staffPath("reports"), icon: FileText },
+  { routeKey: "finance", to: staffPath("finance"), icon: Landmark },
+  { routeKey: "scheduling", to: staffPath("scheduling"), icon: CalendarClock },
+  { routeKey: "instruments", to: staffPath("instruments"), icon: Microscope },
+  { routeKey: "compliance", to: staffPath("compliance"), icon: Shield },
+  { routeKey: "notifications", to: staffPath("notifications"), icon: Bell },
+  { routeKey: "users", to: staffPath("users"), icon: Users },
+  { routeKey: "profile", to: staffPath("profile"), icon: User },
 ];
 
 export function StaffDashboardLayout() {
@@ -76,7 +78,7 @@ export function StaffDashboardLayout() {
       <aside className="flex w-60 shrink-0 flex-col border-r border-border bg-sidebar text-sidebar-foreground max-h-screen overflow-y-auto sticky top-0">
         <div className="flex h-14 items-center border-b border-sidebar-border px-4">
           <NavLink
-            to="/staff"
+            to={ROUTES.staff.root}
             className="text-lg font-semibold tracking-tight text-sidebar-foreground hover:opacity-90"
           >
             LSIMS

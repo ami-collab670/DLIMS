@@ -2,15 +2,13 @@ import { useQuery } from "@tanstack/react-query";
 import { CheckCircle2, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 
-import { shortJobId } from "@/lib/job-order-labels";
-import { formatMoneyFromApi } from "@/lib/money";
-import { dashboardKeys } from "@/pages/staff/dashboard-home/dashboard-api-keys";
-import { formatPaidAt } from "@/pages/staff/finance/shared/finance-payment-labels";
+import { shortJobId } from "@/lib/laboratory";
+import { formatMoneyFromApi, isWithinDays } from "@/lib/formatting";
+import { dashboardKeys } from "@/lib/staff/dashboard/query-keys";
+import { formatPaidAt } from "@/lib/laboratory/labels/payment-labels";
 
-import {
-  fetchAllFinancialRecords,
-  isWithinDays,
-} from "./finance-dashboard-utils";
+import { fetchAllFinancialRecords } from "@/features/laboratory/lib/fetch-all-financial-records";
+
 
 export function FinanceRecentlyClearedQueue() {
   const { data = [], isLoading, isError } = useQuery({

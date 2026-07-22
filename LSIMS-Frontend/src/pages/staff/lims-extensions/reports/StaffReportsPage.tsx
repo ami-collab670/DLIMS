@@ -3,11 +3,11 @@ import { Download } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { fetchJobOrders } from "@/features/jobs/api";
-import { JOB_PRIORITY_LABEL, JOB_STATUS_LABEL, shortJobId } from "@/lib/job-order-labels";
-import { isQcManager } from "@/lib/staff-permissions";
+import { JOB_PRIORITY_LABEL, JOB_STATUS_LABEL, shortJobId } from "@/lib/laboratory";
+import { isQcManager } from "@/lib/staff";
 import { useAuthStore } from "@/stores/auth-store";
 
-import { LIMS_EXTENSION_PAGE_SIZE } from "../constants";
+import { LIMS_EXTENSION_PAGE_SIZE } from "@/lib/staff/lims-extensions/constants";
 import { LimsPageIntro } from "../lims-page-intro";
 import { StaffRoleBanner } from "../staff-role-banner";
 

@@ -1,11 +1,12 @@
+import { staffPath } from "@/lib/staff";
 import { useQuery } from "@tanstack/react-query";
 import { AlertCircle, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { fetchJobOrders } from "@/features/jobs/api";
-import { JOB_PRIORITY_LABEL, JOB_STATUS_LABEL, shortJobId } from "@/lib/job-order-labels";
+import { JOB_PRIORITY_LABEL, JOB_STATUS_LABEL, shortJobId } from "@/lib/laboratory";
 
-import { dashboardKeys } from "./dashboard-api-keys";
+import { dashboardKeys } from "@/lib/staff/dashboard/query-keys";
 
 export function StaffDashboardAttentionQueue() {
   const { data, isLoading, isError } = useQuery({
@@ -65,7 +66,7 @@ export function StaffDashboardAttentionQueue() {
           </p>
         </div>
         <Link
-          to="/staff/laboratory"
+          to={staffPath("laboratory")}
           className="shrink-0 text-xs font-medium text-primary hover:underline"
         >
           Go to jobs →

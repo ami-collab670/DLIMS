@@ -2,40 +2,11 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
-
-const DISMISS_KEY = "lsims-client-getting-started-dismissed";
-
-const STEPS = [
-  {
-    step: 1,
-    title: "Submit request",
-    description: "Choose tests, name your samples, and send a job order to the lab.",
-    to: "/client/requests",
-    linkLabel: "New request",
-  },
-  {
-    step: 2,
-    title: "Pay invoice",
-    description:
-      "Finance clears your job for laboratory work once payment is recorded or waived.",
-    to: "/client/requests",
-    linkLabel: "View requests",
-  },
-  {
-    step: 3,
-    title: "Track samples",
-    description: "Follow intake details and test progress on each sample.",
-    to: "/client/results",
-    linkLabel: "My results",
-  },
-  {
-    step: 4,
-    title: "Raise a complaint if needed",
-    description: "Report payment, sample, or result issues for staff review.",
-    to: "/client/complaints",
-    linkLabel: "Complaints",
-  },
-] as const;
+import {
+  CLIENT_GETTING_STARTED_DISMISS_KEY,
+  CLIENT_GETTING_STARTED_STEPS,
+} from "@/lib/client";
+import { clientPath } from "@/lib/routing";
 
 type Props = {
   /** When true, show full prominent card; otherwise collapsed/dismissible. */
@@ -47,11 +18,11 @@ export function ClientGettingStartedCard({ prominent = false }: Props) {
 
   useEffect(() => {
     if (prominent) return;
-    setDismissed(localStorage.getItem(DISMISS_KEY) === "1");
+    setDismissed(localStorage.getItem(CLIENT_GETTING_STARTED_DISMISS_KEY) === "1");
   }, [prominent]);
 
   function handleDismiss() {
-    localStorage.setItem(DISMISS_KEY, "1");
+    localStorage.setItem(CLIENT_GETTING_STARTED_DISMISS_KEY, "1");
     setDismissed(true);
   }
 
@@ -61,23 +32,25 @@ export function ClientGettingStartedCard({ prominent = false }: Props) {
 
   const content = (
     <ol className="mt-4 space-y-3">
-      {STEPS.map(({ step, title, description, to, linkLabel }) => (
-        <li key={step} className="flex gap-3 text-sm">
-          <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
-            {step}
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="font-medium">{title}</p>
-            <p className="mt-0.5 text-muted-foreground">{description}</p>
-            <Link
-              to={to}
-              className="mt-1 inline-block text-xs font-medium text-primary hover:underline"
-            >
-              {linkLabel} →
-            </Link>
-          </div>
-        </li>
-      ))}
+      {CLIENT_GETTING_STARTED_STEPS.map(
+        ({ step, title, description, routeKey, linkLabel }) => (
+          <li key={step} className="flex gap-3 text-sm">
+            <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+              {step}
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="font-medium">{title}</p>
+              <p className="mt-0.5 text-muted-foreground">{description}</p>
+              <Link
+                to={clientPath(routeKey)}
+                className="mt-1 inline-block text-xs font-medium text-primary hover:underline"
+              >
+                {linkLabel} →
+              </Link>
+            </div>
+          </li>
+        ),
+      )}
     </ol>
   );
 

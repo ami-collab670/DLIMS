@@ -4,9 +4,9 @@ import {
   Link2,
   TestTube,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/ui";
 
-import type { LaboratoryTabId } from "./constants";
+import type { LaboratoryTabId } from "@/lib/staff/laboratory/constants";
 
 function TabButton({
   active,

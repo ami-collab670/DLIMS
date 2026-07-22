@@ -6,19 +6,21 @@ import { TablePaginationFooter } from "@/components/data-table/table-pagination-
 import { SortableTableHead } from "@/components/data-table/sortable-table-head";
 import { TableToolbar } from "@/components/data-table/table-toolbar";
 import { Label } from "@/components/ui/label";
-import { fetchSample, fetchSamples } from "@/features/laboratory/staff-api";
+import { fetchSample, fetchSamples } from "@/features/laboratory/api";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
-import { getApiErrorMessage } from "@/lib/api-error";
-import { shortJobId } from "@/lib/job-order-labels";
+import { getApiErrorMessage } from "@/lib/api";
+import { shortJobId } from "@/lib/laboratory";
 import {
   sortRowsClientSide,
   type SortState,
   type TablePageSize,
-} from "@/lib/table-list-utils";
-import { cn } from "@/lib/utils";
+} from "@/lib/table";
+import { cn } from "@/lib/ui";
 import type { SampleRecord } from "@/types/laboratory";
 
-import { SAMPLE_STATUS_OPTIONS, SAMPLES_PAGE_SIZE } from "./constants";
+import { DEFAULT_TABLE_PAGE_SIZE } from "@/lib/table";
+
+import { SAMPLE_STATUS_OPTIONS } from "@/lib/staff/samples/constants";
 import { NewSampleForm } from "./new-sample-form";
 import { SampleDetailPanel } from "./sample-detail-panel";
 
@@ -44,7 +46,7 @@ export function StaffSamplesSection({
 }) {
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState<TablePageSize>(SAMPLES_PAGE_SIZE);
+  const [pageSize, setPageSize] = useState<TablePageSize>(DEFAULT_TABLE_PAGE_SIZE);
   const [jobFilter, setJobFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [search, setSearch] = useState("");

@@ -11,11 +11,11 @@ import {
   fetchSamples,
   fetchTestCatalog,
   removeSampleTestAssignment,
-} from "@/features/laboratory/staff-api";
-import { getApiErrorMessage } from "@/lib/api-error";
+} from "@/features/laboratory/api";
+import { getApiErrorMessage } from "@/lib/api";
 import type { SampleTestRow } from "@/types/laboratory";
 
-import { LABORATORY_PAGE_SIZE } from "../constants";
+import { LABORATORY_PAGE_SIZE } from "@/lib/staff/laboratory/constants";
 
 export function StaffAssignmentsSection({ manage }: { manage: boolean }) {
   const queryClient = useQueryClient();

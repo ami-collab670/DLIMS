@@ -1,3 +1,4 @@
+import { clientPath } from "@/lib/routing";
 import { useQuery } from "@tanstack/react-query";
 import {
   Bell,
@@ -14,20 +15,22 @@ import type { LucideIcon } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { fetchJobOrders } from "@/features/jobs/api";
-import { fetchComplaints } from "@/features/laboratory/complaints-api";
+import { fetchComplaints } from "@/features/laboratory/api";
 import { fetchUnreadNotificationCount } from "@/features/notifications/api";
-import { formatMoney } from "@/lib/money";
+import { formatMoney } from "@/lib/formatting";
+import {
+  fetchAllActiveJobs,
+  fetchClientFinancialRecords,
+} from "@/features/client/lib/dashboard-queries";
 import {
   countInProgressJobs,
   countInvoicesDue,
-  fetchAllActiveJobs,
-  fetchAllFinancialRecords,
   hasRecentJobActivity,
   sumSampleCount,
   totalOutstandingAmount,
-} from "@/pages/client/dashboard-home/client-dashboard-metrics";
+} from "@/lib/client/dashboard/metrics";
 
-import { clientDashboardKeys } from "./client-dashboard-api-keys";
+import { clientDashboardKeys } from "@/lib/client/dashboard/query-keys";
 
 const cardClass =
   "group rounded-xl border border-border bg-card p-4 shadow-sm transition-colors hover:border-primary/40";
@@ -82,7 +85,7 @@ export function ClientDashboardStatCards() {
 
   const financeQuery = useQuery({
     queryKey: clientDashboardKeys.allFinancialRecords,
-    queryFn: fetchAllFinancialRecords,
+    queryFn: fetchClientFinancialRecords,
     staleTime: 45_000,
   });
 
@@ -150,7 +153,7 @@ export function ClientDashboardStatCards() {
       </h3>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <StatCard
-          to="/client/requests"
+          to={clientPath("requests")}
           icon={ClipboardList}
           label="Active requests"
           value={activeCount}
@@ -164,7 +167,7 @@ export function ClientDashboardStatCards() {
           }
         />
         <StatCard
-          to="/client/results"
+          to={clientPath("results")}
           icon={TrendingUp}
           label="In progress"
           value={inProgressCount}
@@ -176,7 +179,7 @@ export function ClientDashboardStatCards() {
           }
         />
         <StatCard
-          to="/client/requests"
+          to={clientPath("requests")}
           icon={Receipt}
           label="Invoices due"
           value={invoicesDue}
@@ -190,7 +193,7 @@ export function ClientDashboardStatCards() {
           }
         />
         <StatCard
-          to="/client/complaints"
+          to={clientPath("complaints")}
           icon={MessageSquare}
           label="Open complaints"
           value={openComplaints}
@@ -204,7 +207,7 @@ export function ClientDashboardStatCards() {
           }
         />
         <StatCard
-          to="/client/notifications"
+          to={clientPath("notifications")}
           icon={Bell}
           label="Unread notifications"
           value={unread}
@@ -214,7 +217,7 @@ export function ClientDashboardStatCards() {
       </div>
       <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <StatCard
-          to="/client/results"
+          to={clientPath("results")}
           icon={CheckCircle2}
           label="Completed"
           value={completedCount}
@@ -224,7 +227,7 @@ export function ClientDashboardStatCards() {
           }
         />
         <StatCard
-          to="/client/requests"
+          to={clientPath("requests")}
           icon={Zap}
           label="Urgent requests"
           value={urgentCount}
@@ -234,7 +237,7 @@ export function ClientDashboardStatCards() {
           }
         />
         <StatCard
-          to="/client/results"
+          to={clientPath("results")}
           icon={FlaskConical}
           label="Total samples"
           value={totalSamples}

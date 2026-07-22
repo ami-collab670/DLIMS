@@ -4,14 +4,15 @@ import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
-import { fetchProfile, loginRequest } from "@/features/auth/api";
-import { getDashboardPath } from "@/lib/dashboard-path";
-import { getApiErrorMessage } from "@/lib/api-error";
+import { loginRequest } from "@/features/auth/api";
+import { fetchProfile } from "@/features/profile/api";
+import { getDashboardPath } from "@/lib/routing";
+import { getApiErrorMessage } from "@/lib/api";
 import { useAuthStore } from "@/stores/auth-store";
 
 import { LoginForm } from "./login-form";
 import { LoginPageLayout } from "./login-page-layout";
-import { loginSchema, type LoginValues } from "./login-schema";
+import { loginSchema, type LoginValues } from "@/lib/validation/auth/login-schema";
 
 export default function LoginPage() {
   const navigate = useNavigate();

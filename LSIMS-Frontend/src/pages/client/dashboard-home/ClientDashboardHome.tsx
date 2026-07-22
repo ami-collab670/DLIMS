@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchJobOrders } from "@/features/jobs/api";
 
 import { ClientDashboardAttention } from "./client-dashboard-attention";
-import { clientDashboardKeys } from "./client-dashboard-api-keys";
+import { clientDashboardKeys } from "@/lib/client/dashboard/query-keys";
 import { ClientDashboardCharts } from "./client-dashboard-charts";
 import { ClientGettingStartedCard } from "./client-getting-started-card";
 import { ClientDashboardProfileSnapshot } from "./client-dashboard-profile-snapshot";

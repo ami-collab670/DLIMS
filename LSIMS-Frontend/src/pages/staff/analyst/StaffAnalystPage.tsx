@@ -1,5 +1,5 @@
 import { StaffRoleBanner } from "@/pages/staff/lims-extensions/staff-role-banner";
-import { shouldHideClientSampleNames } from "@/lib/sample-reference-display";
+import { shouldHideClientSampleNames } from "@/lib/laboratory";
 import { useAuthStore } from "@/stores/auth-store";
 
 import { StaffAnalystSection } from "./staff-analyst-section";

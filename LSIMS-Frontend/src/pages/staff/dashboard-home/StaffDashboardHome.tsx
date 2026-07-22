@@ -5,7 +5,7 @@ import {
   isStaffAdmin,
   isStaffAnalyst,
   isStaffLabTechnician,
-} from "@/lib/staff-permissions";
+} from "@/lib/staff";
 import { useAuthStore } from "@/stores/auth-store";
 
 import AnalystDashboardHome from "@/pages/staff/analyst/dashboard/AnalystDashboardHome";

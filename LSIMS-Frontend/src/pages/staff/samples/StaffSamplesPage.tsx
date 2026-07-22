@@ -2,7 +2,7 @@ import { StaffRoleBanner } from "@/pages/staff/lims-extensions/staff-role-banner
 import {
   canIntakeSamples,
   canManageJobsAndSamples,
-} from "@/lib/staff-permissions";
+} from "@/lib/staff";
 import { useAuthStore } from "@/stores/auth-store";
 
 import { StaffSamplesSection } from "./staff-samples-section";

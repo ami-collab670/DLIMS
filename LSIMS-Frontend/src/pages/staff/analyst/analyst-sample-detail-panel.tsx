@@ -7,15 +7,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { fetchLabAnalysts } from "@/features/accounts/lab-analysts-api";
+import { fetchLabAnalysts } from "@/features/accounts/api";
 import {
   createAnalysisResult,
   fetchAnalysisResults,
   patchAnalysisResult,
   submitAnalysisResult,
-} from "@/features/laboratory/analysis-results-api";
-import { laboratoryQueryKeys } from "@/features/laboratory/laboratory-query-keys";
-import { fetchPreparationRecords, createPreparationRecord } from "@/features/laboratory/preparation-records-api";
+} from "@/features/laboratory/api";
+import { laboratoryQueryKeys } from "@/features/laboratory/query-keys";
+import { fetchPreparationRecords, createPreparationRecord } from "@/features/laboratory/api";
 import {
   assignSampleAnalyst,
   assignTestToSample,
@@ -23,19 +23,21 @@ import {
   fetchTestCatalog,
   patchSample,
   removeSampleTestAssignment,
-} from "@/features/laboratory/staff-api";
-import { getApiErrorMessage } from "@/lib/api-error";
-import { shortJobId } from "@/lib/job-order-labels";
-import { isSampleAwaitingPayment } from "@/lib/sample-payment-gate";
-import { canCreatePreparationRecord } from "@/lib/staff-permissions";
-import { staffSampleDisplayCode } from "@/lib/sample-reference-display";
-import { dashboardKeys } from "@/pages/staff/dashboard-home/dashboard-api-keys";
+} from "@/features/laboratory/api";
+import { getApiErrorMessage } from "@/lib/api";
+import { shortJobId } from "@/lib/laboratory";
+import { isSampleAwaitingPayment } from "@/lib/laboratory";
+import { canCreatePreparationRecord } from "@/lib/staff";
+import { staffSampleDisplayCode } from "@/lib/laboratory";
+import { dashboardKeys } from "@/lib/staff/dashboard/query-keys";
 import {
   fetchDepartmentAnalystDirectory,
+} from "@/features/staff/lib/fetch-department-analyst-directory";
+import {
   isUserUuid,
   resolveInitialAnalystUserId,
-} from "@/pages/staff/qc-manager/shared/department-analyst-directory";
-import { fetchDepartmentLabTechDirectory } from "@/pages/staff/qc-manager/shared/department-lab-tech-directory";
+} from "@/lib/staff/qc-manager/analyst-directory";
+import { fetchDepartmentLabTechDirectory } from "@/features/staff/lib/fetch-department-lab-tech-directory";
 import { useAuthStore } from "@/stores/auth-store";
 import type { AnalysisResult, SampleRecord } from "@/types/laboratory";
 

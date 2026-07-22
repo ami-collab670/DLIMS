@@ -7,10 +7,8 @@ import { fetchJobOrder } from "@/features/jobs/api";
 import type { JobOrder } from "@/types/laboratory";
 
 import { ClientRequestPriorityBadge } from "../requests/client-request-badges";
-import {
-  ClientProgressStepper,
-  formatClientDateTime,
-} from "./client-results-progress";
+import { ClientProgressStepper } from "./client-results-progress";
+import { formatClientDateTime } from "@/lib/client";
 import { ClientResultsSamplesList } from "./client-results-samples-list";
 
 function DetailRow({ label, value }: { label: string; value: ReactNode }) {

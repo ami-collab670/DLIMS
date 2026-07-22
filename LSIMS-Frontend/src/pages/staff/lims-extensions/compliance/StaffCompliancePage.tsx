@@ -1,8 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 
-import { isQcManager } from "@/lib/staff-permissions";
-import { dashboardKeys } from "@/pages/staff/dashboard-home/dashboard-api-keys";
-import { fetchDepartmentJobIds } from "@/pages/staff/qc-manager/shared/department-scope-utils";
+import { isQcManager } from "@/lib/staff";
+import { dashboardKeys } from "@/lib/staff/dashboard/query-keys";
+import { fetchDepartmentJobIds } from "@/features/jobs/lib/fetch-department-job-ids";
 import { useAuthStore } from "@/stores/auth-store";
 
 import { LimsPageIntro } from "../lims-page-intro";

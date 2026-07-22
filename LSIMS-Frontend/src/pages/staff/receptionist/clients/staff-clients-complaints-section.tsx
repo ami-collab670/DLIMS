@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 
-import { fetchLabClients } from "@/features/accounts/lab-clients-api";
+import { fetchLabClients } from "@/features/accounts/api";
 import { StaffComplaintsSection } from "@/pages/staff/lims-extensions/compliance/staff-complaints-section";
 
 export function StaffClientsComplaintsSection() {

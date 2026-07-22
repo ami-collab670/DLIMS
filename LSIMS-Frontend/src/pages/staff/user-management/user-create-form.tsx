@@ -9,12 +9,12 @@ import { Label } from "@/components/ui/label";
 import { PhoneInput } from "@/components/ui/phone-input";
 import {
   type CreateAdminUserBody,
-} from "@/features/accounts/admin-api";
-import { fetchDepartments } from "@/features/accounts/departments-api";
-import { fetchRoles } from "@/features/accounts/roles-api";
-import { cn } from "@/lib/utils";
+} from "@/features/accounts/api";
+import { fetchDepartments } from "@/features/accounts/api";
+import { fetchRoles } from "@/features/accounts/api";
+import { cn } from "@/lib/ui";
 
-import { roleOptionLabel } from "./role-display";
+import { roleOptionLabel } from "@/lib/staff/roles/role-display";
 
 type Props = {
   onSubmit: (body: CreateAdminUserBody) => void;

@@ -2,12 +2,12 @@ import { ChevronDown, ChevronRight } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import { JOB_PRIORITY_LABEL } from "@/lib/job-order-labels";
-import { formatMoney, parseMoney, formatMoneyFromApi } from "@/lib/money";
-import { clientJobReferenceLabel } from "@/lib/sample-reference-display";
+import { JOB_PRIORITY_LABEL } from "@/lib/laboratory";
+import { formatMoney, parseMoney, formatMoneyFromApi } from "@/lib/formatting";
+import { clientJobReferenceLabel } from "@/lib/laboratory";
 import type { FinancialRecord, JobOrder, JobPriority } from "@/types/laboratory";
 
-import { parseJobBillingSummary, type JobBillingSummary } from "./parse-job-billing";
+import { parseJobBillingSummary, type JobBillingSummary } from "@/lib/laboratory/jobs/billing";
 
 type Props = {
   job: Pick<JobOrder, "id" | "description" | "priority">;

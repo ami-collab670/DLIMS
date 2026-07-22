@@ -1,11 +1,12 @@
+import { staffPath } from "@/lib/staff";
 import { useQuery } from "@tanstack/react-query";
 import { BookOpen, FlaskConical, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { fetchJobOrders } from "@/features/jobs/api";
-import { fetchSamples, fetchTestCatalog } from "@/features/laboratory/staff-api";
+import { fetchSamples, fetchTestCatalog } from "@/features/laboratory/api";
 
-import { dashboardKeys } from "./dashboard-api-keys";
+import { dashboardKeys } from "@/lib/staff/dashboard/query-keys";
 
 export function StaffDashboardStatsGrid() {
   const { data: jobsData, isLoading: jobsLoading } = useQuery({
@@ -38,7 +39,7 @@ export function StaffDashboardStatsGrid() {
       </h3>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Link
-          to="/staff/laboratory"
+          to={staffPath("laboratory")}
           className="group rounded-xl border border-border bg-card p-4 shadow-sm transition-colors hover:border-primary/40"
         >
           <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground group-hover:text-primary">
@@ -91,7 +92,7 @@ export function StaffDashboardStatsGrid() {
             )}
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
-            <Link to="/staff/inventory" className="text-primary hover:underline">
+            <Link to={staffPath("inventory")} className="text-primary hover:underline">
               Open test catalog
             </Link>
           </p>

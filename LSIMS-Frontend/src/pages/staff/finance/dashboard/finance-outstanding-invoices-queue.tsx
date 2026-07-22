@@ -2,18 +2,15 @@ import { useQuery } from "@tanstack/react-query";
 import { Loader2, Wallet } from "lucide-react";
 import { Link } from "react-router-dom";
 
-import { shortJobId } from "@/lib/job-order-labels";
-import { clientJobReferenceLabel } from "@/lib/sample-reference-display";
-import { formatMoney } from "@/lib/money";
-import { dashboardKeys } from "@/pages/staff/dashboard-home/dashboard-api-keys";
-import { formatPaymentStatusLabel } from "@/pages/staff/finance/shared/finance-payment-labels";
+import { shortJobId } from "@/lib/laboratory";
+import { clientJobReferenceLabel } from "@/lib/laboratory";
+import { buildJobOrderMap } from "@/features/laboratory/lib/build-job-order-map";
+import { fetchAllFinancialRecords } from "@/features/laboratory/lib/fetch-all-financial-records";
+import { daysSince, formatMoney } from "@/lib/formatting";
+import { dashboardKeys } from "@/lib/staff/dashboard/query-keys";
+import { formatPaymentStatusLabel } from "@/lib/laboratory/labels/payment-labels";
+import { outstandingAmount } from "@/lib/laboratory/finance/dashboard-metrics";
 
-import {
-  buildJobOrderMap,
-  daysSince,
-  fetchAllFinancialRecords,
-  outstandingAmount,
-} from "./finance-dashboard-utils";
 
 export function FinanceOutstandingInvoicesQueue() {
   const { data, isLoading, isError } = useQuery({

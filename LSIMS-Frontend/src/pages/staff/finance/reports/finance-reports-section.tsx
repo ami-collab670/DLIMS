@@ -4,12 +4,13 @@ import { useMemo } from "react";
 
 import { Button } from "@/components/ui/button";
 import { fetchJobOrder } from "@/features/jobs/api";
-import { shortJobId } from "@/lib/job-order-labels";
-import { formatMoney, parseMoney } from "@/lib/money";
+import { shortJobId } from "@/lib/laboratory";
+import { formatMoney, parseMoney } from "@/lib/formatting";
 import {
-  fetchAllFinancialRecords,
   outstandingAmount,
-} from "@/pages/staff/finance/dashboard/finance-dashboard-utils";
+} from "@/lib/laboratory/finance/dashboard-metrics";
+import { fetchAllFinancialRecords } from "@/features/laboratory/lib/fetch-all-financial-records";
+
 
 async function fetchJobCreatedAtMap(records: Awaited<ReturnType<typeof fetchAllFinancialRecords>>) {
   const jobIds = [

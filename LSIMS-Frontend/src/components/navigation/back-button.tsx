@@ -2,7 +2,7 @@ import { ChevronLeft } from "lucide-react";
 import { useLocation } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/ui";
 import {
   isStaffDashboardHome,
   useNavigationHistory,

@@ -3,19 +3,19 @@ import { Download, Loader2 } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import { fetchComplaints } from "@/features/laboratory/complaints-api";
-import { shortJobId } from "@/lib/job-order-labels";
-import { isFinance } from "@/lib/staff-permissions";
-import { formatMoney, formatMoneyFromApi } from "@/lib/money";
-import { dashboardKeys } from "@/pages/staff/dashboard-home/dashboard-api-keys";
+import { fetchComplaints } from "@/features/laboratory/api";
+import { shortJobId } from "@/lib/laboratory";
+import { isFinance } from "@/lib/staff";
+import { formatMoney, formatMoneyFromApi } from "@/lib/formatting";
+import { dashboardKeys } from "@/lib/staff/dashboard/query-keys";
 import {
-  fetchAllFinancialRecords,
   outstandingAmount,
-} from "@/pages/staff/finance/dashboard/finance-dashboard-utils";
+} from "@/lib/laboratory/finance/dashboard-metrics";
+import { fetchAllFinancialRecords } from "@/features/laboratory/lib/fetch-all-financial-records";
 import {
   formatPaidAt,
   formatPaymentStatusLabel,
-} from "@/pages/staff/finance/shared/finance-payment-labels";
+} from "@/lib/laboratory/labels/payment-labels";
 import { useAuthStore } from "@/stores/auth-store";
 import type { FinancialRecord } from "@/types/laboratory";
 
@@ -40,7 +40,7 @@ export function FinancePaymentComplianceSection() {
     isError: recordsError,
   } = useQuery({
     queryKey: dashboardKeys.financeAllRecords,
-    queryFn: fetchAllFinancialRecords,
+    queryFn: () => fetchAllFinancialRecords(),
     staleTime: 60_000,
   });
 

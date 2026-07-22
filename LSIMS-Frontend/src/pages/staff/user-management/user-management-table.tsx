@@ -4,8 +4,8 @@ import { useCallback, useMemo, useState } from "react";
 import { TablePaginationFooter } from "@/components/data-table/table-pagination-footer";
 import { SortableTableHead } from "@/components/data-table/sortable-table-head";
 import { Button } from "@/components/ui/button";
-import { getApiErrorMessage } from "@/lib/api-error";
-import { sortRowsClientSide, type SortState, type TablePageSize } from "@/lib/table-list-utils";
+import { getApiErrorMessage } from "@/lib/api";
+import { sortRowsClientSide, type SortState, type TablePageSize } from "@/lib/table";
 import type { AdminUserRow } from "@/types/account-admin";
 import type { DrfPaginated } from "@/types/laboratory";
 

@@ -3,11 +3,11 @@ import * as React from "react";
 import { toast } from "sonner";
 
 import { Input } from "@/components/ui/input";
-import { shortJobId } from "@/lib/job-order-labels";
-import { cn } from "@/lib/utils";
+import { shortJobId } from "@/lib/laboratory";
+import { cn } from "@/lib/ui";
 import type { JobOrder } from "@/types/laboratory";
 
-import { formatJobOptionLabel } from "./client-complaint-labels";
+import { formatJobOptionLabel } from "@/lib/laboratory";
 
 export function resolveJobFromQuery(
   jobs: JobOrder[],

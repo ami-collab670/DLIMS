@@ -1,6 +1,4 @@
 import { apiClient } from "@/api/client";
-import { adminChangeUserPassword } from "@/features/accounts/admin-api";
-import { useAuthStore } from "@/stores/auth-store";
 import type { AuthUser } from "@/types/auth";
 
 export type ProfileUpdatePayload = {
@@ -11,6 +9,11 @@ export type ProfileUpdatePayload = {
   organization_name?: string;
   organization_type?: string;
 };
+
+export async function fetchProfile(): Promise<AuthUser> {
+  const { data } = await apiClient.get<AuthUser>("/api/accounts/profile/");
+  return data;
+}
 
 export async function updateProfile(
   payload: ProfileUpdatePayload,
@@ -42,15 +45,4 @@ export async function changeOwnPassword(body: {
     body,
   );
   return data;
-}
-
-/** Admin/superuser only — uses `POST /api/accounts/users/:id/change-password/`. */
-export async function changeOwnPasswordAsAdmin(
-  newPassword: string,
-): Promise<void> {
-  const userId = useAuthStore.getState().user?.id;
-  if (!userId) {
-    throw new Error("Not signed in.");
-  }
-  await adminChangeUserPassword(userId, newPassword);
 }

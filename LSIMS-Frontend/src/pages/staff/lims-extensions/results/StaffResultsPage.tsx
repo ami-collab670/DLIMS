@@ -1,3 +1,4 @@
+import { staffPath } from "@/lib/staff";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { useState } from "react";
@@ -11,16 +12,16 @@ import {
   createAnalysisResult,
   fetchAnalysisResults,
   submitAnalysisResult,
-} from "@/features/laboratory/analysis-results-api";
+} from "@/features/laboratory/api";
 import { fetchJobResultSummary } from "@/features/jobs/api";
-import { laboratoryQueryKeys } from "@/features/laboratory/laboratory-query-keys";
-import { fetchSampleTests, fetchSamples } from "@/features/laboratory/staff-api";
-import { getApiErrorMessage } from "@/lib/api-error";
-import { shortJobId } from "@/lib/job-order-labels";
-import { canManageJobsAndSamples } from "@/lib/staff-permissions";
+import { laboratoryQueryKeys } from "@/features/laboratory/query-keys";
+import { fetchSampleTests, fetchSamples } from "@/features/laboratory/api";
+import { getApiErrorMessage } from "@/lib/api";
+import { shortJobId } from "@/lib/laboratory";
+import { canManageJobsAndSamples } from "@/lib/staff";
 import { useAuthStore } from "@/stores/auth-store";
 
-import { LIMS_EXTENSION_PAGE_SIZE } from "../constants";
+import { LIMS_EXTENSION_PAGE_SIZE } from "@/lib/staff/lims-extensions/constants";
 import { LimsPageIntro } from "../lims-page-intro";
 import { StaffRoleBanner } from "../staff-role-banner";
 
@@ -271,7 +272,7 @@ export default function StaffResultsPage() {
           {canPatchSamples ? (
             <>
               Update sample status from the{" "}
-              <Link to="/staff/analyst" className="text-primary underline-offset-4 hover:underline">
+              <Link to={staffPath("analyst")} className="text-primary underline-offset-4 hover:underline">
                 Analyst
               </Link>{" "}
               workspace.

@@ -4,15 +4,16 @@ import { NavLink, Outlet } from "react-router-dom";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { ThemeToggler } from "@/components/ThemeToggler";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/ui";
+import { clientPath, ROUTES } from "@/lib/routing";
 import { useAuthStore } from "@/stores/auth-store";
 
 const navItems = [
-  { to: "/client", label: "Home", icon: Home, end: true },
-  { to: "/client/requests", label: "My requests", icon: FileText, end: false },
-  { to: "/client/results", label: "My results", icon: FileText, end: false },
-  { to: "/client/complaints", label: "My complaints", icon: MessageSquare, end: false },
-  { to: "/client/profile", label: "Profile & settings", icon: User, end: false },
+  { to: ROUTES.client.root, label: "Home", icon: Home, end: true },
+  { to: clientPath("requests"), label: "My requests", icon: FileText, end: false },
+  { to: clientPath("results"), label: "My results", icon: FileText, end: false },
+  { to: clientPath("complaints"), label: "My complaints", icon: MessageSquare, end: false },
+  { to: clientPath("profile"), label: "Profile & settings", icon: User, end: false },
 ];
 
 export function ClientDashboardLayout() {
@@ -24,7 +25,7 @@ export function ClientDashboardLayout() {
       <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
           <NavLink
-            to="/client"
+            to={ROUTES.client.root}
             className="text-lg font-semibold tracking-tight hover:opacity-90"
           >
             LSIMS

@@ -1,11 +1,12 @@
+import { clientPath } from "@/lib/routing";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 
-import { fetchProfile } from "@/features/auth/api";
+import { fetchProfile } from "@/features/profile/api";
 import { useAuthStore } from "@/stores/auth-store";
 
-import { clientDashboardKeys } from "./client-dashboard-api-keys";
+import { clientDashboardKeys } from "@/lib/client/dashboard/query-keys";
 
 function profileCompleteness(profile: {
   phone?: string;
@@ -97,7 +98,7 @@ export function ClientDashboardProfileSnapshot() {
             {missing.length > 0 ? (
               <p className="mt-1 text-xs text-muted-foreground">
                 Missing: {missing.join(", ")}.{" "}
-                <Link to="/client/profile" className="text-primary hover:underline">
+                <Link to={clientPath("profile")} className="text-primary hover:underline">
                   Complete profile
                 </Link>
               </p>

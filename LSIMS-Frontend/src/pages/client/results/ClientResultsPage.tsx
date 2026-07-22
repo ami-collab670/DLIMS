@@ -1,3 +1,4 @@
+import { clientPath } from "@/lib/routing";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -8,16 +9,14 @@ import { TableToolbar } from "@/components/data-table/table-toolbar";
 import { Button } from "@/components/ui/button";
 import { fetchJobOrder, fetchJobOrders } from "@/features/jobs/api";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
-import { cn } from "@/lib/utils";
-import type { TablePageSize } from "@/lib/table-list-utils";
-import { DEFAULT_TABLE_PAGE_SIZE } from "@/lib/table-list-utils";
+import { cn } from "@/lib/ui";
+import type { TablePageSize } from "@/lib/table";
+import { DEFAULT_TABLE_PAGE_SIZE } from "@/lib/table";
 import type { JobOrder } from "@/types/laboratory";
 
 import { ClientResultsJobDetailPanel } from "./client-results-job-panel";
-import {
-  ClientProgressBadge,
-  formatClientDate,
-} from "./client-results-progress";
+import { ClientProgressBadge } from "./client-results-progress";
+import { formatClientDate } from "@/lib/client";
 
 function ClientResultsJobRow({
   job,
@@ -131,7 +130,7 @@ export default function ClientResultsPage() {
 
       <div className="rounded-lg border border-dashed bg-muted/15 px-4 py-3 text-sm text-muted-foreground">
         Track new requests under{" "}
-        <Link to="/client/requests" className="text-primary underline-offset-4 hover:underline">
+        <Link to={clientPath("requests")} className="text-primary underline-offset-4 hover:underline">
           My requests
         </Link>
         . Select a job to view details.

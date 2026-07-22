@@ -1,8 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { Mail, Phone, User } from "lucide-react";
 
-import { fetchLabClients } from "@/features/accounts/lab-clients-api";
-import { fetchRoles } from "@/features/accounts/roles-api";
+import { fetchLabClients } from "@/features/accounts/api";
+import { fetchRoles } from "@/features/accounts/api";
 import type { JobOrder } from "@/types/laboratory";
 
 type Props = {

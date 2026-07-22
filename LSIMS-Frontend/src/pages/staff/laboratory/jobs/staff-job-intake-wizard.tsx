@@ -8,10 +8,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { fetchLabClients } from "@/features/accounts/lab-clients-api";
+import { fetchLabClients } from "@/features/accounts/api";
 import { createStaffJob } from "@/features/jobs/api";
-import { ClientServiceCatalogPicker } from "@/features/jobs/client-service-catalog-picker";
-import { getDemoClientServiceCatalog } from "@/features/jobs/client-service-catalog-demo";
+import { ClientServiceCatalogPicker } from "@/features/jobs/components/client-service-catalog-picker";
+import { getDemoClientServiceCatalog } from "@/features/jobs/lib/client-service-catalog-demo";
 import {
   buildJobDescription,
   defaultSampleNames,
@@ -22,22 +22,22 @@ import {
   resizeStringArray,
   selectedTestsFromIds,
   type MultiSampleMode,
-} from "@/features/jobs/job-request-description";
+} from "@/lib/laboratory/jobs/job-request-description";
 import {
   appendEmptyDepartmentGroups,
   buildClientCatalog,
   sumSelectedPrices,
   type ClientCatalogIndex,
-} from "@/features/jobs/service-catalog";
-import { fetchClientServiceCatalog } from "@/features/laboratory/test-catalog-api";
-import { getApiErrorMessage } from "@/lib/api-error";
-import { formatMoney } from "@/lib/money";
+} from "@/lib/laboratory/catalog/client-catalog";
+import { fetchClientServiceCatalog } from "@/features/laboratory/api";
+import { getApiErrorMessage } from "@/lib/api";
+import { formatMoney } from "@/lib/formatting";
 import {
   JOB_PRIORITY_LABEL,
   JOB_PRIORITY_OPTIONS,
   shortJobId,
-} from "@/lib/job-order-labels";
-import { cn } from "@/lib/utils";
+} from "@/lib/laboratory";
+import { cn } from "@/lib/ui";
 import { IntakeChecklistFields } from "@/pages/staff/receptionist/shared/intake-checklist-fields";
 import type { JobOrder } from "@/types/laboratory";
 

@@ -1,3 +1,4 @@
+import { ROUTES } from "@/lib/routing";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
@@ -9,11 +10,11 @@ import { Label } from "@/components/ui/label";
 import { PasswordInput } from "@/components/ui/password-input";
 import { PasswordStrengthIndicator } from "@/components/ui/password-strength-indicator";
 import { changeOwnPassword } from "@/features/profile/api";
-import { getApiErrorMessage } from "@/lib/api-error";
+import { getApiErrorMessage } from "@/lib/api";
 import {
   passwordChangeFormSchema,
   type PasswordChangeFormValues,
-} from "@/schemas/password-change";
+} from "@/lib/validation";
 import { useAuthStore } from "@/stores/auth-store";
 
 export function ProfilePasswordSection() {
@@ -122,7 +123,7 @@ export function ProfilePasswordSection() {
           <p className="text-xs text-muted-foreground">
             Trouble signing in?{" "}
             <Link
-              to="/forgot-password"
+              to={ROUTES.forgotPassword}
               className="font-medium text-primary underline-offset-4 hover:underline"
             >
               Forgot password

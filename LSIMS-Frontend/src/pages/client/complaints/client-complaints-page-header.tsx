@@ -3,10 +3,10 @@ import { useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 
 import { Breadcrumb } from "@/components/navigation/breadcrumb";
-import { fetchComplaint } from "@/features/laboratory/complaints-api";
-import { laboratoryQueryKeys } from "@/features/laboratory/laboratory-query-keys";
+import { fetchComplaint } from "@/features/laboratory/api";
+import { laboratoryQueryKeys } from "@/features/laboratory/query-keys";
 
-import { truncateComplaintTitle } from "./constants";
+import { truncateComplaintTitle } from "@/lib/laboratory/complaints/constants";
 
 export function ClientComplaintsPageHeader() {
   const [searchParams, setSearchParams] = useSearchParams();

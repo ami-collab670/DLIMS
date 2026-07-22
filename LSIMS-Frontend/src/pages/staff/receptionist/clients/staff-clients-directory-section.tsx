@@ -5,26 +5,26 @@ import { useSearchParams } from "react-router-dom";
 
 import { useBreadcrumbSegments } from "@/components/navigation/breadcrumb-segments-context";
 import { TableToolbar } from "@/components/data-table/table-toolbar";
-import { fetchLabClients } from "@/features/accounts/lab-clients-api";
+import { fetchLabClients } from "@/features/accounts/api";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
-import { getApiErrorMessage } from "@/lib/api-error";
-import { isReceptionist } from "@/lib/staff-permissions";
-import { cn } from "@/lib/utils";
+import { getApiErrorMessage } from "@/lib/api";
+import { isReceptionist } from "@/lib/staff";
+import { cn } from "@/lib/ui";
 import type { AdminUserRow } from "@/types/account-admin";
 import { useAuthStore } from "@/stores/auth-store";
 
 import {
   hasClientSearchQuery,
   matchesClientSearch,
-} from "@/pages/staff/receptionist/shared/client-search-utils";
+} from "@/lib/staff/receptionist/client-search";
 
 import { StaffClientDetailPanel } from "./staff-client-detail-panel";
+import { fetchAllJobOrdersForClientIndex } from "@/features/jobs/lib/fetch-all-job-orders-for-client-index";
 import {
   clientMatchesSearch,
-  fetchAllJobOrdersForClientIndex,
   jobCountByClientEmail,
   jobsForClient,
-} from "./staff-clients-utils";
+} from "@/lib/staff/receptionist/client-jobs";
 
 const CLIENTS_QUERY_KEY = ["staff-lab-clients"] as const;
 const CLIENT_JOBS_INDEX_KEY = ["staff-clients-job-index"] as const;

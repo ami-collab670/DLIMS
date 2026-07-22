@@ -1,9 +1,10 @@
+import { staffPath } from "@/lib/staff";
 import { useQueries } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 
 import { fetchJobOrders } from "@/features/jobs/api";
-import { fetchSamples } from "@/features/laboratory/staff-api";
-import { canIntakeSamples, canManageJobsAndSamples } from "@/lib/staff-permissions";
+import { fetchSamples } from "@/features/laboratory/api";
+import { canIntakeSamples, canManageJobsAndSamples } from "@/lib/staff";
 import { useAuthStore } from "@/stores/auth-store";
 
 import { LimsPageIntro } from "../lims-page-intro";
@@ -82,7 +83,7 @@ export default function StaffSchedulingPage() {
         {!user ? null : (
           <>
             {" "}
-            <Link to="/staff/laboratory" className="text-primary underline-offset-4 hover:underline">
+            <Link to={staffPath("laboratory")} className="text-primary underline-offset-4 hover:underline">
               Open laboratory
             </Link>
             .

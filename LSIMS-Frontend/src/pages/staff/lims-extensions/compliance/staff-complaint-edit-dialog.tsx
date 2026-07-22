@@ -6,16 +6,16 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { patchComplaint } from "@/features/laboratory/complaints-api";
-import { laboratoryQueryKeys } from "@/features/laboratory/laboratory-query-keys";
-import { cn } from "@/lib/utils";
+import { patchComplaint } from "@/features/laboratory/api";
+import { laboratoryQueryKeys } from "@/features/laboratory/query-keys";
+import { cn } from "@/lib/ui";
 import type { ComplaintCategory, ComplaintRecord } from "@/types/laboratory";
 
-import { toastApiError } from "./staff-complaint-api-error";
+import { toastApiError } from "@/lib/api/toast-api-error";
 import {
   COMPLAINT_CATEGORY_OPTIONS,
   COMPLAINT_DESCRIPTION_MIN_LENGTH,
-} from "./constants";
+} from "@/lib/laboratory/complaints/constants";
 
 const selectClass = cn(
   "flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm",

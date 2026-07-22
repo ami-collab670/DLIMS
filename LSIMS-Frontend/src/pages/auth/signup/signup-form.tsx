@@ -1,3 +1,4 @@
+import { ROUTES } from "@/lib/routing";
 import type { UseFormReturn } from "react-hook-form";
 import { Link } from "react-router-dom";
 
@@ -8,7 +9,7 @@ import { PasswordInput } from "@/components/ui/password-input";
 import { PasswordStrengthIndicator } from "@/components/ui/password-strength-indicator";
 import { PhoneInputField } from "@/components/ui/phone-input";
 
-import type { SignupValues } from "./signup-schema";
+import type { SignupValues } from "@/lib/validation/auth/signup-schema";
 
 type Props = {
   form: UseFormReturn<SignupValues>;
@@ -121,7 +122,7 @@ export function SignupForm({ form, onSubmit, submitting }: Props) {
       <p className="text-center text-sm text-muted-foreground">
         Already have an account?{" "}
         <Link
-          to="/login"
+          to={ROUTES.login}
           className="text-primary underline-offset-4 hover:underline"
         >
           Sign in

@@ -11,21 +11,20 @@ import {
   approveAnalysisResult,
   fetchAnalysisResult,
   rejectAnalysisResult,
-} from "@/features/laboratory/analysis-results-api";
-import { fetchCalibrationRecords } from "@/features/laboratory/calibration-records-api";
-import { laboratoryQueryKeys } from "@/features/laboratory/laboratory-query-keys";
-import { fetchPreparationRecords } from "@/features/laboratory/preparation-records-api";
-import { fetchQCDecisions } from "@/features/laboratory/qc-decisions-api";
-import { fetchSample } from "@/features/laboratory/staff-api";
-import { getApiErrorMessage } from "@/lib/api-error";
-import { shortJobId } from "@/lib/job-order-labels";
-import { dashboardKeys } from "@/pages/staff/dashboard-home/dashboard-api-keys";
+} from "@/features/laboratory/api";
+import { fetchCalibrationRecords } from "@/features/laboratory/api";
+import { laboratoryQueryKeys } from "@/features/laboratory/query-keys";
+import { fetchPreparationRecords } from "@/features/laboratory/api";
+import { fetchQCDecisions } from "@/features/laboratory/api";
+import { fetchSample } from "@/features/laboratory/api";
+import { getApiErrorMessage } from "@/lib/api";
+import { formatDecidedAt, formatSubmittedAt } from "@/lib/formatting";
+import { shortJobId } from "@/lib/laboratory";
+import { dashboardKeys } from "@/lib/staff/dashboard/query-keys";
 import {
   canReviewAnalysisResults,
-  formatDecidedAt,
-  formatSubmittedAt,
   requireRejectReason,
-} from "@/pages/staff/qc/shared/qc-desk-utils";
+} from "@/lib/laboratory/qc/desk-utils";
 import { useAuthStore } from "@/stores/auth-store";
 import type { AnalysisResult } from "@/types/laboratory";
 

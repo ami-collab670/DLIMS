@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Navigate } from "react-router-dom";
 
-import { getDashboardPath } from "@/lib/dashboard-path";
+import { getDashboardPath, ROUTES } from "@/lib/routing";
 import { useAuthStore } from "@/stores/auth-store";
 
 /** Only `internal` (staff) users. External users are sent to the client app. */
@@ -11,7 +11,7 @@ export function StaffOnlyRoute({ children }: { children: ReactNode }) {
   if (!user) return null;
 
   if (user.user_type !== "internal") {
-    return <Navigate to="/client" replace />;
+    return <Navigate to={ROUTES.client.root} replace />;
   }
 
   return children;

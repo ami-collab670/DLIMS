@@ -15,23 +15,23 @@ import {
   toggleSortState,
   type JobOrderSortKey,
   type JobOrderSortState,
-} from "@/features/jobs/job-order-list-sort";
-import { SortableJobTableHead } from "@/features/jobs/sortable-job-table-head";
+} from "@/lib/laboratory/jobs/sort";
+import { SortableJobTableHead } from "@/features/jobs/components/sortable-job-table-head";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
-import { getApiErrorMessage } from "@/lib/api-error";
-import type { TablePageSize } from "@/lib/table-list-utils";
+import { getApiErrorMessage } from "@/lib/api";
+import type { TablePageSize } from "@/lib/table";
 import {
   JOB_PRIORITY_OPTIONS,
   JOB_STATUS_OPTIONS,
   shortJobId,
-} from "@/lib/job-order-labels";
-import { cn } from "@/lib/utils";
+} from "@/lib/laboratory";
+import { cn } from "@/lib/ui";
 import {
   canIntakeSamples,
   canManageJobsAndSamples,
-} from "@/lib/staff-permissions";
+} from "@/lib/staff";
 import { useAuthStore } from "@/stores/auth-store";
-import { LABORATORY_PAGE_SIZE } from "@/pages/staff/laboratory/constants";
+import { LABORATORY_PAGE_SIZE } from "@/lib/staff/laboratory/constants";
 import {
   LaboratoryPriorityBadge,
   LaboratoryStatusBadge,

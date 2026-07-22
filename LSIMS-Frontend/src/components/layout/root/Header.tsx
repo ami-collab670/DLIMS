@@ -5,7 +5,7 @@ import { ThemeToggler } from "@/components/ThemeToggler";
 import { Button } from "@/components/ui/button";
 import { DEFAULT_SITE_SETTINGS } from "@/features/cms/defaults";
 import { useSiteSettings } from "@/features/cms/hooks";
-import { getDashboardPath } from "@/lib/dashboard-path";
+import { getDashboardPath, ROUTES } from "@/lib/routing";
 import { useAuthStore } from "@/stores/auth-store";
 
 export function Header() {
@@ -21,7 +21,7 @@ export function Header() {
     <header className="flex items-center justify-between gap-4 border-b border-border px-4 py-3">
       <div className="flex min-w-0 items-center gap-6">
         <Link
-          to="/"
+          to={ROUTES.home}
           className="shrink-0 text-xl font-semibold tracking-tight hover:opacity-90"
         >
           {siteName}
@@ -68,10 +68,10 @@ export function Header() {
         {ready && !user ? (
           <>
             <Button type="button" variant="ghost" size="sm" asChild>
-              <Link to="/login">Sign in</Link>
+              <Link to={ROUTES.login}>Sign in</Link>
             </Button>
             <Button type="button" size="sm" asChild>
-              <Link to="/signup">Sign up</Link>
+              <Link to={ROUTES.signup}>Sign up</Link>
             </Button>
           </>
         ) : null}

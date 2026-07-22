@@ -1,3 +1,5 @@
+import { ROUTES } from "@/lib/routing";
+import { staffPath } from "@/lib/staff";
 import { Link } from "react-router-dom";
 import { BadgeCheck, ClipboardList, History, TestTube, XCircle } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -33,31 +35,31 @@ export function QcDashboardQuickLinks() {
           icon={TestTube}
           label="Route samples"
           description="Assign analysts, create prep records, and optionally pre-assign lab techs."
-          to="/staff/laboratory?tab=analyst"
+          to={staffPath("laboratory", { tab: "analyst" })}
         />
         <QuickLinkCard
           icon={BadgeCheck}
           label="Open review desk"
           description="Approve or reject submitted results."
-          to="/staff/qc"
+          to={ROUTES.staff.qc.root}
         />
         <QuickLinkCard
           icon={History}
           label="Decision history"
           description="Full audit log with filters."
-          to="/staff/qc/history"
+          to={ROUTES.staff.qc.history}
         />
         <QuickLinkCard
           icon={XCircle}
           label="Rejected follow-up"
           description="Results returned to analysts."
-          to="/staff/qc/rejected"
+          to={ROUTES.staff.qc.rejected}
         />
         <QuickLinkCard
           icon={ClipboardList}
           label="Jobs in QC"
           description="Monitor jobs awaiting final QC clearance."
-          to="/staff/qc#jobs"
+          to={`${ROUTES.staff.qc.root}#jobs`}
         />
       </div>
     </section>

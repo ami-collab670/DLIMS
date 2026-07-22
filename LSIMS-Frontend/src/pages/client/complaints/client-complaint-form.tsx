@@ -8,24 +8,24 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { fetchJobOrders } from "@/features/jobs/api";
-import { createComplaint } from "@/features/laboratory/complaints-api";
-import { fetchFinancialRecords } from "@/features/laboratory/financial-records-api";
-import { fetchSamples } from "@/features/laboratory/staff-api";
-import { getApiErrorMessage } from "@/lib/api-error";
-import { formatMoney, parseMoney } from "@/lib/money";
-import { cn } from "@/lib/utils";
+import { createComplaint } from "@/features/laboratory/api";
+import { fetchFinancialRecords } from "@/features/laboratory/api";
+import { fetchSamples } from "@/features/laboratory/api";
+import { getApiErrorMessage } from "@/lib/api";
+import { formatMoney, parseMoney } from "@/lib/formatting";
+import { cn } from "@/lib/ui";
 import type { ComplaintCategory, ComplaintRecord } from "@/types/laboratory";
 
 import {
   buildComplaintDescription,
   formatSampleOptionLabel,
-  paymentStatusLabel,
-} from "./client-complaint-labels";
+} from "@/lib/laboratory";
+import { formatPaymentStatusLabel } from "@/lib/laboratory/labels/payment-labels";
 import {
   ClientJobRequestSelect,
   type ClientJobRequestSelectHandle,
 } from "./client-job-request-select";
-import { COMPLAINT_CATEGORY_OPTIONS } from "./constants";
+import { COMPLAINT_CATEGORY_OPTIONS } from "@/lib/laboratory/complaints/constants";
 
 const selectClassName =
   "flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50";
@@ -115,7 +115,7 @@ export function ClientComplaintForm({
       expected,
       paid,
       due,
-      status: paymentStatusLabel(invoice.payment_status),
+      status: formatPaymentStatusLabel(invoice.payment_status),
     };
   }, [invoice]);
 

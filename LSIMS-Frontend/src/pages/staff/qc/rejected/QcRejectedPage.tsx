@@ -3,12 +3,12 @@ import { Loader2 } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { TablePaginationFooter } from "@/components/data-table/table-pagination-footer";
-import { fetchAnalysisResults } from "@/features/laboratory/analysis-results-api";
-import { fetchQCDecisions } from "@/features/laboratory/qc-decisions-api";
-import { laboratoryQueryKeys } from "@/features/laboratory/laboratory-query-keys";
-import { getApiErrorMessage } from "@/lib/api-error";
-import { QC_DESK_PAGE_SIZE } from "@/pages/staff/qc/shared/qc-constants";
-import { formatSubmittedAt } from "@/pages/staff/qc/shared/qc-desk-utils";
+import { fetchAnalysisResults } from "@/features/laboratory/api";
+import { fetchQCDecisions } from "@/features/laboratory/api";
+import { laboratoryQueryKeys } from "@/features/laboratory/query-keys";
+import { getApiErrorMessage } from "@/lib/api";
+import { QC_DESK_PAGE_SIZE } from "@/lib/staff/qc/constants";
+import { formatSubmittedAt } from "@/lib/formatting";
 
 export default function QcRejectedPage() {
   const [page, setPage] = useState(1);

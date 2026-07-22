@@ -2,6 +2,8 @@ import { BarChart3, Landmark, Percent, Shield } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Link } from "react-router-dom";
 
+import { staffFinanceTabUrl, staffPath } from "@/lib/staff";
+
 const linkClass =
   "flex items-center gap-3 rounded-xl border border-border bg-card p-3 text-left shadow-sm transition-colors hover:border-primary/40 hover:bg-muted/30";
 
@@ -14,25 +16,25 @@ type ActionItem = {
 
 const ACTIONS: ActionItem[] = [
   {
-    to: "/staff/finance",
+    to: staffPath("finance"),
     title: "Invoices & payments",
     subtitle: "Create invoices and record payment",
     icon: Landmark,
   },
   {
-    to: "/staff/finance?tab=discounts",
+    to: staffFinanceTabUrl("discounts"),
     title: "Discount requests",
     subtitle: "Submit waivers for director review",
     icon: Percent,
   },
   {
-    to: "/staff/finance?tab=reports",
+    to: staffFinanceTabUrl("reports"),
     title: "Finance reports",
     subtitle: "Revenue and receivables summary",
     icon: BarChart3,
   },
   {
-    to: "/staff/finance?tab=compliance",
+    to: staffFinanceTabUrl("compliance"),
     title: "Payment compliance",
     subtitle: "Audit trail and dispute visibility",
     icon: Shield,

@@ -13,10 +13,10 @@ import {
   deleteCalibrationRecord,
   fetchCalibrationRecords,
   patchCalibrationRecord,
-} from "@/features/laboratory/calibration-records-api";
-import { fetchAnalysisResults } from "@/features/laboratory/analysis-results-api";
-import { laboratoryQueryKeys } from "@/features/laboratory/laboratory-query-keys";
-import { getApiErrorMessage } from "@/lib/api-error";
+} from "@/features/laboratory/api";
+import { fetchAnalysisResults } from "@/features/laboratory/api";
+import { laboratoryQueryKeys } from "@/features/laboratory/query-keys";
+import { getApiErrorMessage } from "@/lib/api";
 import type { CalibrationRecord } from "@/types/laboratory";
 
 import { LimsPageIntro } from "../lims-page-intro";

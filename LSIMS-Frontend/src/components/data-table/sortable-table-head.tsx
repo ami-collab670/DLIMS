@@ -1,8 +1,8 @@
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import type { ReactNode } from "react";
 
-import type { SortState } from "@/lib/table-list-utils";
-import { cn } from "@/lib/utils";
+import type { SortState } from "@/lib/table";
+import { cn } from "@/lib/ui";
 
 type SortableTableHeadProps<T extends string = string> = {
   label: ReactNode;

@@ -3,9 +3,9 @@ import { AlertCircle, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { fetchJobOrders } from "@/features/jobs/api";
-import { shortJobId } from "@/lib/job-order-labels";
-import { clientJobReferenceLabel } from "@/lib/sample-reference-display";
-import { dashboardKeys } from "@/pages/staff/dashboard-home/dashboard-api-keys";
+import { shortJobId } from "@/lib/laboratory";
+import { clientJobReferenceLabel } from "@/lib/laboratory";
+import { dashboardKeys } from "@/lib/staff/dashboard/query-keys";
 
 export function FinanceHoldQueue() {
   const { data, isLoading, isError } = useQuery({

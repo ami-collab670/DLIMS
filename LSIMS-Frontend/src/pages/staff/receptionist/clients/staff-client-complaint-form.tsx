@@ -6,14 +6,14 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { createComplaint } from "@/features/laboratory/complaints-api";
-import { laboratoryQueryKeys } from "@/features/laboratory/laboratory-query-keys";
-import { getApiErrorMessage } from "@/lib/api-error";
-import { shortJobId } from "@/lib/job-order-labels";
+import { createComplaint } from "@/features/laboratory/api";
+import { laboratoryQueryKeys } from "@/features/laboratory/query-keys";
+import { getApiErrorMessage } from "@/lib/api";
+import { shortJobId } from "@/lib/laboratory";
 import type { AdminUserRow } from "@/types/account-admin";
 import type { ComplaintCategory, JobOrder } from "@/types/laboratory";
 
-import { COMPLAINT_CATEGORY_OPTIONS } from "@/pages/staff/lims-extensions/compliance/constants";
+import { COMPLAINT_CATEGORY_OPTIONS } from "@/lib/laboratory/complaints/constants";
 
 const selectClassName =
   "flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring";

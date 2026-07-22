@@ -6,8 +6,9 @@ import { Link, useSearchParams } from "react-router-dom";
 import { useBreadcrumbSegments } from "@/components/navigation/breadcrumb-segments-context";
 import { fetchJobOrder } from "@/features/jobs/api";
 import { useTrackedTabs } from "@/hooks/use-tracked-tabs";
-import { shortJobId } from "@/lib/job-order-labels";
-import { isFinance, isReceptionist } from "@/lib/staff-permissions";
+import { shortJobId } from "@/lib/laboratory";
+import { ROUTES } from "@/lib/routing";
+import { isFinance, isReceptionist } from "@/lib/staff";
 import { useAuthStore } from "@/stores/auth-store";
 import { Button } from "@/components/ui/button";
 import { FinanceJobDetailPanel } from "@/pages/staff/finance/job/finance-job-detail-panel";
@@ -63,7 +64,7 @@ function FinancePageContent({
 
       {finance ? (
         <p className="text-xs text-muted-foreground">
-          <Link to="/staff" className="font-medium text-primary hover:underline">
+          <Link to={ROUTES.staff.root} className="font-medium text-primary hover:underline">
             ← Finance desk home
           </Link>
         </p>

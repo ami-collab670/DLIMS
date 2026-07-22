@@ -9,13 +9,13 @@ import { Label } from "@/components/ui/label";
 import {
   createFinancialRecord,
   patchFinancialRecord,
-} from "@/features/laboratory/financial-records-api";
-import { getApiErrorMessage } from "@/lib/api-error";
+} from "@/features/laboratory/api";
+import { getApiErrorMessage } from "@/lib/api";
 import type { FinancialRecord, PaymentStatus } from "@/types/laboratory";
 
-import { dashboardKeys } from "@/pages/staff/dashboard-home/dashboard-api-keys";
-import { invalidateFinanceWorkflowQueries } from "@/pages/staff/lims-extensions/finance/finance-invoices-section";
-import { PAYMENT_STATUS_OPTIONS } from "@/pages/staff/finance/shared/finance-payment-labels";
+import { dashboardKeys } from "@/lib/staff/dashboard/query-keys";
+import { invalidateFinanceWorkflowQueries } from "@/features/laboratory/lib/invalidate-finance-workflow-queries";
+import { PAYMENT_STATUS_OPTIONS } from "@/lib/laboratory/labels/payment-labels";
 
 function invalidateFinanceDashboard(queryClient: QueryClient, jobId?: string) {
   invalidateFinanceWorkflowQueries(queryClient, jobId);

@@ -4,10 +4,10 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
-import { shortJobId } from "@/lib/job-order-labels";
+import { shortJobId } from "@/lib/laboratory";
 import type { ComplaintRecord } from "@/types/laboratory";
 
-import { complaintCategoryLabel } from "./constants";
+import { complaintCategoryLabel } from "@/lib/laboratory/complaints/constants";
 import { StaffComplaintDeleteDialog } from "./staff-complaint-delete-dialog";
 import { StaffComplaintEditDialog } from "./staff-complaint-edit-dialog";
 import { StaffComplaintRejectDialog } from "./staff-complaint-reject-dialog";

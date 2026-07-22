@@ -1,14 +1,15 @@
+import { staffPath } from "@/lib/staff";
 import { useQuery } from "@tanstack/react-query";
 import { Landmark, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 
-import { fetchFinancialRecords } from "@/features/laboratory/financial-records-api";
-import { laboratoryQueryKeys } from "@/features/laboratory/laboratory-query-keys";
-import { JOB_STATUS_LABEL, shortJobId } from "@/lib/job-order-labels";
+import { fetchFinancialRecords } from "@/features/laboratory/api";
+import { laboratoryQueryKeys } from "@/features/laboratory/query-keys";
+import { JOB_STATUS_LABEL, shortJobId } from "@/lib/laboratory";
 import type { JobOrder } from "@/types/laboratory";
 
-import { dashboardKeys } from "@/pages/staff/dashboard-home/dashboard-api-keys";
-import { fetchAwaitingFinanceJobs } from "@/pages/staff/receptionist/shared/fetch-awaiting-finance-jobs";
+import { dashboardKeys } from "@/lib/staff/dashboard/query-keys";
+import { fetchAwaitingFinanceJobs } from "@/features/laboratory/lib/fetch-awaiting-finance-jobs";
 
 function needsPaymentAttention(job: JobOrder, hasInvoice: boolean): boolean {
   if (job.current_status === "pending_finance" || job.current_status === "finance_hold") {
@@ -67,7 +68,7 @@ export function ReceptionistAwaitingPayment() {
           {jobs.length} job{jobs.length === 1 ? "" : "s"}
         </span>
         <Link
-          to="/staff/finance"
+          to={staffPath("finance")}
           className="ml-auto text-xs font-medium text-primary hover:underline"
         >
           Finance status →
