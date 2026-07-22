@@ -1,13 +1,11 @@
 import { staffFinanceTabUrl } from "@/lib/staff";
-import { useQuery } from "@tanstack/react-query";
 import { Loader2, Percent } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
-import { fetchDiscountApprovals } from "@/features/laboratory/api";
+import { useDiscountApprovals } from "@/features/laboratory/hooks";
 import { shortJobId } from "@/lib/laboratory";
-import { dashboardKeys } from "@/lib/staff/dashboard/query-keys";
 import type { DiscountApprovalStatus } from "@/types/laboratory";
 
 const STATUS_TABS: { value: DiscountApprovalStatus; label: string }[] = [
@@ -19,29 +17,31 @@ const STATUS_TABS: { value: DiscountApprovalStatus; label: string }[] = [
 export function FinanceDiscountTracker() {
   const [statusTab, setStatusTab] = useState<DiscountApprovalStatus>("pending");
 
-  const { data, isLoading, isError } = useQuery({
-    queryKey: dashboardKeys.financeDiscountTracker,
-    queryFn: async () => {
-      const [pending, approved, rejected] = await Promise.all([
-        fetchDiscountApprovals({ page: 1, status: "pending" }),
-        fetchDiscountApprovals({ page: 1, status: "approved" }),
-        fetchDiscountApprovals({ page: 1, status: "rejected" }),
-      ]);
-      return {
-        pending: pending.results.slice(0, 5),
-        approved: approved.results.slice(0, 5),
-        rejected: rejected.results.slice(0, 5),
-      };
-    },
-    staleTime: 60_000,
-  });
+  const {
+    data: pendingData,
+    isLoading: pendingLoading,
+    isError: pendingError,
+  } = useDiscountApprovals({ page: 1, status: "pending" });
+  const {
+    data: approvedData,
+    isLoading: approvedLoading,
+    isError: approvedError,
+  } = useDiscountApprovals({ page: 1, status: "approved" });
+  const {
+    data: rejectedData,
+    isLoading: rejectedLoading,
+    isError: rejectedError,
+  } = useDiscountApprovals({ page: 1, status: "rejected" });
+
+  const isLoading = pendingLoading || approvedLoading || rejectedLoading;
+  const isError = pendingError || approvedError || rejectedError;
 
   const rows =
     statusTab === "pending"
-      ? (data?.pending ?? [])
+      ? (pendingData?.results ?? []).slice(0, 5)
       : statusTab === "approved"
-        ? (data?.approved ?? [])
-        : (data?.rejected ?? []);
+        ? (approvedData?.results ?? []).slice(0, 5)
+        : (rejectedData?.results ?? []).slice(0, 5);
 
   if (isLoading) {
     return (

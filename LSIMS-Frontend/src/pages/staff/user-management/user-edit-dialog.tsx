@@ -1,4 +1,3 @@
-import { useQuery } from "@tanstack/react-query";
 import { Loader2, X } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -7,12 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PhoneInput } from "@/components/ui/phone-input";
+import type { UpdateAdminUserBody } from "@/features/accounts/api";
 import {
-  type UpdateAdminUserBody,
-  fetchAdminUser,
-} from "@/features/accounts/api";
-import { fetchDepartments } from "@/features/accounts/api";
-import { fetchRoles } from "@/features/accounts/api";
+  useAdminUser,
+  useDepartments,
+  useRoles,
+} from "@/features/accounts/hooks";
 import { cn } from "@/lib/ui";
 import type { AdminUserRow } from "@/types/account-admin";
 
@@ -38,20 +37,12 @@ export function UserEditDialog({ user, onClose, onSave, isPending }: Props) {
   const panelRef = useRef<HTMLDivElement>(null);
   const previouslyFocused = useRef<HTMLElement | null>(null);
 
-  const { data: roles = [], isLoading: rolesLoading } = useQuery({
-    queryKey: ["admin-roles"],
-    queryFn: () => fetchRoles(),
-  });
+  const { data: roles = [], isLoading: rolesLoading } = useRoles();
 
-  const { data: departmentsData } = useQuery({
-    queryKey: ["admin-departments"],
-    queryFn: () => fetchDepartments(),
-  });
+  const { data: departmentsData } = useDepartments();
   const departments = departmentsData?.results ?? [];
 
-  const { data: freshUser } = useQuery({
-    queryKey: ["admin-user", user.id],
-    queryFn: () => fetchAdminUser(user.id),
+  const { data: freshUser } = useAdminUser(user.id, {
     initialData: user,
     staleTime: 0,
   });

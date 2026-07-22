@@ -1,4 +1,3 @@
-import { useQuery } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -7,11 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PhoneInput } from "@/components/ui/phone-input";
-import {
-  type CreateAdminUserBody,
-} from "@/features/accounts/api";
-import { fetchDepartments } from "@/features/accounts/api";
-import { fetchRoles } from "@/features/accounts/api";
+import type { CreateAdminUserBody } from "@/features/accounts/api";
+import { useDepartments, useRoles } from "@/features/accounts/hooks";
 import { cn } from "@/lib/ui";
 
 import { roleOptionLabel } from "@/lib/staff/roles/role-display";
@@ -22,15 +18,9 @@ type Props = {
 };
 
 export function UserCreateForm({ onSubmit, isPending }: Props) {
-  const { data: roles = [], isLoading: rolesLoading } = useQuery({
-    queryKey: ["admin-roles"],
-    queryFn: () => fetchRoles(),
-  });
+  const { data: roles = [], isLoading: rolesLoading } = useRoles();
 
-  const { data: departmentsData } = useQuery({
-    queryKey: ["admin-departments"],
-    queryFn: () => fetchDepartments(),
-  });
+  const { data: departmentsData } = useDepartments();
   const departments = departmentsData?.results ?? [];
 
   const [form, setForm] = useState({

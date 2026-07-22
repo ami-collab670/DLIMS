@@ -1,4 +1,3 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -6,7 +5,7 @@ import { TablePaginationFooter } from "@/components/data-table/table-pagination-
 import { SortableTableHead } from "@/components/data-table/sortable-table-head";
 import { TableToolbar } from "@/components/data-table/table-toolbar";
 import { Label } from "@/components/ui/label";
-import { fetchSample, fetchSamples } from "@/features/laboratory/api";
+import { useSample, useSamples } from "@/features/laboratory/hooks";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { getApiErrorMessage } from "@/lib/api";
 import { shortJobId } from "@/lib/laboratory";
@@ -44,7 +43,6 @@ export function StaffSamplesSection({
   intake: boolean;
   manage: boolean;
 }) {
-  const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<TablePageSize>(DEFAULT_TABLE_PAGE_SIZE);
   const [jobFilter, setJobFilter] = useState("");
@@ -56,21 +54,20 @@ export function StaffSamplesSection({
 
   useEffect(() => setPage(1), [debounced, jobFilter, statusFilter, pageSize]);
 
-  const { data, isLoading, isError, error } = useQuery({
-    queryKey: ["staff-samples", page, pageSize, jobFilter, statusFilter, debounced],
-    queryFn: () =>
-      fetchSamples({
-        page,
-        page_size: pageSize,
-        job: jobFilter || undefined,
-        sample_status: statusFilter || undefined,
-        search: debounced || undefined,
-      }),
-  });
+  const listParams = useMemo(
+    () => ({
+      page,
+      page_size: pageSize,
+      job: jobFilter || undefined,
+      sample_status: statusFilter || undefined,
+      search: debounced || undefined,
+    }),
+    [page, pageSize, jobFilter, statusFilter, debounced],
+  );
 
-  const { data: detail } = useQuery({
-    queryKey: ["staff-sample", selectedId],
-    queryFn: () => fetchSample(selectedId!),
+  const { data, isLoading, isError, error } = useSamples(listParams);
+
+  const { data: detail } = useSample(selectedId ?? "", {
     enabled: Boolean(selectedId),
   });
 
@@ -105,14 +102,7 @@ export function StaffSamplesSection({
 
   return (
     <div className="space-y-4">
-      {intake ? (
-        <NewSampleForm
-          onCreated={() => {
-            queryClient.invalidateQueries({ queryKey: ["staff-samples"] });
-            queryClient.invalidateQueries({ queryKey: ["staff-job-orders"] });
-          }}
-        />
-      ) : (
+      {intake ? <NewSampleForm onCreated={() => {}} /> : (
         <p className="rounded-lg border border-dashed px-4 py-3 text-sm text-muted-foreground">
           Only receptionists can register new samples.
         </p>
@@ -253,10 +243,7 @@ export function StaffSamplesSection({
           sample={detail}
           manage={manage}
           onClose={() => setSelectedId(null)}
-          onUpdated={() => {
-            queryClient.invalidateQueries({ queryKey: ["staff-samples"] });
-            queryClient.invalidateQueries({ queryKey: ["staff-sample", selectedId] });
-          }}
+          onUpdated={() => {}}
         />
       ) : null}
     </div>

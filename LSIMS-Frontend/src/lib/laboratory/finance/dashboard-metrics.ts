@@ -1,6 +1,15 @@
 import { daysSince, isToday, isWithinDays, parseMoney } from "@/lib/formatting";
 import type { FinancialRecord } from "@/types/laboratory";
 
+export function needsPaymentAttention(
+  jobId: string,
+  invoiceByJob: Map<string, { payment_status: string }>,
+): boolean {
+  const invoice = invoiceByJob.get(jobId);
+  if (!invoice) return true;
+  return invoice.payment_status !== "paid";
+}
+
 export function invoiceByJobMap(
   records: FinancialRecord[],
 ): Map<string, FinancialRecord> {

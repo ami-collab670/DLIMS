@@ -1,16 +1,13 @@
 import { ROUTES } from "@/lib/routing";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
-import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { PasswordInput } from "@/components/ui/password-input";
 import { PasswordStrengthIndicator } from "@/components/ui/password-strength-indicator";
-import { changeOwnPassword } from "@/features/profile/api";
-import { getApiErrorMessage } from "@/lib/api";
+import { useChangePassword } from "@/features/profile/hooks";
 import {
   passwordChangeFormSchema,
   type PasswordChangeFormValues,
@@ -29,20 +26,7 @@ export function ProfilePasswordSection() {
     },
   });
 
-  const mutation = useMutation({
-    mutationFn: (values: PasswordChangeFormValues) =>
-      changeOwnPassword({
-        current_password: values.current_password,
-        new_password: values.new_password,
-      }),
-    onSuccess: () => {
-      form.reset();
-      toast.success(
-        "Password updated. Your current session may remain active until you sign out or the token expires.",
-      );
-    },
-    onError: (e) => toast.error(getApiErrorMessage(e)),
-  });
+  const changeMut = useChangePassword();
 
   if (!user) return null;
 
@@ -66,7 +50,15 @@ export function ProfilePasswordSection() {
 
       <form
         className="mt-4 space-y-4"
-        onSubmit={handleSubmit((values) => mutation.mutate(values))}
+        onSubmit={handleSubmit((values) =>
+          changeMut.mutate(
+            {
+              current_password: values.current_password,
+              new_password: values.new_password,
+            },
+            { onSuccess: () => form.reset() },
+          ),
+        )}
         noValidate
       >
         <div className="space-y-2">
@@ -129,8 +121,8 @@ export function ProfilePasswordSection() {
               Forgot password
             </Link>
           </p>
-          <Button type="submit" disabled={mutation.isPending} className="sm:shrink-0">
-            {mutation.isPending ? "Updating…" : "Update password"}
+          <Button type="submit" disabled={changeMut.isPending} className="sm:shrink-0">
+            {changeMut.isPending ? "Updating…" : "Update password"}
           </Button>
         </div>
       </form>

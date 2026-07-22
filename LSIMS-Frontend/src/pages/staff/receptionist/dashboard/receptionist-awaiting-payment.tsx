@@ -1,17 +1,19 @@
 import { staffPath } from "@/lib/staff";
-import { useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
 import { Landmark, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 
-import { fetchFinancialRecords } from "@/features/laboratory/api";
-import { laboratoryQueryKeys } from "@/features/laboratory/query-keys";
+import {
+  useAwaitingFinanceJobs,
+  useFinancialRecords,
+} from "@/features/laboratory/hooks";
 import { JOB_STATUS_LABEL, shortJobId } from "@/lib/laboratory";
 import type { JobOrder } from "@/types/laboratory";
 
-import { dashboardKeys } from "@/lib/staff/dashboard/query-keys";
-import { fetchAwaitingFinanceJobs } from "@/features/laboratory/lib/fetch-awaiting-finance-jobs";
-
-function needsPaymentAttention(job: JobOrder, hasInvoice: boolean): boolean {
+function receptionistJobNeedsPaymentAttention(
+  job: JobOrder,
+  hasInvoice: boolean,
+): boolean {
   if (job.current_status === "pending_finance" || job.current_status === "finance_hold") {
     return true;
   }
@@ -19,26 +21,19 @@ function needsPaymentAttention(job: JobOrder, hasInvoice: boolean): boolean {
 }
 
 export function ReceptionistAwaitingPayment() {
-  const jobsQuery = useQuery({
-    queryKey: dashboardKeys.receptionistAwaitingPayment,
-    queryFn: fetchAwaitingFinanceJobs,
-    staleTime: 60_000,
-  });
+  const jobsQuery = useAwaitingFinanceJobs({ staleTime: 60_000 });
+  const invoicesQuery = useFinancialRecords({ page: 1 }, { staleTime: 60_000 });
 
-  const invoicesQuery = useQuery({
-    queryKey: laboratoryQueryKeys.financialRecords(),
-    queryFn: () => fetchFinancialRecords({ page: 1 }),
-    staleTime: 60_000,
-  });
+  const jobs = useMemo(() => {
+    const invoiceByJob = new Map<string, boolean>();
+    for (const r of invoicesQuery.data?.results ?? []) {
+      invoiceByJob.set(r.job, true);
+    }
+    return (jobsQuery.data ?? []).filter((job) =>
+      receptionistJobNeedsPaymentAttention(job, invoiceByJob.has(job.id)),
+    );
+  }, [jobsQuery.data, invoicesQuery.data?.results]);
 
-  const invoiceByJob = new Map<string, boolean>();
-  for (const r of invoicesQuery.data?.results ?? []) {
-    invoiceByJob.set(r.job, true);
-  }
-
-  const jobs = (jobsQuery.data ?? []).filter((job) =>
-    needsPaymentAttention(job, invoiceByJob.has(job.id)),
-  );
   const preview = jobs.slice(0, 5);
   const isLoading = jobsQuery.isLoading || invoicesQuery.isLoading;
 

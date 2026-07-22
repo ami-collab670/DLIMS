@@ -1,4 +1,5 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import type { JobOrderListParams } from "@/features/jobs/api";
+import { useJobOrder, useJobOrders } from "@/features/jobs/hooks";
 import {
   AlertCircle,
   Loader2,
@@ -10,10 +11,6 @@ import { useBreadcrumbSegments } from "@/components/navigation/breadcrumb-segmen
 import { TablePaginationFooter } from "@/components/data-table/table-pagination-footer";
 import { TableToolbar } from "@/components/data-table/table-toolbar";
 import { Label } from "@/components/ui/label";
-import {
-  fetchJobOrder,
-  fetchJobOrders,
-} from "@/features/jobs/api";
 import {
   DEFAULT_JOB_ORDER_SORT,
   toOrderingParam,
@@ -51,7 +48,6 @@ export function StaffJobsSection({
   financeReadOnly?: boolean;
   hideClientIdentity?: boolean;
 }) {
-  const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedJobId = searchParams.get("job");
   const [page, setPage] = useState(1);
@@ -65,7 +61,7 @@ export function StaffJobsSection({
   useEffect(() => setPage(1), [debouncedSearch, statusFilter, priorityFilter, sort, pageSize]);
 
   const listParams = useMemo(() => {
-    const p: Parameters<typeof fetchJobOrders>[0] = {
+    const p: JobOrderListParams = {
       page,
       page_size: pageSize,
       ordering: toOrderingParam(sort),
@@ -80,18 +76,14 @@ export function StaffJobsSection({
     setSort((prev) => toggleSortState(prev, key));
   }, []);
 
-  const { data: listData, isLoading, isError, error, isFetching } = useQuery({
-    queryKey: ["staff-job-orders", listParams],
-    queryFn: () => fetchJobOrders(listParams),
-  });
+  const { data: listData, isLoading, isError, error, isFetching } =
+    useJobOrders(listParams);
 
   const {
     data: detailJob,
     isLoading: detailLoading,
     isError: detailError,
-  } = useQuery({
-    queryKey: ["staff-job-order", selectedJobId],
-    queryFn: () => fetchJobOrder(selectedJobId!),
+  } = useJobOrder(selectedJobId ?? "", {
     enabled: Boolean(selectedJobId),
   });
 
@@ -138,10 +130,7 @@ export function StaffJobsSection({
           <StaffJobIntakeForm
             showIntakeChecklist={financeReadOnly}
             enableCatalogWizard={financeReadOnly}
-            onCreated={(job) => {
-              queryClient.invalidateQueries({ queryKey: ["staff-job-orders"] });
-              openJob(job.id);
-            }}
+            onCreated={(job) => openJob(job.id)}
           />
         ) : (
           <p className="rounded-lg border border-dashed border-border bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
@@ -324,12 +313,7 @@ export function StaffJobsSection({
                 manageJobs={manageJobs}
                 financeReadOnly={financeReadOnly}
                 hideClientIdentity={hideClientIdentity}
-                onUpdated={() => {
-                  queryClient.invalidateQueries({ queryKey: ["staff-job-orders"] });
-                  queryClient.invalidateQueries({
-                    queryKey: ["staff-job-order", displayJob.id],
-                  });
-                }}
+                onUpdated={() => {}}
               />
             )}
           </div>

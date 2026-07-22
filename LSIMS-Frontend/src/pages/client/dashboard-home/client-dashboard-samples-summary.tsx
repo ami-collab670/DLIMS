@@ -1,30 +1,18 @@
 import { clientPath } from "@/lib/routing";
-import { useQuery } from "@tanstack/react-query";
 import { FlaskConical, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
-
 import {
-  fetchAllActiveJobs,
-  fetchRecentSamples,
-} from "@/features/client/lib/dashboard-queries";
+  useClientActiveJobs,
+  useClientRecentSamples,
+} from "@/features/client/hooks";
 import { formatClientDateTime, sumSampleCount } from "@/lib/client";
 import { clientResultsJobUrl } from "@/lib/routing";
 import { ClientProgressBadge } from "@/pages/client/results/client-results-progress";
 
-import { clientDashboardKeys } from "@/lib/client/dashboard/query-keys";
-
 export function ClientDashboardSamplesSummary() {
-  const jobsQuery = useQuery({
-    queryKey: clientDashboardKeys.allActiveJobs,
-    queryFn: fetchAllActiveJobs,
-    staleTime: 45_000,
-  });
+  const jobsQuery = useClientActiveJobs();
 
-  const samplesQuery = useQuery({
-    queryKey: clientDashboardKeys.recentSamples,
-    queryFn: () => fetchRecentSamples(5),
-    staleTime: 45_000,
-  });
+  const samplesQuery = useClientRecentSamples(5);
 
   const loading = jobsQuery.isLoading || samplesQuery.isLoading;
   const allJobs = jobsQuery.data ?? [];

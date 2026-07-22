@@ -1,32 +1,15 @@
 import { staffPath } from "@/lib/staff";
-import { useQuery } from "@tanstack/react-query";
 import { FilePlus2, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 
+import { useFinanceAwaitingClearanceQueue } from "@/features/laboratory/hooks";
 import { JOB_PRIORITY_LABEL, shortJobId } from "@/lib/laboratory";
 import { formatMoney } from "@/lib/formatting";
 import { clientJobReferenceLabel } from "@/lib/laboratory";
-import { dashboardKeys } from "@/lib/staff/dashboard/query-keys";
 import { parseJobBillingSummary } from "@/lib/laboratory/jobs/billing";
-import { fetchAwaitingFinanceJobs } from "@/features/laboratory/lib/fetch-awaiting-finance-jobs";
-
-import { invoiceByJobMap } from "@/lib/laboratory/finance/dashboard-metrics";
-import { fetchAllFinancialRecords } from "@/features/laboratory/lib/fetch-all-financial-records";
-
 
 export function FinanceAwaitingClearanceQueue() {
-  const { data, isLoading, isError } = useQuery({
-    queryKey: dashboardKeys.financeAwaitingClearance,
-    queryFn: async () => {
-      const [jobs, records] = await Promise.all([
-        fetchAwaitingFinanceJobs(),
-        fetchAllFinancialRecords(),
-      ]);
-      const invoiceMap = invoiceByJobMap(records);
-      return jobs.filter((j) => !invoiceMap.has(j.id));
-    },
-    staleTime: 60_000,
-  });
+  const { data, isLoading, isError } = useFinanceAwaitingClearanceQueue();
 
   const preview = (data ?? []).slice(0, 8);
 

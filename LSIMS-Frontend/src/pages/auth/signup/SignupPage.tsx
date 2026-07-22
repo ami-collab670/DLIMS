@@ -1,11 +1,9 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
-import { registerRequest } from "@/features/auth/api";
-import { getApiErrorMessage } from "@/lib/api";
+import { useRegister } from "@/features/auth/hooks";
 import { useAuthStore } from "@/stores/auth-store";
 
 import { SignupForm } from "./signup-form";
@@ -16,7 +14,15 @@ export default function SignupPage() {
   const navigate = useNavigate();
   const setTokens = useAuthStore((s) => s.setTokens);
   const setUser = useAuthStore((s) => s.setUser);
-  const [submitting, setSubmitting] = useState(false);
+
+  const registerMut = useRegister({
+    onSuccess: (res) => {
+      setTokens(res.access, res.refresh);
+      setUser(res.user);
+      toast.success("Account created. You are signed in.");
+      navigate("/client", { replace: true });
+    },
+  });
 
   const form = useForm<SignupValues>({
     resolver: zodResolver(signupSchema),
@@ -31,32 +37,21 @@ export default function SignupPage() {
     },
   });
 
-  async function onSubmit(values: SignupValues) {
-    setSubmitting(true);
-    try {
-      const res = await registerRequest({
-        email: values.email,
-        password: values.password,
-        password_confirm: values.passwordConfirm,
-        first_name: values.first_name || undefined,
-        last_name: values.last_name || undefined,
-        organization_name: values.organization_name || undefined,
-        phone: values.phone || undefined,
-      });
-      setTokens(res.access, res.refresh);
-      setUser(res.user);
-      toast.success("Account created. You are signed in.");
-      navigate("/client", { replace: true });
-    } catch (e) {
-      toast.error(getApiErrorMessage(e));
-    } finally {
-      setSubmitting(false);
-    }
+  function onSubmit(values: SignupValues) {
+    registerMut.mutate({
+      email: values.email,
+      password: values.password,
+      password_confirm: values.passwordConfirm,
+      first_name: values.first_name || undefined,
+      last_name: values.last_name || undefined,
+      organization_name: values.organization_name || undefined,
+      phone: values.phone || undefined,
+    });
   }
 
   return (
     <SignupPageLayout>
-      <SignupForm form={form} onSubmit={onSubmit} submitting={submitting} />
+      <SignupForm form={form} onSubmit={onSubmit} submitting={registerMut.isPending} />
     </SignupPageLayout>
   );
 }

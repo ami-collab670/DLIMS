@@ -1,4 +1,3 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -7,10 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { fetchLabAnalysts } from "@/features/accounts/api";
-import { fetchJobOrders } from "@/features/jobs/api";
-import { createSample } from "@/features/laboratory/api";
-import { getApiErrorMessage } from "@/lib/api";
+import { useLabAnalysts } from "@/features/accounts/hooks";
+import { useJobOrders } from "@/features/jobs/hooks";
+import { useCreateSample } from "@/features/laboratory/hooks";
 import { IntakeChecklistFields } from "@/pages/staff/receptionist/shared/intake-checklist-fields";
 import { JOB_STATUS_LABEL, shortJobId } from "@/lib/laboratory";
 import type { JobOrder, JobOrderStatus } from "@/types/laboratory";
@@ -43,31 +41,12 @@ export function RegisterSampleForm({
     if (fixedJobId) setJobId(fixedJobId);
   }, [fixedJobId]);
 
-  const { data: jobsData } = useQuery({
-    queryKey: ["staff-jobs-picker"],
-    queryFn: () => fetchJobOrders({ page: 1 }),
-    enabled: !fixedJobId,
-  });
-
-  const { data: analysts = [] } = useQuery({
-    queryKey: ["lab-analysts"],
-    queryFn: fetchLabAnalysts,
-  });
+  const { data: jobsData } = useJobOrders({ page: 1 }, { enabled: !fixedJobId });
+  const { data: analysts = [] } = useLabAnalysts();
 
   const selectedJob = fixedJob ?? jobsData?.results.find((j) => j.id === jobId);
 
-  const mut = useMutation({
-    mutationFn: () =>
-      createSample({
-        job: jobId,
-        sample_name: sampleName.trim(),
-        submitted_by: selectedJob!.client,
-        assigned_analyst: analystId || undefined,
-        sample_weight: sampleWeight.trim() ? sampleWeight.trim() : undefined,
-        packaging_type: packagingType.trim() || undefined,
-        collection_date: collectionDate.trim() || undefined,
-        notes: notes.trim() || undefined,
-      }),
+  const mut = useCreateSample({
     onSuccess: () => {
       toast.success("Sample registered.");
       onCreated();
@@ -78,7 +57,6 @@ export function RegisterSampleForm({
       setCollectionDate("");
       setNotes("");
     },
-    onError: (err) => toast.error(getApiErrorMessage(err)),
   });
 
   return (
@@ -90,7 +68,16 @@ export function RegisterSampleForm({
           toast.error("Select a job and enter a sample name.");
           return;
         }
-        mut.mutate();
+        mut.mutate({
+          job: jobId,
+          sample_name: sampleName.trim(),
+          submitted_by: selectedJob.client,
+          assigned_analyst: analystId || undefined,
+          sample_weight: sampleWeight.trim() ? sampleWeight.trim() : undefined,
+          packaging_type: packagingType.trim() || undefined,
+          collection_date: collectionDate.trim() || undefined,
+          notes: notes.trim() || undefined,
+        });
       }}
     >
       <p className="text-sm font-medium">Register sample</p>

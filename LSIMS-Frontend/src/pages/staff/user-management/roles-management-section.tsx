@@ -1,4 +1,3 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -6,13 +5,13 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import type { RoleName } from "@/features/accounts/api";
 import {
-  createRole,
-  deleteRole,
-  fetchRoles,
-  patchRole,
-  type RoleName,
-} from "@/features/accounts/api";
+  useCreateRole,
+  useDeleteRole,
+  usePatchRole,
+  useRoles,
+} from "@/features/accounts/hooks";
 import { getApiErrorMessage } from "@/lib/api";
 import type { RoleRecord } from "@/types/account-admin";
 
@@ -32,7 +31,6 @@ const ROLE_NAME_OPTIONS: { value: RoleName; label: string }[] = [
 ];
 
 export function RolesManagementSection() {
-  const queryClient = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
   const [editing, setEditing] = useState<RoleRecord | null>(null);
   const [form, setForm] = useState<{ role_name: RoleName; contact_alias: string }>({
@@ -40,52 +38,11 @@ export function RolesManagementSection() {
     contact_alias: "",
   });
 
-  const { data: roles = [], isLoading, isError, error } = useQuery({
-    queryKey: ["admin-roles"],
-    queryFn: () => fetchRoles(),
-  });
+  const { data: roles = [], isLoading, isError, error } = useRoles();
 
-  const invalidate = () => {
-    void queryClient.invalidateQueries({ queryKey: ["admin-roles"] });
-  };
-
-  const createMut = useMutation({
-    mutationFn: () =>
-      createRole({
-        role_name: form.role_name,
-        contact_alias: form.contact_alias.trim(),
-      }),
-    onSuccess: () => {
-      toast.success("Role created.");
-      setShowCreate(false);
-      setForm({ role_name: "analyst", contact_alias: "" });
-      invalidate();
-    },
-    onError: (e) => toast.error(getApiErrorMessage(e)),
-  });
-
-  const patchMut = useMutation({
-    mutationFn: () =>
-      patchRole(editing!.id, {
-        role_name: form.role_name,
-        contact_alias: form.contact_alias.trim(),
-      }),
-    onSuccess: () => {
-      toast.success("Role updated.");
-      setEditing(null);
-      invalidate();
-    },
-    onError: (e) => toast.error(getApiErrorMessage(e)),
-  });
-
-  const deleteMut = useMutation({
-    mutationFn: deleteRole,
-    onSuccess: () => {
-      toast.success("Role deleted.");
-      invalidate();
-    },
-    onError: (e) => toast.error(getApiErrorMessage(e)),
-  });
+  const createMut = useCreateRole();
+  const patchMut = usePatchRole();
+  const deleteMut = useDeleteRole();
 
   function openEdit(role: RoleRecord) {
     setEditing(role);
@@ -100,6 +57,40 @@ export function RolesManagementSection() {
     setEditing(null);
     setShowCreate(false);
     setForm({ role_name: "analyst", contact_alias: "" });
+  }
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!form.contact_alias.trim()) {
+      toast.error("Contact alias is required.");
+      return;
+    }
+
+    const body = {
+      role_name: form.role_name,
+      contact_alias: form.contact_alias.trim(),
+    };
+
+    if (editing) {
+      patchMut.mutate(
+        { id: editing.id, body },
+        {
+          onSuccess: () => {
+            toast.success("Role updated.");
+            setEditing(null);
+          },
+        },
+      );
+      return;
+    }
+
+    createMut.mutate(body, {
+      onSuccess: () => {
+        toast.success("Role created.");
+        setShowCreate(false);
+        setForm({ role_name: "analyst", contact_alias: "" });
+      },
+    });
   }
 
   return (
@@ -126,15 +117,7 @@ export function RolesManagementSection() {
       {(showCreate || editing) ? (
         <form
           className="grid gap-3 rounded-xl border bg-card p-4 shadow-sm md:grid-cols-2"
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (!form.contact_alias.trim()) {
-              toast.error("Contact alias is required.");
-              return;
-            }
-            if (editing) patchMut.mutate();
-            else createMut.mutate();
-          }}
+          onSubmit={handleSubmit}
         >
           <p className="md:col-span-2 text-sm font-medium">
             {editing ? "Edit role" : "New role"}
@@ -229,7 +212,9 @@ export function RolesManagementSection() {
                               `Delete role "${roleOptionLabel(r)}"? Users assigned to it may break.`,
                             )
                           ) {
-                            deleteMut.mutate(r.id);
+                            deleteMut.mutate(r.id, {
+                              onSuccess: () => toast.success("Role deleted."),
+                            });
                           }
                         }}
                       >

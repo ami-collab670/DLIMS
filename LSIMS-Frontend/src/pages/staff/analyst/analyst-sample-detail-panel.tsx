@@ -1,4 +1,3 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -7,37 +6,35 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { fetchLabAnalysts } from "@/features/accounts/api";
+import { useLabAnalysts } from "@/features/accounts/hooks";
 import {
-  createAnalysisResult,
-  fetchAnalysisResults,
-  patchAnalysisResult,
-  submitAnalysisResult,
-} from "@/features/laboratory/api";
-import { laboratoryQueryKeys } from "@/features/laboratory/query-keys";
-import { fetchPreparationRecords, createPreparationRecord } from "@/features/laboratory/api";
+  useAnalysisResults,
+  useAssignSampleAnalyst,
+  useAssignTestToSample,
+  useCreateAnalysisResult,
+  useCreatePreparationRecord,
+  useDeleteSample,
+  usePatchAnalysisResult,
+  usePatchSample,
+  usePreparationRecords,
+  useRemoveSampleTestAssignment,
+  useSubmitAnalysisResult,
+  useTestCatalog,
+} from "@/features/laboratory/hooks";
+import type { patchSample } from "@/features/laboratory/api";
 import {
-  assignSampleAnalyst,
-  assignTestToSample,
-  deleteSampleHard,
-  fetchTestCatalog,
-  patchSample,
-  removeSampleTestAssignment,
-} from "@/features/laboratory/api";
+  useDepartmentAnalystDirectory,
+  useDepartmentLabTechDirectory,
+} from "@/features/staff/hooks";
 import { getApiErrorMessage } from "@/lib/api";
 import { shortJobId } from "@/lib/laboratory";
 import { isSampleAwaitingPayment } from "@/lib/laboratory";
 import { canCreatePreparationRecord } from "@/lib/staff";
 import { staffSampleDisplayCode } from "@/lib/laboratory";
-import { dashboardKeys } from "@/lib/staff/dashboard/query-keys";
-import {
-  fetchDepartmentAnalystDirectory,
-} from "@/features/staff/lib/fetch-department-analyst-directory";
 import {
   isUserUuid,
   resolveInitialAnalystUserId,
 } from "@/lib/staff/qc-manager/analyst-directory";
-import { fetchDepartmentLabTechDirectory } from "@/features/staff/lib/fetch-department-lab-tech-directory";
 import { useAuthStore } from "@/stores/auth-store";
 import type { AnalysisResult, SampleRecord } from "@/types/laboratory";
 
@@ -94,7 +91,6 @@ export function AnalystSampleDetailPanel({
   onClose: () => void;
   onUpdated: () => void;
 }) {
-  const queryClient = useQueryClient();
   const user = useAuthStore((s) => s.user);
   const departmentId = user?.department ?? null;
   const canCreatePrep = canCreatePreparationRecord(user);
@@ -126,40 +122,30 @@ export function AnalystSampleDetailPanel({
   const [resultUnit, setResultUnit] = useState("");
   const [activeDraftId, setActiveDraftId] = useState<string | null>(null);
 
-  const { data: sampleResults = [] } = useQuery({
-    queryKey: laboratoryQueryKeys.analysisResults({ sample: sample.id }),
-    queryFn: async () => {
-      const data = await fetchAnalysisResults({ page: 1, page_size: 50, sample: sample.id });
-      return data.results;
-    },
-    enabled: showResultEntry,
-  });
+  const { data: sampleResultsPage } = useAnalysisResults(
+    { page: 1, page_size: 50, sample: sample.id },
+    { enabled: showResultEntry },
+  );
+  const sampleResults = sampleResultsPage?.results ?? [];
 
-  const { data: prepData, isLoading: prepLoading } = useQuery({
-    queryKey: laboratoryQueryKeys.preparationRecords({ sample: sample.id }),
-    queryFn: () => fetchPreparationRecords({ page: 1, sample: sample.id }),
-    enabled: showResultEntry || showSampleRouting,
-  });
+  const { data: prepData, isLoading: prepLoading } = usePreparationRecords(
+    { page: 1, sample: sample.id },
+    { enabled: showResultEntry || showSampleRouting },
+  );
 
   const prepRecord = prepData?.results[0];
 
-  const { data: labTechDirectory = [], isLoading: labTechDirectoryLoading } = useQuery({
-    queryKey: dashboardKeys.qcManagerLabTechDirectory(departmentId),
-    queryFn: () => fetchDepartmentLabTechDirectory(departmentId),
-    enabled: showSampleRouting && canCreatePrep,
-    staleTime: 120_000,
-  });
+  const { data: labTechDirectory = [], isLoading: labTechDirectoryLoading } =
+    useDepartmentLabTechDirectory(departmentId, {
+      enabled: showSampleRouting && canCreatePrep,
+    });
 
-  const { data: analystDirectory = [], isLoading: analystDirectoryLoading } = useQuery({
-    queryKey: dashboardKeys.qcManagerAnalystDirectory(departmentId),
-    queryFn: () => fetchDepartmentAnalystDirectory(departmentId),
-    enabled: canAssignAnalyst,
-    staleTime: 120_000,
-  });
+  const { data: analystDirectory = [], isLoading: analystDirectoryLoading } =
+    useDepartmentAnalystDirectory(departmentId, {
+      enabled: canAssignAnalyst,
+    });
 
-  const { data: labAnalysts = [] } = useQuery({
-    queryKey: ["lab-analysts"],
-    queryFn: fetchLabAnalysts,
+  const { data: labAnalysts = [] } = useLabAnalysts({
     enabled: canAssignAnalyst,
     retry: false,
   });
@@ -183,11 +169,10 @@ export function AnalystSampleDetailPanel({
   const analystSelectionChanged =
     Boolean(selectedAnalystId) && selectedAnalystId !== currentAssignedAnalystId;
 
-  const { data: testsPage } = useQuery({
-    queryKey: ["test-catalog-analyst-detail", sample.id],
-    queryFn: () => fetchTestCatalog({ page: 1, is_active: true }),
-    enabled: canPatchSample,
-  });
+  const { data: testsPage } = useTestCatalog(
+    { page: 1, is_active: true },
+    { enabled: canPatchSample },
+  );
 
   useEffect(() => {
     setAnalystSelectionTouched(false);
@@ -237,107 +222,107 @@ export function AnalystSampleDetailPanel({
     analystSelectionTouched,
   ]);
 
-  const patchMut = useMutation({
-    mutationFn: () => {
-      const weightTrim = sampleWeight.trim();
-      const body: Parameters<typeof patchSample>[1] = {
-        notes,
-        packaging_type: packagingType.trim(),
-        collection_date: collectionDate.trim() || null,
-      };
-      if (!hideClientSampleNames) {
-        body.sample_name = sampleName.trim() || undefined;
-      }
-      if (weightTrim) body.sample_weight = weightTrim;
-      else body.sample_weight = null;
-      if (assignedAt.trim()) {
-        const dt = new Date(assignedAt);
-        body.assigned_at = Number.isNaN(dt.getTime()) ? null : dt.toISOString();
-      } else {
-        body.assigned_at = null;
-      }
-      return patchSample(sample.id, body);
-    },
+  const patchMut = usePatchSample({
     onSuccess: () => {
       toast.success("Sample updated.");
       onUpdated();
     },
-    onError: (e) => toast.error(getApiErrorMessage(e)),
   });
 
-  const assignAnalystMut = useMutation({
-    mutationFn: () =>
-      assignSampleAnalyst(sample.id, {
-        assigned_analyst: selectedAnalystId,
-        reassigned_reason: reassignedReason.trim() || undefined,
-      }),
+  const assignAnalystMut = useAssignSampleAnalyst({
     onSuccess: () => {
       toast.success("Analyst assigned.");
       setAnalystSelectionTouched(false);
-      void queryClient.invalidateQueries({
-        queryKey: dashboardKeys.qcManagerAnalystDirectory(departmentId),
-      });
       onUpdated();
     },
-    onError: (e) => toast.error(getApiErrorMessage(e)),
   });
 
-  const createPrepMut = useMutation({
-    mutationFn: () =>
-      createPreparationRecord({
-        sample: sample.id,
-        technician: isUserUuid(selectedLabTechId) ? selectedLabTechId : undefined,
-      }),
+  const createPrepMut = useCreatePreparationRecord({
     onSuccess: () => {
       toast.success("Preparation record created.");
       setSelectedLabTechId("");
-      void queryClient.invalidateQueries({
-        queryKey: laboratoryQueryKeys.preparationRecords({ sample: sample.id }),
-      });
-      void queryClient.invalidateQueries({ queryKey: ["preparation-records"] });
-      void queryClient.invalidateQueries({
-        queryKey: dashboardKeys.qcManagerLabTechDirectory(departmentId),
-      });
-      void queryClient.invalidateQueries({ queryKey: dashboardKeys.qcManagerPrepBacklog });
-      void queryClient.invalidateQueries({ queryKey: dashboardKeys.labTechDeskKpis });
-      void queryClient.invalidateQueries({ queryKey: dashboardKeys.labTechDeskQueuePreview });
       onUpdated();
     },
-    onError: (e) => toast.error(getApiErrorMessage(e)),
   });
 
-  const saveDraftMut = useMutation({
-    mutationFn: async () => {
+  const createResultMut = useCreateAnalysisResult();
+  const patchResultMut = usePatchAnalysisResult();
+  const submitResultMut = useSubmitAnalysisResult();
+
+  const delMut = useDeleteSample({
+    onSuccess: () => {
+      toast.success("Sample deleted.");
+      onUpdated();
+      onClose();
+    },
+  });
+
+  const assignMut = useAssignTestToSample({
+    onSuccess: () => {
+      toast.success("Test assigned.");
+      setTestToAdd("");
+      onUpdated();
+    },
+  });
+
+  const removeTestMut = useRemoveSampleTestAssignment({
+    onSuccess: () => {
+      toast.success("Assignment removed.");
+      onUpdated();
+    },
+  });
+
+  function buildPatchBody(): Parameters<typeof patchSample>[1] {
+    const weightTrim = sampleWeight.trim();
+    const body: Parameters<typeof patchSample>[1] = {
+      notes,
+      packaging_type: packagingType.trim(),
+      collection_date: collectionDate.trim() || null,
+    };
+    if (!hideClientSampleNames) {
+      body.sample_name = sampleName.trim() || undefined;
+    }
+    if (weightTrim) body.sample_weight = weightTrim;
+    else body.sample_weight = null;
+    if (assignedAt.trim()) {
+      const dt = new Date(assignedAt);
+      body.assigned_at = Number.isNaN(dt.getTime()) ? null : dt.toISOString();
+    } else {
+      body.assigned_at = null;
+    }
+    return body;
+  }
+
+  async function handleSaveDraft() {
+    try {
       if (activeDraftId) {
-        return patchAnalysisResult(activeDraftId, {
+        await patchResultMut.mutateAsync({
+          id: activeDraftId,
+          body: {
+            value: resultValue.trim(),
+            unit: resultUnit.trim() || undefined,
+          },
+        });
+      } else {
+        const result = await createResultMut.mutateAsync({
+          sample_test: resultSampleTest,
           value: resultValue.trim(),
           unit: resultUnit.trim() || undefined,
         });
+        setActiveDraftId(result.id);
       }
-      return createAnalysisResult({
-        sample_test: resultSampleTest,
-        value: resultValue.trim(),
-        unit: resultUnit.trim() || undefined,
-      });
-    },
-    onSuccess: (result) => {
       toast.success("Draft saved.");
-      setActiveDraftId(result.id);
-      void queryClient.invalidateQueries({ queryKey: ["analysis-results"] });
-      void queryClient.invalidateQueries({
-        queryKey: laboratoryQueryKeys.analysisResults({ sample: sample.id }),
-      });
-      void queryClient.invalidateQueries({ queryKey: dashboardKeys.analystDeskKpis });
       onUpdated();
-    },
-    onError: (e) => toast.error(getApiErrorMessage(e)),
-  });
+    } catch (e) {
+      toast.error(getApiErrorMessage(e));
+    }
+  }
 
-  const submitMut = useMutation({
-    mutationFn: async () => {
+  async function handleSubmitResult() {
+    try {
       let draftId = activeDraftId;
       if (!draftId) {
-        const created = await createAnalysisResult({
+        const created = await createResultMut.mutateAsync({
           sample_test: resultSampleTest,
           value: resultValue.trim(),
           unit: resultUnit.trim() || undefined,
@@ -345,65 +330,31 @@ export function AnalystSampleDetailPanel({
         draftId = created.id;
         setActiveDraftId(created.id);
       } else if (resultValue.trim()) {
-        await patchAnalysisResult(draftId, {
-          value: resultValue.trim(),
-          unit: resultUnit.trim() || undefined,
+        await patchResultMut.mutateAsync({
+          id: draftId,
+          body: {
+            value: resultValue.trim(),
+            unit: resultUnit.trim() || undefined,
+          },
         });
       }
-      return submitAnalysisResult(draftId!);
-    },
-    onSuccess: () => {
+      await submitResultMut.mutateAsync(draftId!);
       toast.success("Result submitted for QC.");
       setResultValue("");
       setResultUnit("");
       setActiveDraftId(null);
-      void queryClient.invalidateQueries({ queryKey: ["analysis-results"] });
-      void queryClient.invalidateQueries({
-        queryKey: laboratoryQueryKeys.analysisResults({ sample: sample.id }),
-      });
-      void queryClient.invalidateQueries({ queryKey: dashboardKeys.analystDeskKpis });
-      void queryClient.invalidateQueries({ queryKey: dashboardKeys.analystDeskRecentSubmissions });
       onUpdated();
-    },
-    onError: (e) => toast.error(getApiErrorMessage(e)),
-  });
+    } catch (e) {
+      toast.error(getApiErrorMessage(e));
+    }
+  }
 
-  const delMut = useMutation({
-    mutationFn: () => deleteSampleHard(sample.id),
-    onSuccess: () => {
-      toast.success("Sample deleted.");
-      onUpdated();
-      onClose();
-    },
-    onError: (e) => toast.error(getApiErrorMessage(e)),
-  });
-
-  const assignMut = useMutation({
-    mutationFn: () => assignTestToSample({ sample: sample.id, test: testToAdd }),
-    onSuccess: () => {
-      toast.success("Test assigned.");
-      setTestToAdd("");
-      queryClient.invalidateQueries({
-        queryKey: ["staff-analyst", "detail", sample.id],
-      });
-      queryClient.invalidateQueries({ queryKey: ["staff-analyst"] });
-      onUpdated();
-    },
-    onError: (e) => toast.error(getApiErrorMessage(e)),
-  });
-
-  const removeTestMut = useMutation({
-    mutationFn: removeSampleTestAssignment,
-    onSuccess: () => {
-      toast.success("Assignment removed.");
-      queryClient.invalidateQueries({
-        queryKey: ["staff-analyst", "detail", sample.id],
-      });
-      queryClient.invalidateQueries({ queryKey: ["staff-analyst"] });
-      onUpdated();
-    },
-    onError: (e) => toast.error(getApiErrorMessage(e)),
-  });
+  const saveDraftPending =
+    createResultMut.isPending || patchResultMut.isPending;
+  const submitPending =
+    createResultMut.isPending ||
+    patchResultMut.isPending ||
+    submitResultMut.isPending;
 
   const assignedTestIds = new Set(sample.sample_tests.map((t) => t.test));
   const testsForPicker =
@@ -583,9 +534,9 @@ export function AnalystSampleDetailPanel({
               size="sm"
               variant="secondary"
               disabled={
-                !resultSampleTest || !resultValue.trim() || saveDraftMut.isPending
+                !resultSampleTest || !resultValue.trim() || saveDraftPending
               }
-              onClick={() => saveDraftMut.mutate()}
+              onClick={() => void handleSaveDraft()}
             >
               Save draft
             </Button>
@@ -595,10 +546,10 @@ export function AnalystSampleDetailPanel({
               disabled={
                 !resultSampleTest ||
                 !resultValue.trim() ||
-                submitMut.isPending ||
-                saveDraftMut.isPending
+                submitPending ||
+                saveDraftPending
               }
-              onClick={() => submitMut.mutate()}
+              onClick={() => void handleSubmitResult()}
             >
               Submit for QC
             </Button>
@@ -628,7 +579,9 @@ export function AnalystSampleDetailPanel({
             <Button
               type="button"
               disabled={!testToAdd || assignMut.isPending}
-              onClick={() => assignMut.mutate()}
+              onClick={() =>
+                assignMut.mutate({ sample: sample.id, test: testToAdd })
+              }
             >
               Assign test
             </Button>
@@ -693,7 +646,15 @@ export function AnalystSampleDetailPanel({
                     variant="secondary"
                     size="sm"
                     disabled={assignAnalystMut.isPending || !isUserUuid(selectedAnalystId)}
-                    onClick={() => assignAnalystMut.mutate()}
+                    onClick={() =>
+                      assignAnalystMut.mutate({
+                        sampleId: sample.id,
+                        body: {
+                          assigned_analyst: selectedAnalystId,
+                          reassigned_reason: reassignedReason.trim() || undefined,
+                        },
+                      })
+                    }
                   >
                     Assign analyst
                   </Button>
@@ -770,7 +731,14 @@ export function AnalystSampleDetailPanel({
                     size="sm"
                     variant="secondary"
                     disabled={createPrepMut.isPending}
-                    onClick={() => createPrepMut.mutate()}
+                    onClick={() =>
+                      createPrepMut.mutate({
+                        sample: sample.id,
+                        technician: isUserUuid(selectedLabTechId)
+                          ? selectedLabTechId
+                          : undefined,
+                      })
+                    }
                   >
                     Create preparation record
                   </Button>
@@ -827,7 +795,15 @@ export function AnalystSampleDetailPanel({
                   variant="secondary"
                   size="sm"
                   disabled={assignAnalystMut.isPending || !isUserUuid(selectedAnalystId)}
-                  onClick={() => assignAnalystMut.mutate()}
+                  onClick={() =>
+                    assignAnalystMut.mutate({
+                      sampleId: sample.id,
+                      body: {
+                        assigned_analyst: selectedAnalystId,
+                        reassigned_reason: reassignedReason.trim() || undefined,
+                      },
+                    })
+                  }
                 >
                   Assign analyst
                 </Button>
@@ -851,7 +827,13 @@ export function AnalystSampleDetailPanel({
             <Textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} />
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button type="button" onClick={() => patchMut.mutate()} disabled={patchMut.isPending}>
+            <Button
+              type="button"
+              onClick={() =>
+                patchMut.mutate({ id: sample.id, body: buildPatchBody() })
+              }
+              disabled={patchMut.isPending}
+            >
               Save metadata
             </Button>
             <Button
@@ -859,7 +841,7 @@ export function AnalystSampleDetailPanel({
               variant="destructive"
               disabled={delMut.isPending}
               onClick={() => {
-                if (confirm("Permanently delete this sample?")) delMut.mutate();
+                if (confirm("Permanently delete this sample?")) delMut.mutate(sample.id);
               }}
             >
               <Trash2 className="size-4" />

@@ -1,5 +1,3 @@
-import { useMutation } from "@tanstack/react-query";
-import type { QueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -7,31 +5,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  createFinancialRecord,
-  patchFinancialRecord,
-} from "@/features/laboratory/api";
-import { getApiErrorMessage } from "@/lib/api";
+  useCreateFinancialRecord,
+  usePatchFinancialRecord,
+} from "@/features/laboratory/hooks";
 import type { FinancialRecord, PaymentStatus } from "@/types/laboratory";
 
-import { dashboardKeys } from "@/lib/staff/dashboard/query-keys";
-import { invalidateFinanceWorkflowQueries } from "@/features/laboratory/lib/invalidate-finance-workflow-queries";
 import { PAYMENT_STATUS_OPTIONS } from "@/lib/laboratory/labels/payment-labels";
-
-function invalidateFinanceDashboard(queryClient: QueryClient, jobId?: string) {
-  invalidateFinanceWorkflowQueries(queryClient, jobId);
-  void queryClient.invalidateQueries({ queryKey: dashboardKeys.financeKpis });
-  void queryClient.invalidateQueries({ queryKey: dashboardKeys.financeAwaitingClearance });
-  void queryClient.invalidateQueries({ queryKey: dashboardKeys.financeOutstanding });
-  void queryClient.invalidateQueries({ queryKey: dashboardKeys.financeRecentlyCleared });
-  void queryClient.invalidateQueries({ queryKey: dashboardKeys.financeHoldQueue });
-}
 
 type CreateInvoiceFormProps = {
   jobId: string;
   expectedAmount: string;
   onExpectedAmountChange: (value: string) => void;
   onSuccess?: () => void;
-  queryClient: QueryClient;
   submitLabel?: string;
 };
 
@@ -40,21 +25,13 @@ export function CreateInvoiceForm({
   expectedAmount,
   onExpectedAmountChange,
   onSuccess,
-  queryClient,
   submitLabel = "Create invoice",
 }: CreateInvoiceFormProps) {
-  const createMut = useMutation({
-    mutationFn: () =>
-      createFinancialRecord({
-        job: jobId.trim(),
-        amount_expected: expectedAmount.trim() || undefined,
-      }),
+  const createMut = useCreateFinancialRecord({
     onSuccess: () => {
       toast.success("Invoice created.");
-      invalidateFinanceDashboard(queryClient, jobId.trim());
       onSuccess?.();
     },
-    onError: (e) => toast.error(getApiErrorMessage(e)),
   });
 
   return (
@@ -66,7 +43,10 @@ export function CreateInvoiceForm({
           toast.error("Job ID is required.");
           return;
         }
-        createMut.mutate();
+        createMut.mutate({
+          job: jobId.trim(),
+          amount_expected: expectedAmount.trim() || undefined,
+        });
       }}
     >
       <div className="space-y-1 sm:col-span-2">
@@ -98,7 +78,6 @@ type EditInvoiceFormProps = {
   onStatusChange: (value: PaymentStatus) => void;
   onCancel: () => void;
   onSuccess?: () => void;
-  queryClient: QueryClient;
 };
 
 export function EditInvoiceForm({
@@ -111,35 +90,19 @@ export function EditInvoiceForm({
   onStatusChange,
   onCancel,
   onSuccess,
-  queryClient,
 }: EditInvoiceFormProps) {
-  const patchMut = useMutation({
-    mutationFn: () =>
-      patchFinancialRecord(record.invoice_no, {
-        amount_expected: expected.trim() || undefined,
-        amount_paid: paid.trim() || undefined,
-        payment_status: status,
-      }),
+  const patchMut = usePatchFinancialRecord({
     onSuccess: () => {
       toast.success("Invoice updated.");
-      invalidateFinanceDashboard(queryClient, record.job);
       onSuccess?.();
     },
-    onError: (e) => toast.error(getApiErrorMessage(e)),
   });
 
-  const markPaidMut = useMutation({
-    mutationFn: () =>
-      patchFinancialRecord(record.invoice_no, {
-        amount_paid: record.amount_expected,
-        payment_status: "paid",
-      }),
+  const markPaidMut = usePatchFinancialRecord({
     onSuccess: () => {
       toast.success("Invoice marked paid — job advances to laboratory intake.");
-      invalidateFinanceDashboard(queryClient, record.job);
       onSuccess?.();
     },
-    onError: (e) => toast.error(getApiErrorMessage(e)),
   });
 
   return (
@@ -184,7 +147,21 @@ export function EditInvoiceForm({
         </div>
       </div>
       <div className="flex flex-wrap gap-2">
-        <Button type="button" size="sm" disabled={patchMut.isPending} onClick={() => patchMut.mutate()}>
+        <Button
+          type="button"
+          size="sm"
+          disabled={patchMut.isPending}
+          onClick={() =>
+            patchMut.mutate({
+              invoiceNo: record.invoice_no,
+              body: {
+                amount_expected: expected.trim() || undefined,
+                amount_paid: paid.trim() || undefined,
+                payment_status: status,
+              },
+            })
+          }
+        >
           {patchMut.isPending ? <Loader2 className="size-4 animate-spin" /> : "Save invoice"}
         </Button>
         {record.payment_status !== "paid" && !record.waiver_approved_at ? (
@@ -193,7 +170,15 @@ export function EditInvoiceForm({
             size="sm"
             variant="secondary"
             disabled={markPaidMut.isPending}
-            onClick={() => markPaidMut.mutate()}
+            onClick={() =>
+              markPaidMut.mutate({
+                invoiceNo: record.invoice_no,
+                body: {
+                  amount_paid: record.amount_expected,
+                  payment_status: "paid",
+                },
+              })
+            }
           >
             Mark paid
           </Button>
@@ -208,29 +193,20 @@ export function EditInvoiceForm({
 
 type MarkPaidButtonProps = {
   record: FinancialRecord;
-  queryClient: QueryClient;
   onSuccess?: () => void;
   size?: "default" | "sm" | "lg" | "icon";
 };
 
 export function MarkPaidButton({
   record,
-  queryClient,
   onSuccess,
   size = "sm",
 }: MarkPaidButtonProps) {
-  const markPaidMut = useMutation({
-    mutationFn: () =>
-      patchFinancialRecord(record.invoice_no, {
-        amount_paid: record.amount_expected,
-        payment_status: "paid",
-      }),
+  const markPaidMut = usePatchFinancialRecord({
     onSuccess: () => {
       toast.success("Invoice marked paid — job advances to laboratory intake.");
-      invalidateFinanceDashboard(queryClient, record.job);
       onSuccess?.();
     },
-    onError: (e) => toast.error(getApiErrorMessage(e)),
   });
 
   if (record.payment_status === "paid" || record.waiver_approved_at) {
@@ -242,11 +218,17 @@ export function MarkPaidButton({
       type="button"
       size={size}
       disabled={markPaidMut.isPending}
-      onClick={() => markPaidMut.mutate()}
+      onClick={() =>
+        markPaidMut.mutate({
+          invoiceNo: record.invoice_no,
+          body: {
+            amount_paid: record.amount_expected,
+            payment_status: "paid",
+          },
+        })
+      }
     >
       {markPaidMut.isPending ? <Loader2 className="size-4 animate-spin" /> : "Mark paid"}
     </Button>
   );
 }
-
-export { invalidateFinanceDashboard };

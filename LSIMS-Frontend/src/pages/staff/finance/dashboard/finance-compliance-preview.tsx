@@ -1,22 +1,15 @@
 import { staffFinanceTabUrl } from "@/lib/staff";
-import { useQuery } from "@tanstack/react-query";
 import { Loader2, Shield } from "lucide-react";
 import { Link } from "react-router-dom";
 
+import { useAllFinancialRecords } from "@/features/laboratory/hooks";
 import { shortJobId } from "@/lib/laboratory";
 import { daysSince, formatMoney } from "@/lib/formatting";
-import { dashboardKeys } from "@/lib/staff/dashboard/query-keys";
 import { formatPaymentStatusLabel } from "@/lib/laboratory/labels/payment-labels";
-
 import { outstandingAmount } from "@/lib/laboratory/finance/dashboard-metrics";
-import { fetchAllFinancialRecords } from "@/features/laboratory/lib/fetch-all-financial-records";
 
 export function FinanceCompliancePreview() {
-  const { data: records = [], isLoading, isError } = useQuery({
-    queryKey: dashboardKeys.financeAllRecords,
-    queryFn: () => fetchAllFinancialRecords(),
-    staleTime: 60_000,
-  });
+  const { data: records = [], isLoading, isError } = useAllFinancialRecords();
 
   const preview = records
     .filter(

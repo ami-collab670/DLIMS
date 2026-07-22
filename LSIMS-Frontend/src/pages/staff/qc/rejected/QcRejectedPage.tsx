@@ -1,11 +1,8 @@
-import { useQuery } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { TablePaginationFooter } from "@/components/data-table/table-pagination-footer";
-import { fetchAnalysisResults } from "@/features/laboratory/api";
-import { fetchQCDecisions } from "@/features/laboratory/api";
-import { laboratoryQueryKeys } from "@/features/laboratory/query-keys";
+import { useAnalysisResults, useQcRejectedReasonsMap } from "@/features/laboratory/hooks";
 import { getApiErrorMessage } from "@/lib/api";
 import { QC_DESK_PAGE_SIZE } from "@/lib/staff/qc/constants";
 import { formatSubmittedAt } from "@/lib/formatting";
@@ -13,50 +10,21 @@ import { formatSubmittedAt } from "@/lib/formatting";
 export default function QcRejectedPage() {
   const [page, setPage] = useState(1);
 
-  const { data, isLoading, isError, error, isFetching } = useQuery({
-    queryKey: laboratoryQueryKeys.analysisResults({
-      state: "rejected",
+  const { data, isLoading, isError, error, isFetching } = useAnalysisResults(
+    {
       page,
       page_size: QC_DESK_PAGE_SIZE,
-    }),
-    queryFn: () =>
-      fetchAnalysisResults({
-        page,
-        page_size: QC_DESK_PAGE_SIZE,
-        state: "rejected",
-      }),
-    staleTime: 30_000,
-  });
+      state: "rejected",
+    },
+    { staleTime: 30_000 },
+  );
 
   const resultIds = useMemo(
-    () => (data?.results ?? []).map((r) => r.id).join(","),
+    () => (data?.results ?? []).map((r) => r.id),
     [data?.results],
   );
 
-  const { data: rejectReasons = {} as Record<string, string> } = useQuery({
-    queryKey: ["qc-rejected-reasons", resultIds],
-    queryFn: async (): Promise<Record<string, string>> => {
-      const map: Record<string, string> = {};
-      const rows = data?.results ?? [];
-      await Promise.all(
-        rows.map(async (r) => {
-          try {
-            const decisions = await fetchQCDecisions({
-              analysis_result: r.id,
-              decision: "rejected",
-              page: 1,
-            });
-            const latest = decisions.results[0];
-            if (latest?.reason) map[r.id] = latest.reason;
-          } catch {
-            /* ignore */
-          }
-        }),
-      );
-      return map;
-    },
-    enabled: Boolean(data?.results.length),
-  });
+  const { data: rejectReasons = {} } = useQcRejectedReasonsMap(resultIds);
 
   return (
     <div className="space-y-4">

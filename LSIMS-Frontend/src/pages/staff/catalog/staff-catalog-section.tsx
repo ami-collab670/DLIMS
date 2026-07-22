@@ -1,4 +1,3 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -9,11 +8,11 @@ import { TableToolbar } from "@/components/data-table/table-toolbar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { fetchDepartments } from "@/features/accounts/api";
+import { useDepartments } from "@/features/accounts/hooks";
 import {
-  createTestCatalogItem,
-  fetchTestCatalog,
-} from "@/features/laboratory/api";
+  useCreateTestCatalogItem,
+  useTestCatalog,
+} from "@/features/laboratory/hooks";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { getApiErrorMessage } from "@/lib/api";
 import {
@@ -45,28 +44,27 @@ export function StaffCatalogSection({
   /** Lock create form department (e.g. department manager). */
   fixedDepartmentId?: string | null;
 }) {
-  const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<TablePageSize>(DEFAULT_TABLE_PAGE_SIZE);
   const [search, setSearch] = useState("");
   const debounced = useDebouncedValue(search);
   const [sort, setSort] = useState(DEFAULT_CATALOG_SORT);
 
-  const { data, isLoading, isError, error } = useQuery({
-    queryKey: ["test-catalog", page, pageSize, debounced],
-    queryFn: () =>
-      fetchTestCatalog({
-        page,
-        page_size: pageSize,
-        search: debounced || undefined,
-      }),
-  });
+  const catalogParams = useMemo(
+    () => ({
+      page,
+      page_size: pageSize,
+      search: debounced || undefined,
+    }),
+    [page, pageSize, debounced],
+  );
 
-  const { data: departmentsData } = useQuery({
-    queryKey: ["departments", "catalog-form"],
-    queryFn: () => fetchDepartments({ page: 1 }),
-    enabled: canWrite && !fixedDepartmentId,
-  });
+  const { data, isLoading, isError, error } = useTestCatalog(catalogParams);
+
+  const { data: departmentsData } = useDepartments(
+    { page: 1 },
+    { enabled: canWrite && !fixedDepartmentId },
+  );
   const departments = departmentsData?.results ?? [];
 
   const [form, setForm] = useState({
@@ -84,17 +82,7 @@ export function StaffCatalogSection({
     }
   }, [fixedDepartmentId]);
 
-  const createMut = useMutation({
-    mutationFn: () =>
-      createTestCatalogItem({
-        test_name: form.test_name.trim(),
-        test_code: form.test_code.trim().toUpperCase(),
-        unit: form.unit.trim(),
-        price: form.price,
-        description: form.description.trim() || undefined,
-        department: form.department.trim() || null,
-        is_active: true,
-      }),
+  const createMut = useCreateTestCatalogItem({
     onSuccess: () => {
       toast.success("Test added.");
       setForm({
@@ -105,9 +93,7 @@ export function StaffCatalogSection({
         description: "",
         department: fixedDepartmentId ?? "",
       });
-      queryClient.invalidateQueries({ queryKey: ["test-catalog"] });
     },
-    onError: (e) => toast.error(getApiErrorMessage(e)),
   });
 
   const handleSort = useCallback((key: CatalogSortKey) => {
@@ -156,7 +142,15 @@ export function StaffCatalogSection({
               toast.error("Name, code, and unit are required.");
               return;
             }
-            createMut.mutate();
+            createMut.mutate({
+              test_name: form.test_name.trim(),
+              test_code: form.test_code.trim().toUpperCase(),
+              unit: form.unit.trim(),
+              price: form.price,
+              description: form.description.trim() || undefined,
+              department: form.department.trim() || null,
+              is_active: true,
+            });
           }}
         >
           <p className="md:col-span-2 text-sm font-medium">Add catalog entry</p>
@@ -295,9 +289,7 @@ export function StaffCatalogSection({
                     canWrite={canWrite}
                     hidePricing={hidePricing}
                     hideDepartmentColumn={hideDepartmentColumn}
-                    onPatched={() =>
-                      queryClient.invalidateQueries({ queryKey: ["test-catalog"] })
-                    }
+                    onPatched={() => {}}
                   />
                 ))}
               </tbody>

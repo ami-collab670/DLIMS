@@ -1,20 +1,15 @@
 import { staffPath } from "@/lib/staff";
-import { useQuery } from "@tanstack/react-query";
 import { AlertCircle, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 
-import { fetchJobOrders } from "@/features/jobs/api";
+import { useJobOrders } from "@/features/jobs/hooks";
 import { JOB_PRIORITY_LABEL, JOB_STATUS_LABEL, shortJobId } from "@/lib/laboratory";
 
-import { dashboardKeys } from "@/lib/staff/dashboard/query-keys";
-
 export function StaffDashboardAttentionQueue() {
-  const { data, isLoading, isError } = useQuery({
-    queryKey: dashboardKeys.jobCount("submitted"),
-    queryFn: () =>
-      fetchJobOrders({ page: 1, current_status: "submitted", is_cancelled: false }),
-    staleTime: 60_000,
-  });
+  const { data, isLoading, isError } = useJobOrders(
+    { page: 1, current_status: "submitted", is_cancelled: false },
+    { staleTime: 60_000 },
+  );
 
   const rows = data?.results ?? [];
   const preview = rows.slice(0, 5);

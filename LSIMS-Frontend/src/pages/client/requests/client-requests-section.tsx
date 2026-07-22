@@ -1,4 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
+import type { JobOrderListParams } from "@/features/jobs/api";
+import { useJobOrder, useJobOrders } from "@/features/jobs/hooks";
 import {
   AlertCircle,
   Calendar,
@@ -13,7 +14,6 @@ import { TablePaginationFooter } from "@/components/data-table/table-pagination-
 import { TableToolbar } from "@/components/data-table/table-toolbar";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { fetchJobOrder, fetchJobOrders } from "@/features/jobs/api";
 import {
   DEFAULT_JOB_ORDER_SORT,
   toOrderingParam,
@@ -63,7 +63,7 @@ export function ClientRequestsSection() {
   }, [debouncedSearch, statusFilter, priorityFilter, cancelledFilter, sort, pageSize]);
 
   const listParams = useMemo(() => {
-    const p: Parameters<typeof fetchJobOrders>[0] = {
+    const p: JobOrderListParams = {
       page,
       page_size: pageSize,
       ordering: toOrderingParam(sort),
@@ -86,18 +86,13 @@ export function ClientRequestsSection() {
     isError,
     error,
     isFetching,
-  } = useQuery({
-    queryKey: ["client-job-orders", listParams],
-    queryFn: () => fetchJobOrders(listParams),
-  });
+  } = useJobOrders(listParams);
 
   const {
     data: detailJob,
     isLoading: detailLoading,
     isError: detailError,
-  } = useQuery({
-    queryKey: ["job-order", selectedJobId],
-    queryFn: () => fetchJobOrder(selectedJobId!),
+  } = useJobOrder(selectedJobId ?? "", {
     enabled: Boolean(selectedJobId),
   });
 

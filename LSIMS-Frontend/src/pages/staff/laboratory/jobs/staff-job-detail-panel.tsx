@@ -1,4 +1,3 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
@@ -6,11 +5,9 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { fetchRoles } from "@/features/accounts/api";
-import { cancelJobOrder, patchJobOrder } from "@/features/jobs/api";
-import { fetchFinancialRecords } from "@/features/laboratory/api";
-import { laboratoryQueryKeys } from "@/features/laboratory/query-keys";
-import { getApiErrorMessage } from "@/lib/api";
+import { useRoles } from "@/features/accounts/hooks";
+import { useCancelJobOrder, usePatchJobOrder } from "@/features/jobs/hooks";
+import { useFinancialRecords } from "@/features/laboratory/hooks";
 import {
   JOB_PRIORITY_OPTIONS,
   JOB_STATUS_LABEL,
@@ -45,19 +42,16 @@ export function StaffJobDetailPanel({
   const [desc, setDesc] = useState(() => sanitizeJobDescriptionForStaff(job.description));
   const [showCancelForm, setShowCancelForm] = useState(false);
 
-  const rolesQuery = useQuery({
-    queryKey: ["admin-roles"],
-    queryFn: () => fetchRoles(),
-    staleTime: 60_000,
-  });
+  const rolesQuery = useRoles(undefined, { staleTime: 60_000 });
   const roles = rolesQuery.data ?? [];
 
-  const { data: financialData } = useQuery({
-    queryKey: laboratoryQueryKeys.financialRecords({ job: job.id }),
-    queryFn: () => fetchFinancialRecords({ job: job.id }),
-    staleTime: 60_000,
-    enabled: !hideClientIdentity,
-  });
+  const { data: financialData } = useFinancialRecords(
+    { job: job.id },
+    {
+      staleTime: 60_000,
+      enabled: !hideClientIdentity,
+    },
+  );
   const invoice = financialData?.results[0];
 
   useEffect(() => {
@@ -66,30 +60,19 @@ export function StaffJobDetailPanel({
     setShowCancelForm(false);
   }, [job]);
 
-  const patchMut = useMutation({
-    mutationFn: () =>
-      patchJobOrder(job.id, {
-        priority,
-        description: mergeStaffJobDescriptionEdit(
-          job.description,
-          desc === "—" ? "" : desc,
-        ),
-      }),
+  const patchMut = usePatchJobOrder({
     onSuccess: () => {
       toast.success("Job updated.");
       onUpdated();
     },
-    onError: (e) => toast.error(getApiErrorMessage(e)),
   });
 
-  const cancelMut = useMutation({
-    mutationFn: () => cancelJobOrder(job.id),
+  const cancelMut = useCancelJobOrder({
     onSuccess: () => {
       toast.success("Job cancelled.");
       setShowCancelForm(false);
       onUpdated();
     },
-    onError: (e) => toast.error(getApiErrorMessage(e)),
   });
 
   const blockedLabel = resolveRoleLabel(job.blocked_by_role, roles);
@@ -221,7 +204,18 @@ export function StaffJobDetailPanel({
           <div className="flex flex-wrap gap-2">
             <Button
               type="button"
-              onClick={() => patchMut.mutate()}
+              onClick={() =>
+                patchMut.mutate({
+                  id: job.id,
+                  body: {
+                    priority,
+                    description: mergeStaffJobDescriptionEdit(
+                      job.description,
+                      desc === "—" ? "" : desc,
+                    ),
+                  },
+                })
+              }
               disabled={patchMut.isPending}
             >
               Save changes
@@ -246,7 +240,7 @@ export function StaffJobDetailPanel({
                   type="button"
                   variant="destructive"
                   disabled={cancelMut.isPending}
-                  onClick={() => cancelMut.mutate()}
+                  onClick={() => cancelMut.mutate(job.id)}
                 >
                   Confirm cancel
                 </Button>

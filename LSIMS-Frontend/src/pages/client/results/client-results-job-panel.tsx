@@ -1,9 +1,8 @@
-import { useQuery } from "@tanstack/react-query";
 import { Loader2, Package, X } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
-import { fetchJobOrder } from "@/features/jobs/api";
+import { useJobOrder } from "@/features/jobs/hooks";
 import type { JobOrder } from "@/types/laboratory";
 
 import { ClientRequestPriorityBadge } from "../requests/client-request-badges";
@@ -98,9 +97,7 @@ export function ClientResultsJobDetailPanel({
     setSelectedSampleId(null);
   }, [jobId]);
 
-  const { data: detailJob, isLoading, isError } = useQuery({
-    queryKey: ["client-results-job", jobId],
-    queryFn: () => fetchJobOrder(jobId),
+  const { data: detailJob, isLoading, isError } = useJobOrder(jobId, {
     enabled: Boolean(jobId),
     staleTime: 45_000,
   });

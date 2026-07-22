@@ -1,13 +1,10 @@
-import { useQuery } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { TablePaginationFooter } from "@/components/data-table/table-pagination-footer";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { fetchAnalysisResults } from "@/features/laboratory/api";
-import { fetchUrgentSampleIds } from "@/features/laboratory/lib/fetch-urgent-sample-ids";
-import { laboratoryQueryKeys } from "@/features/laboratory/query-keys";
+import { useAnalysisResults, useUrgentSampleIds } from "@/features/laboratory/hooks";
 import { getApiErrorMessage } from "@/lib/api";
 import { formatSubmittedAt } from "@/lib/formatting";
 import { cn } from "@/lib/ui";
@@ -27,27 +24,18 @@ export function QcInboxSection({ selectedId, onSelect }: Props) {
   const [page, setPage] = useState(1);
   const [sortMode, setSortMode] = useState<QcInboxSortMode>("oldest");
 
-  const { data: urgentSampleIds } = useQuery({
-    queryKey: ["qc-urgent-sample-ids"],
-    queryFn: fetchUrgentSampleIds,
-    staleTime: 120_000,
+  const { data: urgentSampleIds } = useUrgentSampleIds({
     enabled: sortMode === "priority",
   });
 
-  const { data, isLoading, isError, error, isFetching } = useQuery({
-    queryKey: laboratoryQueryKeys.analysisResults({
-      state: "submitted",
+  const { data, isLoading, isError, error, isFetching } = useAnalysisResults(
+    {
       page,
       page_size: QC_DESK_PAGE_SIZE,
-    }),
-    queryFn: () =>
-      fetchAnalysisResults({
-        page,
-        page_size: QC_DESK_PAGE_SIZE,
-        state: "submitted",
-      }),
-    staleTime: 20_000,
-  });
+      state: "submitted",
+    },
+    { staleTime: 20_000 },
+  );
 
   const rows = useMemo(() => {
     const base = data?.results ?? [];

@@ -66,8 +66,24 @@ import {
   submitAnalysisResult,
   type CreateSampleBody,
 } from "@/features/laboratory/api";
+import { fetchJobOrders } from "@/features/jobs/api";
+import { fetchAwaitingFinanceJobs } from "@/features/laboratory/lib/fetch-awaiting-finance-jobs";
+import { buildJobOrderMap } from "@/features/laboratory/lib/build-job-order-map";
+import { fetchAllFinancialRecords } from "@/features/laboratory/lib/fetch-all-financial-records";
+import { fetchUrgentSampleIds } from "@/features/laboratory/lib/fetch-urgent-sample-ids";
+import { invalidateFinanceWorkflowQueries } from "@/features/laboratory/lib/invalidate-finance-workflow-queries";
 import { laboratoryQueryKeys } from "@/features/laboratory/query-keys";
+import { fetchUnreadNotificationCount } from "@/features/notifications/api";
 import { getApiErrorMessage } from "@/lib/api";
+import {
+  countPaidInWindow,
+  invoiceByJobMap,
+  needsFinanceFollowUp,
+  revenueCollectedInDays,
+  sumOutstanding,
+} from "@/lib/laboratory/finance/dashboard-metrics";
+import type { QcKpiSnapshot } from "@/lib/laboratory/qc/desk-utils";
+import { computeQcKpis } from "@/lib/laboratory/qc/desk-utils";
 import type {
   AnalysisResult,
   CalibrationRecord,
@@ -75,6 +91,7 @@ import type {
   DiscountApproval,
   DrfPaginated,
   FinancialRecord,
+  JobOrder,
   PreparationRecord,
   PriorityAlert,
   QCDecision,
@@ -484,7 +501,7 @@ export function useCreateFinancialRecord(options?: {
   return useMutation({
     mutationFn: createFinancialRecord,
     onSuccess: (record) => {
-      invalidateByPrefix(queryClient, "financial-records");
+      invalidateFinanceWorkflowQueries(queryClient, record.job);
       options?.onSuccess?.(record);
     },
     onError: (error) => toast.error(getApiErrorMessage(error)),
@@ -504,7 +521,7 @@ export function usePatchFinancialRecord(options?: {
       body: Parameters<typeof patchFinancialRecord>[1];
     }) => patchFinancialRecord(invoiceNo, body),
     onSuccess: (record) => {
-      invalidateByPrefix(queryClient, "financial-records");
+      invalidateFinanceWorkflowQueries(queryClient, record.job);
       options?.onSuccess?.(record);
     },
     onError: (error) => toast.error(getApiErrorMessage(error)),
@@ -982,6 +999,254 @@ export function usePriorityAlerts(
     queryKey: laboratoryQueryKeys.priorityAlerts(),
     queryFn: fetchPriorityAlerts,
     staleTime: DEFAULT_LIST_STALE_MS,
+    ...options,
+  });
+}
+
+// --- Finance & QC desk primitives / composites ---
+
+export function useAwaitingFinanceJobs(
+  options?: Omit<UseQueryOptions<JobOrder[]>, "queryKey" | "queryFn">,
+) {
+  return useQuery({
+    queryKey: laboratoryQueryKeys.awaitingFinanceJobs(),
+    queryFn: fetchAwaitingFinanceJobs,
+    staleTime: DEFAULT_LIST_STALE_MS,
+    ...options,
+  });
+}
+
+export function useAllFinancialRecords(
+  options?: Omit<UseQueryOptions<FinancialRecord[]>, "queryKey" | "queryFn">,
+) {
+  return useQuery({
+    queryKey: laboratoryQueryKeys.allFinancialRecords(),
+    queryFn: () => fetchAllFinancialRecords(),
+    staleTime: 60_000,
+    ...options,
+  });
+}
+
+export function useUrgentSampleIds(
+  options?: Omit<UseQueryOptions<Set<string>>, "queryKey" | "queryFn">,
+) {
+  return useQuery({
+    queryKey: laboratoryQueryKeys.urgentSampleIds(),
+    queryFn: fetchUrgentSampleIds,
+    staleTime: 120_000,
+    ...options,
+  });
+}
+
+export function useFinanceAwaitingClearanceQueue(
+  options?: Omit<UseQueryOptions<JobOrder[]>, "queryKey" | "queryFn">,
+) {
+  return useQuery({
+    queryKey: laboratoryQueryKeys.financeAwaitingClearanceQueue(),
+    queryFn: async () => {
+      const [jobs, records] = await Promise.all([
+        fetchAwaitingFinanceJobs(),
+        fetchAllFinancialRecords(),
+      ]);
+      const invoiceMap = invoiceByJobMap(records);
+      return jobs.filter((j) => !invoiceMap.has(j.id));
+    },
+    staleTime: 60_000,
+    ...options,
+  });
+}
+
+export type FinanceOutstandingQueueData = {
+  outstanding: FinancialRecord[];
+  jobMap: Map<string, JobOrder>;
+};
+
+export function useFinanceOutstandingInvoicesQueue(
+  options?: Omit<
+    UseQueryOptions<FinanceOutstandingQueueData>,
+    "queryKey" | "queryFn"
+  >,
+) {
+  return useQuery({
+    queryKey: laboratoryQueryKeys.financeOutstandingInvoicesQueue(),
+    queryFn: async () => {
+      const records = await fetchAllFinancialRecords();
+      const outstanding = records.filter(
+        (r) => r.payment_status === "pending" || r.payment_status === "partial",
+      );
+      const jobMap = await buildJobOrderMap(outstanding.map((r) => r.job));
+      return { outstanding, jobMap };
+    },
+    staleTime: 60_000,
+    ...options,
+  });
+}
+
+export type FinanceFollowUpQueueData = {
+  followUp: FinancialRecord[];
+  jobMap: Map<string, JobOrder>;
+};
+
+export function useFinanceFollowUpQueue(
+  options?: Omit<UseQueryOptions<FinanceFollowUpQueueData>, "queryKey" | "queryFn">,
+) {
+  return useQuery({
+    queryKey: laboratoryQueryKeys.financeFollowUpQueue(),
+    queryFn: async () => {
+      const records = await fetchAllFinancialRecords();
+      const followUp = records.filter(needsFinanceFollowUp);
+      const jobMap = await buildJobOrderMap(followUp.map((r) => r.job));
+      return { followUp, jobMap };
+    },
+    staleTime: 60_000,
+    ...options,
+  });
+}
+
+export type FinanceDashboardKpis = {
+  awaitingFirstInvoice: number;
+  outstandingTotal: number;
+  paidToday: number;
+  paidThisWeek: number;
+  revenue7d: number;
+  pendingDiscounts: number;
+  unreadNotifications: number;
+  financeHoldCount: number;
+};
+
+export function useFinanceDashboardKpis(
+  options?: {
+    userEmail?: string;
+  } & Omit<UseQueryOptions<FinanceDashboardKpis>, "queryKey" | "queryFn">,
+) {
+  const { userEmail, ...queryOptions } = options ?? {};
+  return useQuery({
+    queryKey: laboratoryQueryKeys.financeDashboardKpis(userEmail),
+    queryFn: async () => {
+      const [awaitingJobs, allRecords, holdJobs, discountsData, unreadCount] =
+        await Promise.all([
+          fetchAwaitingFinanceJobs(),
+          fetchAllFinancialRecords(),
+          fetchJobOrders({
+            page: 1,
+            current_status: "finance_hold",
+            is_cancelled: false,
+          }),
+          fetchDiscountApprovals({ page: 1, status: "pending" }),
+          fetchUnreadNotificationCount(),
+        ]);
+
+      const invoiceMap = invoiceByJobMap(allRecords);
+      const awaitingFirstInvoice = awaitingJobs.filter(
+        (j) => !invoiceMap.has(j.id),
+      ).length;
+      const { today: paidToday, week: paidThisWeek } = countPaidInWindow(
+        allRecords,
+        true,
+      );
+      const revenue7d = revenueCollectedInDays(allRecords, 7);
+      const email = userEmail?.toLowerCase() ?? "";
+      const myPendingDiscounts = discountsData.results.filter(
+        (d) => !email || !d.requested_by || d.requested_by.toLowerCase() === email,
+      ).length;
+
+      return {
+        awaitingFirstInvoice,
+        outstandingTotal: sumOutstanding(allRecords),
+        paidToday,
+        paidThisWeek,
+        revenue7d,
+        pendingDiscounts: myPendingDiscounts,
+        unreadNotifications: unreadCount,
+        financeHoldCount: holdJobs.count,
+      };
+    },
+    staleTime: 60_000,
+    ...queryOptions,
+  });
+}
+
+export function useQcDeskKpis(
+  options?: Omit<UseQueryOptions<QcKpiSnapshot>, "queryKey" | "queryFn">,
+) {
+  return useQuery({
+    queryKey: laboratoryQueryKeys.qcDeskKpis(),
+    queryFn: async () => {
+      const [submittedRes, decisionsRes, qcJobs] = await Promise.all([
+        fetchAnalysisResults({ page: 1, page_size: 100, state: "submitted" }),
+        fetchQCDecisions({ page: 1, page_size: 200 }),
+        fetchJobOrders({ page: 1, current_status: "qc", is_cancelled: false }),
+      ]);
+      return computeQcKpis(
+        submittedRes.results,
+        submittedRes.count,
+        decisionsRes.results,
+        qcJobs.count,
+      );
+    },
+    staleTime: 60_000,
+    ...options,
+  });
+}
+
+export type EnrichedQcDecision = QCDecision & {
+  resultDetail?: AnalysisResult | null;
+};
+
+export function useQcHistoryEnrichedRows(
+  decisions: QCDecision[] | undefined,
+  options?: Omit<UseQueryOptions<EnrichedQcDecision[]>, "queryKey" | "queryFn">,
+) {
+  const decisionIdsKey = decisions?.map((d) => d.id).join(",") ?? "";
+  return useQuery({
+    queryKey: laboratoryQueryKeys.qcHistoryEnriched(decisionIdsKey),
+    queryFn: async (): Promise<EnrichedQcDecision[]> => {
+      const rows = decisions ?? [];
+      return Promise.all(
+        rows.map(async (d) => {
+          try {
+            const resultDetail = await fetchAnalysisResult(d.analysis_result);
+            return { ...d, resultDetail };
+          } catch {
+            return { ...d, resultDetail: null };
+          }
+        }),
+      );
+    },
+    enabled: Boolean(decisions?.length),
+    staleTime: 30_000,
+    ...options,
+  });
+}
+
+export function useQcRejectedReasonsMap(
+  resultIds: string[],
+  options?: Omit<UseQueryOptions<Record<string, string>>, "queryKey" | "queryFn">,
+) {
+  const resultIdsKey = resultIds.join(",");
+  return useQuery({
+    queryKey: laboratoryQueryKeys.qcRejectedReasons(resultIdsKey),
+    queryFn: async (): Promise<Record<string, string>> => {
+      const map: Record<string, string> = {};
+      await Promise.all(
+        resultIds.map(async (id) => {
+          try {
+            const decisions = await fetchQCDecisions({
+              analysis_result: id,
+              decision: "rejected",
+              page: 1,
+            });
+            const latest = decisions.results[0];
+            if (latest?.reason) map[id] = latest.reason;
+          } catch {
+            /* ignore per-row failures */
+          }
+        }),
+      );
+      return map;
+    },
+    enabled: resultIds.length > 0,
+    staleTime: 30_000,
     ...options,
   });
 }

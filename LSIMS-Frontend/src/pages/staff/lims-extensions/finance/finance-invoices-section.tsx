@@ -1,4 +1,3 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { useEffect, useCallback, useMemo, useState, Fragment } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -7,12 +6,13 @@ import { TableToolbar } from "@/components/data-table/table-toolbar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { fetchLabClients } from "@/features/accounts/api";
+import { useLabClients, useRoles } from "@/features/accounts/hooks";
+import {
+  useAwaitingFinanceJobs,
+  useFinancialRecords,
+} from "@/features/laboratory/hooks";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { JobRoleHoldBadge } from "@/components/jobs/job-role-hold-badge";
-import { fetchRoles } from "@/features/accounts/api";
-import { fetchFinancialRecords } from "@/features/laboratory/api";
-import { laboratoryQueryKeys } from "@/features/laboratory/query-keys";
 import { JOB_PRIORITY_LABEL, JOB_STATUS_LABEL, shortJobId } from "@/lib/laboratory";
 import { formatMoney, formatMoneyFromApi, parseMoney } from "@/lib/formatting";
 import { clientJobReferenceLabel } from "@/lib/laboratory";
@@ -35,7 +35,6 @@ import {
 } from "@/pages/staff/finance/shared/finance-invoice-actions";
 import { useAuthStore } from "@/stores/auth-store";
 
-import { fetchAwaitingFinanceJobs } from "@/features/laboratory/lib/fetch-awaiting-finance-jobs";
 import {
   hasClientSearchQuery,
   matchesClientSearch,
@@ -47,7 +46,6 @@ export function FinanceInvoicesSection({
 }: {
   onOpenJob?: (jobId: string) => void;
 } = {}) {
-  const queryClient = useQueryClient();
   const user = useAuthStore((s) => s.user);
   const readOnlyFinance = isReceptionist(user);
   const [searchParams, setSearchParams] = useSearchParams();
@@ -75,30 +73,13 @@ export function FinanceInvoicesSection({
     }
   }, [prefillJob, readOnlyFinance, onOpenJob]);
 
-  const { data: roles = [] } = useQuery({
-    queryKey: ["admin-roles"],
-    queryFn: () => fetchRoles(),
-    staleTime: 60_000,
-  });
+  const { data: roles = [] } = useRoles();
 
-  const { data, isLoading, isError } = useQuery({
-    queryKey: laboratoryQueryKeys.financialRecords(),
-    queryFn: () => fetchFinancialRecords({ page: 1 }),
-    staleTime: 20_000,
-  });
+  const { data, isLoading, isError } = useFinancialRecords({ page: 1 });
 
-  const { data: awaiting = [], isLoading: awaitingLoading } = useQuery({
-    queryKey: ["lims-finance-awaiting"],
-    queryFn: fetchAwaitingFinanceJobs,
-    staleTime: 15_000,
-  });
+  const { data: awaiting = [], isLoading: awaitingLoading } = useAwaitingFinanceJobs();
 
-  const { data: labClients = [] } = useQuery({
-    queryKey: ["staff-lab-clients"],
-    queryFn: fetchLabClients,
-    staleTime: 60_000,
-    enabled: readOnlyFinance,
-  });
+  const { data: labClients = [] } = useLabClients({ enabled: readOnlyFinance });
 
   const clientByEmail = useMemo(() => {
     const map = new Map<string, AdminUserRow>();
@@ -367,10 +348,7 @@ export function FinanceInvoicesSection({
                                     </Button>
                                     {invoice.payment_status !== "paid" &&
                                     !invoice.waiver_approved_at ? (
-                                      <MarkPaidButton
-                                        record={invoice}
-                                        queryClient={queryClient}
-                                      />
+                                      <MarkPaidButton record={invoice} />
                                     ) : null}
                                   </>
                                 ) : (
@@ -449,7 +427,6 @@ export function FinanceInvoicesSection({
                 expectedAmount={createExpected}
                 onExpectedAmountChange={setCreateExpected}
                 onSuccess={handleCreateSuccess}
-                queryClient={queryClient}
               />
             </div>
           </div>
@@ -538,7 +515,7 @@ export function FinanceInvoicesSection({
                               Edit
                             </Button>
                             {r.payment_status !== "paid" && !r.waiver_approved_at ? (
-                              <MarkPaidButton record={r} queryClient={queryClient} />
+                              <MarkPaidButton record={r} />
                             ) : null}
                           </div>
                         </td>
@@ -572,7 +549,6 @@ export function FinanceInvoicesSection({
               onStatusChange={setEditStatus}
               onCancel={() => setEditing(null)}
               onSuccess={handleEditSuccess}
-              queryClient={queryClient}
             />
           </div>
         ) : null}

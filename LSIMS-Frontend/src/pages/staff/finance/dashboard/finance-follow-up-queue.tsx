@@ -1,31 +1,14 @@
-import { useQuery } from "@tanstack/react-query";
 import { Clock, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 
-import { dashboardKeys } from "@/lib/staff/dashboard/query-keys";
+import { useFinanceFollowUpQueue } from "@/features/laboratory/hooks";
 import { clientJobReferenceLabel } from "@/lib/laboratory";
 import { daysSince, formatMoney } from "@/lib/formatting";
 import { formatPaymentStatusLabel } from "@/lib/laboratory/labels/payment-labels";
-
-import { buildJobOrderMap } from "@/features/laboratory/lib/build-job-order-map";
-import { fetchAllFinancialRecords } from "@/features/laboratory/lib/fetch-all-financial-records";
-import {
-  needsFinanceFollowUp,
-  outstandingAmount,
-} from "@/lib/laboratory/finance/dashboard-metrics";
-
+import { outstandingAmount } from "@/lib/laboratory/finance/dashboard-metrics";
 
 export function FinanceFollowUpQueue() {
-  const { data, isLoading, isError } = useQuery({
-    queryKey: dashboardKeys.financeFollowUp,
-    queryFn: async () => {
-      const records = await fetchAllFinancialRecords();
-      const followUp = records.filter(needsFinanceFollowUp);
-      const jobMap = await buildJobOrderMap(followUp.map((r) => r.job));
-      return { followUp, jobMap };
-    },
-    staleTime: 60_000,
-  });
+  const { data, isLoading, isError } = useFinanceFollowUpQueue();
 
   const preview = (data?.followUp ?? []).slice(0, 8);
   const jobMap = data?.jobMap ?? new Map();

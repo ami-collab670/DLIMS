@@ -1,4 +1,3 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useState } from "react";
@@ -8,19 +7,16 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  approveAnalysisResult,
-  fetchAnalysisResult,
-  rejectAnalysisResult,
-} from "@/features/laboratory/api";
-import { fetchCalibrationRecords } from "@/features/laboratory/api";
-import { laboratoryQueryKeys } from "@/features/laboratory/query-keys";
-import { fetchPreparationRecords } from "@/features/laboratory/api";
-import { fetchQCDecisions } from "@/features/laboratory/api";
-import { fetchSample } from "@/features/laboratory/api";
-import { getApiErrorMessage } from "@/lib/api";
+  useAnalysisResult,
+  useApproveAnalysisResult,
+  useCalibrationRecords,
+  usePreparationRecords,
+  useQCDecisions,
+  useRejectAnalysisResult,
+  useSample,
+} from "@/features/laboratory/hooks";
 import { formatDecidedAt, formatSubmittedAt } from "@/lib/formatting";
 import { shortJobId } from "@/lib/laboratory";
-import { dashboardKeys } from "@/lib/staff/dashboard/query-keys";
 import {
   canReviewAnalysisResults,
   requireRejectReason,
@@ -37,80 +33,51 @@ type Props = {
 export function QcReviewPanel({ result, onClose, onDecided }: Props) {
   const user = useAuthStore((s) => s.user);
   const canReview = canReviewAnalysisResults(user);
-  const queryClient = useQueryClient();
   const [qcReason, setQcReason] = useState("");
 
-  const { data: detail, isLoading: detailLoading } = useQuery({
-    queryKey: laboratoryQueryKeys.analysisResult(result.id),
-    queryFn: () => fetchAnalysisResult(result.id),
+  const { data: detail = result, isLoading: detailLoading } = useAnalysisResult(result.id, {
     initialData: result,
   });
 
-  const { data: priorDecisions = [] } = useQuery({
-    queryKey: laboratoryQueryKeys.qcDecisions({ analysis_result: result.id }),
-    queryFn: async () => {
-      const data = await fetchQCDecisions({ analysis_result: result.id, page: 1 });
-      return data.results;
-    },
+  const { data: priorDecisionsData } = useQCDecisions({
+    analysis_result: result.id,
+    page: 1,
+  });
+  const priorDecisions = priorDecisionsData?.results ?? [];
+
+  const { data: prepData } = usePreparationRecords(
+    { page: 1, sample: detail.sample },
+    { enabled: Boolean(detail.sample) },
+  );
+
+  const { data: calData } = useCalibrationRecords({
+    page: 1,
+    analysis_result: result.id,
   });
 
-  const { data: prepData } = useQuery({
-    queryKey: laboratoryQueryKeys.preparationRecords({ sample: detail.sample }),
-    queryFn: () => fetchPreparationRecords({ page: 1, sample: detail.sample }),
-    enabled: Boolean(detail.sample),
-  });
-
-  const { data: calData } = useQuery({
-    queryKey: laboratoryQueryKeys.calibrationRecords({ analysis_result: result.id }),
-    queryFn: () => fetchCalibrationRecords({ page: 1, analysis_result: result.id }),
-  });
-
-  const { data: sampleDetail } = useQuery({
-    queryKey: ["staff-sample", detail.sample],
-    queryFn: () => fetchSample(detail.sample),
+  const { data: sampleDetail } = useSample(detail.sample, {
     enabled: Boolean(detail.sample),
   });
 
   const prepRecord = prepData?.results[0];
   const calibrations = calData?.results ?? [];
 
-  const invalidateAll = () => {
-    void queryClient.invalidateQueries({ queryKey: ["analysis-results"] });
-    void queryClient.invalidateQueries({ queryKey: ["qc-decisions"] });
-    void queryClient.invalidateQueries({ queryKey: dashboardKeys.qcDeskKpis });
-    void queryClient.invalidateQueries({ queryKey: dashboardKeys.qcDeskInboxPreview });
-    void queryClient.invalidateQueries({ queryKey: dashboardKeys.qcDeskRecentDecisions });
-    void queryClient.invalidateQueries({ queryKey: ["lims-qc-jobs"] });
-  };
-
-  const approveMut = useMutation({
-    mutationFn: () =>
-      approveAnalysisResult(detail.id, {
-        reason: qcReason.trim() || undefined,
-      }),
+  const approveMut = useApproveAnalysisResult({
     onSuccess: () => {
       toast.success("Result approved.");
       setQcReason("");
-      invalidateAll();
       onDecided();
       onClose();
     },
-    onError: (e) => toast.error(getApiErrorMessage(e)),
   });
 
-  const rejectMut = useMutation({
-    mutationFn: () =>
-      rejectAnalysisResult(detail.id, {
-        reason: qcReason.trim(),
-      }),
+  const rejectMut = useRejectAnalysisResult({
     onSuccess: () => {
       toast.success("Result rejected.");
       setQcReason("");
-      invalidateAll();
       onDecided();
       onClose();
     },
-    onError: (e) => toast.error(getApiErrorMessage(e)),
   });
 
   if (detailLoading && !detail) {
@@ -246,7 +213,12 @@ export function QcReviewPanel({ result, onClose, onDecided }: Props) {
             <Button
               type="button"
               disabled={approveMut.isPending || rejectMut.isPending}
-              onClick={() => approveMut.mutate()}
+              onClick={() =>
+                approveMut.mutate({
+                  id: detail.id,
+                  body: { reason: qcReason.trim() || undefined },
+                })
+              }
             >
               Approve
             </Button>
@@ -263,7 +235,10 @@ export function QcReviewPanel({ result, onClose, onDecided }: Props) {
                   toast.error("A rejection reason is required.");
                   return;
                 }
-                rejectMut.mutate();
+                rejectMut.mutate({
+                  id: detail.id,
+                  body: { reason: qcReason.trim() },
+                });
               }}
             >
               Reject

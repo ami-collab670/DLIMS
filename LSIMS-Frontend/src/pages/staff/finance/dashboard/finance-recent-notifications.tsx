@@ -1,10 +1,8 @@
 import { staffPath } from "@/lib/staff";
-import { useQuery } from "@tanstack/react-query";
 import { Bell, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 
-import { fetchNotifications } from "@/features/notifications/api";
-import { dashboardKeys } from "@/lib/staff/dashboard/query-keys";
+import { useNotifications } from "@/features/notifications/hooks";
 
 function formatWhen(iso: string) {
   try {
@@ -18,11 +16,10 @@ function formatWhen(iso: string) {
 }
 
 export function FinanceRecentNotifications() {
-  const { data, isLoading, isError } = useQuery({
-    queryKey: dashboardKeys.financeRecentNotifications,
-    queryFn: () => fetchNotifications({ page: 1 }),
-    staleTime: 30_000,
-  });
+  const { data, isLoading, isError } = useNotifications(
+    { page: 1 },
+    { staleTime: 30_000 },
+  );
 
   const preview = (data?.results ?? []).slice(0, 5);
 

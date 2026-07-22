@@ -1,4 +1,3 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
 import { Loader2, Plus } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
@@ -7,10 +6,9 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { fetchLabClients } from "@/features/accounts/api";
-import { createStaffJob } from "@/features/jobs/api";
+import { useLabClients } from "@/features/accounts/hooks";
+import { useCreateStaffJob } from "@/features/jobs/hooks";
 import { IntakeChecklistFields } from "@/pages/staff/receptionist/shared/intake-checklist-fields";
-import { getApiErrorMessage } from "@/lib/api";
 import { JOB_PRIORITY_OPTIONS, shortJobId } from "@/lib/laboratory";
 import type { JobOrder } from "@/types/laboratory";
 
@@ -30,20 +28,15 @@ function StaffJobIntakeSimpleForm({
   const [clientIdVerified, setClientIdVerified] = useState(false);
   const [packagingOk, setPackagingOk] = useState(false);
 
-  const { data: clients = [] } = useQuery({
-    queryKey: ["lab-clients-picker"],
-    queryFn: fetchLabClients,
-  });
+  const { data: clients = [] } = useLabClients();
 
-  const mut = useMutation({
-    mutationFn: createStaffJob,
+  const mut = useCreateStaffJob({
     onSuccess: (job) => {
       toast.success("Job order created — send to Finance for invoicing.");
       setLastCreated(job);
       onCreated(job);
       setDescription("");
     },
-    onError: (e) => toast.error(getApiErrorMessage(e)),
   });
 
   return (

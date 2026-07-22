@@ -1,5 +1,4 @@
 import { staffFinanceTabUrl, staffPath } from "@/lib/staff";
-import { useQuery } from "@tanstack/react-query";
 import {
   Bell,
   ClipboardList,
@@ -13,24 +12,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { Link } from "react-router-dom";
 
-import { fetchLabClients } from "@/features/accounts/api";
-import { fetchComplaints } from "@/features/laboratory/api";
-import { fetchDiscountApprovals } from "@/features/laboratory/api";
-import { fetchFinancialRecords } from "@/features/laboratory/api";
-import { fetchSamples } from "@/features/laboratory/api";
-import { fetchUnreadNotificationCount } from "@/features/notifications/api";
-import { dashboardKeys } from "@/lib/staff/dashboard/query-keys";
-import { isToday } from "@/lib/formatting";
-import { fetchAwaitingFinanceJobs } from "@/features/laboratory/lib/fetch-awaiting-finance-jobs";
-
-function needsPaymentAttention(
-  jobId: string,
-  invoiceByJob: Map<string, { payment_status: string }>,
-): boolean {
-  const invoice = invoiceByJob.get(jobId);
-  if (!invoice) return true;
-  return invoice.payment_status !== "paid";
-}
+import { useReceptionistDashboardKpis } from "@/features/staff/hooks";
 
 type KpiCardProps = {
   label: string;
@@ -64,56 +46,7 @@ function KpiCard({ label, value, href, icon: Icon, loading, hint }: KpiCardProps
 }
 
 export function ReceptionistKpiGrid() {
-  const { data: kpis, isLoading } = useQuery({
-    queryKey: dashboardKeys.receptionistKpis,
-    queryFn: async () => {
-      const [
-        awaitingJobs,
-        financialData,
-        samplesData,
-        unreadCount,
-        complaintsData,
-        clients,
-        discountsData,
-      ] = await Promise.all([
-        fetchAwaitingFinanceJobs(),
-        fetchFinancialRecords({ page: 1 }),
-        fetchSamples({ page: 1, page_size: 100 }),
-        fetchUnreadNotificationCount(),
-        fetchComplaints({ page: 1, status: "open" }),
-        fetchLabClients(),
-        fetchDiscountApprovals({ page: 1, status: "pending" }),
-      ]);
-
-      const invoiceByJob = new Map<string, { payment_status: string }>();
-      for (const r of financialData.results) {
-        if (!invoiceByJob.has(r.job)) {
-          invoiceByJob.set(r.job, { payment_status: r.payment_status });
-        }
-      }
-
-      const awaitingPayment = awaitingJobs.filter((j) =>
-        needsPaymentAttention(j.id, invoiceByJob),
-      ).length;
-
-      const todaysSamples = samplesData.results.filter((s) =>
-        isToday(s.created_at),
-      ).length;
-
-      return {
-        pendingFinance: awaitingJobs.length,
-        awaitingPayment,
-        todaysSamples,
-        unreadNotifications: unreadCount,
-        openComplaints: complaintsData.count,
-        activeClients: clients.length,
-        pendingDiscounts: discountsData.count,
-      };
-    },
-    staleTime: 60_000,
-  });
-
-  const loading = isLoading;
+  const { data: kpis, isLoading } = useReceptionistDashboardKpis();
 
   return (
     <section aria-labelledby="receptionist-kpi-heading">
@@ -126,7 +59,7 @@ export function ReceptionistKpiGrid() {
           value={kpis?.pendingFinance ?? 0}
           href={staffPath("finance")}
           icon={Landmark}
-          loading={loading}
+          loading={isLoading}
           hint="Jobs awaiting invoice or payment"
         />
         <KpiCard
@@ -134,7 +67,7 @@ export function ReceptionistKpiGrid() {
           value={kpis?.awaitingPayment ?? 0}
           href={staffPath("finance")}
           icon={ClipboardList}
-          loading={loading}
+          loading={isLoading}
           hint="Unpaid or no invoice yet"
         />
         <KpiCard
@@ -142,35 +75,35 @@ export function ReceptionistKpiGrid() {
           value={kpis?.todaysSamples ?? 0}
           href={staffPath("laboratory")}
           icon={TestTube}
-          loading={loading}
+          loading={isLoading}
         />
         <KpiCard
           label="Unread notifications"
           value={kpis?.unreadNotifications ?? 0}
           href={staffPath("notifications")}
           icon={Bell}
-          loading={loading}
+          loading={isLoading}
         />
         <KpiCard
           label="Open complaints"
           value={kpis?.openComplaints ?? 0}
           href={staffPath("clients", { tab: "complaints" })}
           icon={MessageSquareWarning}
-          loading={loading}
+          loading={isLoading}
         />
         <KpiCard
           label="Active clients"
           value={kpis?.activeClients ?? 0}
           href={staffPath("clients")}
           icon={Users}
-          loading={loading}
+          loading={isLoading}
         />
         <KpiCard
           label="Pending discount requests"
           value={kpis?.pendingDiscounts ?? 0}
           href={staffFinanceTabUrl("discounts")}
           icon={Percent}
-          loading={loading}
+          loading={isLoading}
         />
       </div>
     </section>

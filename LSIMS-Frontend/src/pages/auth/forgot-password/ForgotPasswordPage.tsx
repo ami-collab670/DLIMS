@@ -12,10 +12,9 @@ import { Label } from "@/components/ui/label";
 import { PasswordInput } from "@/components/ui/password-input";
 import { PasswordStrengthIndicator } from "@/components/ui/password-strength-indicator";
 import {
-  confirmPasswordReset,
-  requestPasswordReset,
-} from "@/features/auth/api";
-import { getApiErrorMessage } from "@/lib/api";
+  useConfirmPasswordReset,
+  useRequestPasswordReset,
+} from "@/features/auth/hooks";
 
 import { LoginPageLayout } from "../login/login-page-layout";
 
@@ -45,7 +44,9 @@ export default function ForgotPasswordPage() {
   const navigate = useNavigate();
   const [step, setStep] = useState<"request" | "confirm">("request");
   const [emailForReset, setEmailForReset] = useState("");
-  const [submitting, setSubmitting] = useState(false);
+
+  const requestMut = useRequestPasswordReset();
+  const confirmMut = useConfirmPasswordReset();
 
   const requestForm = useForm<RequestValues>({
     resolver: zodResolver(requestSchema),
@@ -67,37 +68,39 @@ export default function ForgotPasswordPage() {
   const passwordsMismatch =
     confirmPassword.length > 0 && newPassword !== confirmPassword;
 
-  async function onRequest(values: RequestValues) {
-    setSubmitting(true);
-    try {
-      const email = values.email.trim().toLowerCase();
-      await requestPasswordReset(email);
-      setEmailForReset(email);
-      confirmForm.setValue("email", email);
-      setStep("confirm");
-      toast.success("If that account exists, a reset code was sent to your email.");
-    } catch (e) {
-      toast.error(getApiErrorMessage(e));
-    } finally {
-      setSubmitting(false);
-    }
+  const submitting =
+    step === "request" ? requestMut.isPending : confirmMut.isPending;
+
+  function onRequest(values: RequestValues) {
+    const email = values.email.trim().toLowerCase();
+    requestMut.mutate(email, {
+      onSuccess: () => {
+        setEmailForReset(email);
+        confirmForm.setValue("email", email);
+        setStep("confirm");
+        toast.success(
+          "If that account exists, a reset code was sent to your email.",
+        );
+      },
+    });
   }
 
-  async function onConfirm(values: ConfirmValues) {
-    setSubmitting(true);
-    try {
-      await confirmPasswordReset({
+  function onConfirm(values: ConfirmValues) {
+    confirmMut.mutate(
+      {
         email: values.email.trim().toLowerCase(),
         otp: values.otp.trim(),
         new_password: values.new_password,
-      });
-      toast.success("Password updated. You can sign in with your new password.");
-      navigate(ROUTES.login, { replace: true });
-    } catch (e) {
-      toast.error(getApiErrorMessage(e));
-    } finally {
-      setSubmitting(false);
-    }
+      },
+      {
+        onSuccess: () => {
+          toast.success(
+            "Password updated. You can sign in with your new password.",
+          );
+          navigate(ROUTES.login, { replace: true });
+        },
+      },
+    );
   }
 
   return (

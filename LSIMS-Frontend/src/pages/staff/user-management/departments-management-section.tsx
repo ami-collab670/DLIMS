@@ -1,4 +1,3 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -8,67 +7,25 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  createDepartment,
-  deleteDepartment,
-  fetchDepartments,
-  patchDepartment,
-} from "@/features/accounts/api";
+  useCreateDepartment,
+  useDeleteDepartment,
+  useDepartments,
+  usePatchDepartment,
+} from "@/features/accounts/hooks";
 import { getApiErrorMessage } from "@/lib/api";
 import type { DepartmentRecord } from "@/types/account-admin";
 
 export function DepartmentsManagementSection() {
-  const queryClient = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
   const [editing, setEditing] = useState<DepartmentRecord | null>(null);
   const [form, setForm] = useState({ name: "", description: "" });
 
-  const { data, isLoading, isError, error } = useQuery({
-    queryKey: ["admin-departments"],
-    queryFn: () => fetchDepartments(),
-  });
-
+  const { data, isLoading, isError, error } = useDepartments();
   const departments = data?.results ?? [];
 
-  const invalidate = () => {
-    void queryClient.invalidateQueries({ queryKey: ["admin-departments"] });
-  };
-
-  const createMut = useMutation({
-    mutationFn: () =>
-      createDepartment({
-        name: form.name.trim(),
-        description: form.description.trim() || undefined,
-      }),
-    onSuccess: () => {
-      toast.success("Department created.");
-      resetForm();
-      invalidate();
-    },
-    onError: (e) => toast.error(getApiErrorMessage(e)),
-  });
-
-  const patchMut = useMutation({
-    mutationFn: () =>
-      patchDepartment(editing!.id, {
-        name: form.name.trim(),
-        description: form.description.trim(),
-      }),
-    onSuccess: () => {
-      toast.success("Department updated.");
-      resetForm();
-      invalidate();
-    },
-    onError: (e) => toast.error(getApiErrorMessage(e)),
-  });
-
-  const deleteMut = useMutation({
-    mutationFn: deleteDepartment,
-    onSuccess: () => {
-      toast.success("Department deleted.");
-      invalidate();
-    },
-    onError: (e) => toast.error(getApiErrorMessage(e)),
-  });
+  const createMut = useCreateDepartment();
+  const patchMut = usePatchDepartment();
+  const deleteMut = useDeleteDepartment();
 
   function resetForm() {
     setEditing(null);
@@ -80,6 +37,46 @@ export function DepartmentsManagementSection() {
     setEditing(dept);
     setForm({ name: dept.name, description: dept.description ?? "" });
     setShowCreate(false);
+  }
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!form.name.trim()) {
+      toast.error("Department name is required.");
+      return;
+    }
+
+    if (editing) {
+      patchMut.mutate(
+        {
+          id: editing.id,
+          body: {
+            name: form.name.trim(),
+            description: form.description.trim(),
+          },
+        },
+        {
+          onSuccess: () => {
+            toast.success("Department updated.");
+            resetForm();
+          },
+        },
+      );
+      return;
+    }
+
+    createMut.mutate(
+      {
+        name: form.name.trim(),
+        description: form.description.trim() || undefined,
+      },
+      {
+        onSuccess: () => {
+          toast.success("Department created.");
+          resetForm();
+        },
+      },
+    );
   }
 
   return (
@@ -104,15 +101,7 @@ export function DepartmentsManagementSection() {
       {showCreate || editing ? (
         <form
           className="grid gap-3 rounded-xl border bg-card p-4 shadow-sm md:grid-cols-2"
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (!form.name.trim()) {
-              toast.error("Department name is required.");
-              return;
-            }
-            if (editing) patchMut.mutate();
-            else createMut.mutate();
-          }}
+          onSubmit={handleSubmit}
         >
           <p className="md:col-span-2 text-sm font-medium">
             {editing ? "Edit department" : "New department"}
@@ -196,7 +185,9 @@ export function DepartmentsManagementSection() {
                               `Delete department "${d.name}"? Users may lose their department link.`,
                             )
                           ) {
-                            deleteMut.mutate(d.id);
+                            deleteMut.mutate(d.id, {
+                              onSuccess: () => toast.success("Department deleted."),
+                            });
                           }
                         }}
                       >

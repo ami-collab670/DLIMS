@@ -1,8 +1,7 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { useCallback, useState } from "react";
 
-import { fetchSamples } from "@/features/laboratory/api";
+import { useSamples } from "@/features/laboratory/hooks";
 import { getApiErrorMessage } from "@/lib/api";
 import {
   staffSampleDisplayCode,
@@ -26,29 +25,21 @@ export function ReceptionistJobDetailPanel({
   manageJobs: boolean;
   onUpdated: () => void;
 }) {
-  const queryClient = useQueryClient();
   const [prefillTestId, setPrefillTestId] = useState<string | undefined>();
   const clearPrefillTest = useCallback(() => setPrefillTestId(undefined), []);
+
+  const samplesParams = { job: job.id, page: 1, page_size: 50 };
 
   const {
     data: samplesData,
     isLoading: samplesLoading,
     isError: samplesError,
     error: samplesErr,
-  } = useQuery({
-    queryKey: ["receptionist-job-samples", job.id],
-    queryFn: () => fetchSamples({ job: job.id, page: 1, page_size: 50 }),
-    staleTime: 15_000,
-  });
+  } = useSamples(samplesParams, { staleTime: 15_000 });
 
   const samples = samplesData?.results ?? [];
 
   const invalidateJobSamples = () => {
-    void queryClient.invalidateQueries({ queryKey: ["staff-job-orders"] });
-    void queryClient.invalidateQueries({ queryKey: ["staff-job-order", job.id] });
-    void queryClient.invalidateQueries({ queryKey: ["receptionist-job-samples", job.id] });
-    void queryClient.invalidateQueries({ queryKey: ["sample-tests", "job", job.id] });
-    void queryClient.invalidateQueries({ queryKey: ["staff-analyst"] });
     onUpdated();
   };
 

@@ -1,6 +1,4 @@
-import { ROUTES } from "@/lib/routing";
 import { staffFinanceTabUrl, staffPath } from "@/lib/staff";
-import { useQuery } from "@tanstack/react-query";
 import {
   AlertCircle,
   Bell,
@@ -13,22 +11,10 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { Link } from "react-router-dom";
 
-import { fetchJobOrders } from "@/features/jobs/api";
-import { fetchDiscountApprovals } from "@/features/laboratory/api";
-import { fetchUnreadNotificationCount } from "@/features/notifications/api";
+import { useFinanceDashboardKpis } from "@/features/laboratory/hooks";
 import { formatMoney } from "@/lib/formatting";
-import { dashboardKeys } from "@/lib/staff/dashboard/query-keys";
-import { fetchAwaitingFinanceJobs } from "@/features/laboratory/lib/fetch-awaiting-finance-jobs";
+import { ROUTES } from "@/lib/routing";
 import { useAuthStore } from "@/stores/auth-store";
-
-import {
-  countPaidInWindow,
-  invoiceByJobMap,
-  revenueCollectedInDays,
-  sumOutstanding,
-} from "@/lib/laboratory/finance/dashboard-metrics";
-import { fetchAllFinancialRecords } from "@/features/laboratory/lib/fetch-all-financial-records";
-
 
 type KpiCardProps = {
   label: string;
@@ -64,40 +50,7 @@ function KpiCard({ label, value, href, icon: Icon, loading, hint }: KpiCardProps
 export function FinanceKpiGrid() {
   const userEmail = useAuthStore((s) => s.user?.email?.toLowerCase() ?? "");
 
-  const { data: kpis, isLoading } = useQuery({
-    queryKey: dashboardKeys.financeKpis,
-    queryFn: async () => {
-      const [awaitingJobs, allRecords, holdJobs, discountsData, unreadCount] =
-        await Promise.all([
-          fetchAwaitingFinanceJobs(),
-          fetchAllFinancialRecords(),
-          fetchJobOrders({ page: 1, current_status: "finance_hold", is_cancelled: false }),
-          fetchDiscountApprovals({ page: 1, status: "pending" }),
-          fetchUnreadNotificationCount(),
-        ]);
-
-      const invoiceMap = invoiceByJobMap(allRecords);
-      const awaitingFirstInvoice = awaitingJobs.filter((j) => !invoiceMap.has(j.id)).length;
-      const { today: paidToday, week: paidThisWeek } = countPaidInWindow(allRecords, true);
-      const revenue7d = revenueCollectedInDays(allRecords, 7);
-
-      const myPendingDiscounts = discountsData.results.filter(
-        (d) => !userEmail || !d.requested_by || d.requested_by.toLowerCase() === userEmail,
-      ).length;
-
-      return {
-        awaitingFirstInvoice,
-        outstandingTotal: sumOutstanding(allRecords),
-        paidToday,
-        paidThisWeek,
-        revenue7d,
-        financeHoldCount: holdJobs.count,
-        pendingDiscounts: myPendingDiscounts,
-        unreadNotifications: unreadCount,
-      };
-    },
-    staleTime: 60_000,
-  });
+  const { data: kpis, isLoading } = useFinanceDashboardKpis({ userEmail });
 
   return (
     <section aria-labelledby="finance-kpi-heading">

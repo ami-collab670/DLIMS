@@ -1,4 +1,3 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -8,65 +7,42 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  createCalibrationRecord,
-  deleteCalibrationRecord,
-  fetchCalibrationRecords,
-} from "@/features/laboratory/api";
-import { laboratoryQueryKeys } from "@/features/laboratory/query-keys";
-import { getApiErrorMessage } from "@/lib/api";
+  useCalibrationRecords,
+  useCreateCalibrationRecord,
+  useDeleteCalibrationRecord,
+} from "@/features/laboratory/hooks";
 
 type Props = {
   analysisResultId: string;
 };
 
 export function AnalystCalibrationSection({ analysisResultId }: Props) {
-  const queryClient = useQueryClient();
   const [instrumentName, setInstrumentName] = useState("");
   const [calibrationReference, setCalibrationReference] = useState("");
   const [calibrationDate, setCalibrationDate] = useState("");
   const [notes, setNotes] = useState("");
 
-  const { data, isLoading } = useQuery({
-    queryKey: laboratoryQueryKeys.calibrationRecords({ analysis_result: analysisResultId }),
-    queryFn: () => fetchCalibrationRecords({ page: 1, analysis_result: analysisResultId }),
-    enabled: Boolean(analysisResultId),
-  });
+  const { data, isLoading } = useCalibrationRecords(
+    { page: 1, analysis_result: analysisResultId },
+    { enabled: Boolean(analysisResultId) },
+  );
 
   const rows = data?.results ?? [];
 
-  const invalidate = () => {
-    void queryClient.invalidateQueries({
-      queryKey: laboratoryQueryKeys.calibrationRecords({ analysis_result: analysisResultId }),
-    });
-  };
-
-  const createMut = useMutation({
-    mutationFn: () =>
-      createCalibrationRecord({
-        analysis_result: analysisResultId,
-        instrument_name: instrumentName.trim(),
-        calibration_reference: calibrationReference.trim() || undefined,
-        calibration_date: calibrationDate.trim() || null,
-        notes: notes.trim() || undefined,
-      }),
+  const createMut = useCreateCalibrationRecord({
     onSuccess: () => {
       toast.success("Calibration record added.");
       setInstrumentName("");
       setCalibrationReference("");
       setCalibrationDate("");
       setNotes("");
-      invalidate();
     },
-    onError: (e) => toast.error(getApiErrorMessage(e)),
   });
 
-  const deleteMut = useMutation({
-    mutationFn: deleteCalibrationRecord,
+  const deleteMut = useDeleteCalibrationRecord({
     onSuccess: () => {
       toast.success("Calibration removed.");
-      invalidate();
     },
-    onError: (e) => toast.error(getApiErrorMessage(e)),
   });
 
   return (
@@ -151,7 +127,15 @@ export function AnalystCalibrationSection({ analysisResultId }: Props) {
         size="sm"
         variant="secondary"
         disabled={!instrumentName.trim() || createMut.isPending}
-        onClick={() => createMut.mutate()}
+        onClick={() =>
+          createMut.mutate({
+            analysis_result: analysisResultId,
+            instrument_name: instrumentName.trim(),
+            calibration_reference: calibrationReference.trim() || undefined,
+            calibration_date: calibrationDate.trim() || null,
+            notes: notes.trim() || undefined,
+          })
+        }
       >
         Add calibration
       </Button>

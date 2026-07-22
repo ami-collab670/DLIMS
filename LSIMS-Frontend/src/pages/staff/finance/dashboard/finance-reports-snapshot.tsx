@@ -1,24 +1,17 @@
 import { staffFinanceTabUrl } from "@/lib/staff";
-import { useQuery } from "@tanstack/react-query";
 import { BarChart3, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 
-import { dashboardKeys } from "@/lib/staff/dashboard/query-keys";
+import { useAllFinancialRecords } from "@/features/laboratory/hooks";
 import { formatMoney } from "@/lib/formatting";
-
 import {
   revenueCollectedInDays,
   sumOutstanding,
   waiverMetrics,
 } from "@/lib/laboratory/finance/dashboard-metrics";
-import { fetchAllFinancialRecords } from "@/features/laboratory/lib/fetch-all-financial-records";
 
 export function FinanceReportsSnapshot() {
-  const { data: records = [], isLoading, isError } = useQuery({
-    queryKey: dashboardKeys.financeAllRecords,
-    queryFn: () => fetchAllFinancialRecords(),
-    staleTime: 60_000,
-  });
+  const { data: records = [], isLoading, isError } = useAllFinancialRecords();
 
   const revenue7d = revenueCollectedInDays(records, 7);
   const outstanding = sumOutstanding(records);

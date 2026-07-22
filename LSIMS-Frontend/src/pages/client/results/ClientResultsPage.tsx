@@ -1,5 +1,5 @@
 import { clientPath } from "@/lib/routing";
-import { useQuery } from "@tanstack/react-query";
+import { useJobOrder, useJobOrders } from "@/features/jobs/hooks";
 import { Loader2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
@@ -7,7 +7,6 @@ import { Link, useSearchParams } from "react-router-dom";
 import { TablePaginationFooter } from "@/components/data-table/table-pagination-footer";
 import { TableToolbar } from "@/components/data-table/table-toolbar";
 import { Button } from "@/components/ui/button";
-import { fetchJobOrder, fetchJobOrders } from "@/features/jobs/api";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { cn } from "@/lib/ui";
 import type { TablePageSize } from "@/lib/table";
@@ -88,16 +87,18 @@ export default function ClientResultsPage() {
     });
   }, [setSearchParams]);
 
-  const { data, isLoading, isError } = useQuery({
-    queryKey: ["client-results-jobs", page, pageSize, debouncedSearch],
-    queryFn: () =>
-      fetchJobOrders({
-        page,
-        page_size: pageSize,
-        search: debouncedSearch || undefined,
-        is_cancelled: false,
-        ordering: "-created_at",
-      }),
+  const listParams = useMemo(
+    () => ({
+      page,
+      page_size: pageSize,
+      search: debouncedSearch || undefined,
+      is_cancelled: false as const,
+      ordering: "-created_at",
+    }),
+    [page, pageSize, debouncedSearch],
+  );
+
+  const { data, isLoading, isError } = useJobOrders(listParams, {
     staleTime: 45_000,
   });
 
@@ -105,9 +106,7 @@ export default function ClientResultsPage() {
     data: detailJob,
     isLoading: detailLoading,
     isError: detailError,
-  } = useQuery({
-    queryKey: ["client-results-job", selectedJobId],
-    queryFn: () => fetchJobOrder(selectedJobId!),
+  } = useJobOrder(selectedJobId ?? "", {
     enabled: Boolean(selectedJobId),
     staleTime: 45_000,
   });

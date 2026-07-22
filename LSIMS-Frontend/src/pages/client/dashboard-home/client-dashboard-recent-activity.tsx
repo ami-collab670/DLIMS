@@ -1,13 +1,11 @@
 import { clientPath } from "@/lib/routing";
-import { useQuery } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
 import { Clock, Loader2, MessageSquare, Package } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
-
-import { fetchJobOrders } from "@/features/jobs/api";
-import { fetchComplaints } from "@/features/laboratory/api";
-import { fetchNotifications } from "@/features/notifications/api";
+import { useJobOrders } from "@/features/jobs/hooks";
+import { useComplaints } from "@/features/laboratory/hooks";
+import { useNotifications } from "@/features/notifications/hooks";
 import {
   complaintsNeedingFollowUp,
   extractClientReferenceLabel,
@@ -21,8 +19,6 @@ import {
   ClientComplaintStatusBadge,
 } from "@/pages/client/complaints/client-complaint-badges";
 import { ClientProgressBadge } from "@/pages/client/results/client-results-progress";
-
-import { clientDashboardKeys } from "@/lib/client/dashboard/query-keys";
 
 function PanelShell({
   title,
@@ -79,35 +75,27 @@ function PanelShell({
 }
 
 export function ClientDashboardRecentActivity() {
-  const jobsQuery = useQuery({
-    queryKey: clientDashboardKeys.recentJobs,
-    queryFn: () =>
-      fetchJobOrders({
-        page: 1,
-        page_size: 5,
-        is_cancelled: false,
-        ordering: "-updated_at",
-      }),
-    staleTime: 45_000,
-  });
+  const jobsQuery = useJobOrders(
+    {
+      page: 1,
+      page_size: 5,
+      is_cancelled: false,
+      ordering: "-updated_at",
+    },
+    { staleTime: 45_000 },
+  );
 
-  const notificationsQuery = useQuery({
-    queryKey: clientDashboardKeys.recentNotifications,
-    queryFn: () => fetchNotifications({ page: 1 }),
-    staleTime: 30_000,
-  });
+  const notificationsQuery = useNotifications({ page: 1 }, { staleTime: 30_000 });
 
-  const unreadJobNotificationsQuery = useQuery({
-    queryKey: clientDashboardKeys.unreadJobNotifications,
-    queryFn: () => fetchNotifications({ page: 1, unread: "1", kind: "job" }),
-    staleTime: 30_000,
-  });
+  const unreadJobNotificationsQuery = useNotifications(
+    { page: 1, unread: "1", kind: "job" },
+    { staleTime: 30_000 },
+  );
 
-  const complaintsQuery = useQuery({
-    queryKey: clientDashboardKeys.attentionComplaints,
-    queryFn: () => fetchComplaints({ page: 1, page_size: 20 }),
-    staleTime: 45_000,
-  });
+  const complaintsQuery = useComplaints(
+    { page: 1, page_size: 20 },
+    { staleTime: 45_000 },
+  );
 
   const recentJobs = jobsQuery.data?.results ?? [];
   const unreadJobNotifications = unreadJobNotificationsQuery.data?.results ?? [];

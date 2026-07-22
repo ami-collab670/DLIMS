@@ -1,5 +1,4 @@
 import { clientPath } from "@/lib/routing";
-import { useQuery } from "@tanstack/react-query";
 import {
   Bell,
   CheckCircle2,
@@ -14,14 +13,14 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { Link } from "react-router-dom";
 
-import { fetchJobOrders } from "@/features/jobs/api";
-import { fetchComplaints } from "@/features/laboratory/api";
-import { fetchUnreadNotificationCount } from "@/features/notifications/api";
+import { useJobOrders } from "@/features/jobs/hooks";
+import { useComplaints } from "@/features/laboratory/hooks";
+import { useUnreadCount } from "@/features/notifications/hooks";
 import { formatMoney } from "@/lib/formatting";
 import {
-  fetchAllActiveJobs,
-  fetchClientFinancialRecords,
-} from "@/features/client/lib/dashboard-queries";
+  useClientActiveJobs,
+  useClientFinancialRecords,
+} from "@/features/client/hooks";
 import {
   countInProgressJobs,
   countInvoicesDue,
@@ -29,8 +28,6 @@ import {
   sumSampleCount,
   totalOutstandingAmount,
 } from "@/lib/client/dashboard/metrics";
-
-import { clientDashboardKeys } from "@/lib/client/dashboard/query-keys";
 
 const cardClass =
   "group rounded-xl border border-border bg-card p-4 shadow-sm transition-colors hover:border-primary/40";
@@ -71,65 +68,46 @@ function StatCard({
 }
 
 export function ClientDashboardStatCards() {
-  const activeCountQuery = useQuery({
-    queryKey: clientDashboardKeys.activeJobCount,
-    queryFn: () => fetchJobOrders({ page: 1, page_size: 1, is_cancelled: false }),
-    staleTime: 45_000,
-  });
+  const activeCountQuery = useJobOrders(
+    { page: 1, page_size: 1, is_cancelled: false },
+    { staleTime: 45_000 },
+  );
 
-  const allJobsQuery = useQuery({
-    queryKey: clientDashboardKeys.allActiveJobs,
-    queryFn: fetchAllActiveJobs,
-    staleTime: 45_000,
-  });
+  const allJobsQuery = useClientActiveJobs();
 
-  const financeQuery = useQuery({
-    queryKey: clientDashboardKeys.allFinancialRecords,
-    queryFn: fetchClientFinancialRecords,
-    staleTime: 45_000,
-  });
+  const financeQuery = useClientFinancialRecords();
 
-  const completedCountQuery = useQuery({
-    queryKey: clientDashboardKeys.completedJobCount,
-    queryFn: () =>
-      fetchJobOrders({
-        page: 1,
-        page_size: 1,
-        current_status: "completed",
-        is_cancelled: false,
-      }),
-    staleTime: 45_000,
-  });
+  const completedCountQuery = useJobOrders(
+    {
+      page: 1,
+      page_size: 1,
+      current_status: "completed",
+      is_cancelled: false,
+    },
+    { staleTime: 45_000 },
+  );
 
-  const urgentCountQuery = useQuery({
-    queryKey: clientDashboardKeys.urgentJobCount,
-    queryFn: () =>
-      fetchJobOrders({
-        page: 1,
-        page_size: 1,
-        priority: "urgent",
-        is_cancelled: false,
-      }),
-    staleTime: 45_000,
-  });
+  const urgentCountQuery = useJobOrders(
+    {
+      page: 1,
+      page_size: 1,
+      priority: "urgent",
+      is_cancelled: false,
+    },
+    { staleTime: 45_000 },
+  );
 
-  const openComplaintsQuery = useQuery({
-    queryKey: clientDashboardKeys.openComplaints,
-    queryFn: () => fetchComplaints({ page: 1, page_size: 1, status: "open" }),
-    staleTime: 45_000,
-  });
+  const openComplaintsQuery = useComplaints(
+    { page: 1, page_size: 1, status: "open" },
+    { staleTime: 45_000 },
+  );
 
-  const inReviewComplaintsQuery = useQuery({
-    queryKey: clientDashboardKeys.inReviewComplaints,
-    queryFn: () => fetchComplaints({ page: 1, page_size: 1, status: "in_review" }),
-    staleTime: 45_000,
-  });
+  const inReviewComplaintsQuery = useComplaints(
+    { page: 1, page_size: 1, status: "in_review" },
+    { staleTime: 45_000 },
+  );
 
-  const unreadQuery = useQuery({
-    queryKey: clientDashboardKeys.unreadCount,
-    queryFn: fetchUnreadNotificationCount,
-    staleTime: 30_000,
-  });
+  const unreadQuery = useUnreadCount({ staleTime: 30_000 });
 
   const activeCount = activeCountQuery.data?.count ?? 0;
   const allJobs = allJobsQuery.data ?? [];

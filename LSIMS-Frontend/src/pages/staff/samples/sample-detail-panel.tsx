@@ -1,4 +1,3 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -7,17 +6,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { fetchLabAnalysts } from "@/features/accounts/api";
-import { createPreparationRecord } from "@/features/laboratory/api";
+import { useLabAnalysts } from "@/features/accounts/hooks";
 import {
-  assignSampleAnalyst,
-  assignTestToSample,
-  deleteSampleHard,
-  fetchTestCatalog,
-  patchSample,
-  removeSampleTestAssignment,
-} from "@/features/laboratory/api";
-import { getApiErrorMessage } from "@/lib/api";
+  useAssignSampleAnalyst,
+  useAssignTestToSample,
+  useCreatePreparationRecord,
+  useDeleteSample,
+  usePatchSample,
+  useRemoveSampleTestAssignment,
+  useTestCatalog,
+} from "@/features/laboratory/hooks";
 import { shortJobId } from "@/lib/laboratory";
 import type { SampleRecord } from "@/types/laboratory";
 
@@ -45,7 +43,6 @@ export function SampleDetailPanel({
   onClose: () => void;
   onUpdated: () => void;
 }) {
-  const queryClient = useQueryClient();
   const displayCode = sample.sample_code ?? sample.blind_alias_code ?? "—";
   const isBlindView = !sample.sample_code && Boolean(sample.blind_alias_code);
   const pendingPermanentCode = !sample.sample_code;
@@ -66,16 +63,12 @@ export function SampleDetailPanel({
   const [reassignedReason, setReassignedReason] = useState(sample.reassigned_reason ?? "");
   const [testToAdd, setTestToAdd] = useState("");
 
-  const { data: analysts = [] } = useQuery({
-    queryKey: ["lab-analysts"],
-    queryFn: fetchLabAnalysts,
-  });
+  const { data: analysts = [] } = useLabAnalysts();
 
-  const { data: testsPage } = useQuery({
-    queryKey: ["test-catalog-sample-detail", sample.id],
-    queryFn: () => fetchTestCatalog({ page: 1, is_active: true }),
-    enabled: manage,
-  });
+  const { data: testsPage } = useTestCatalog(
+    { page: 1, is_active: true },
+    { enabled: manage },
+  );
 
   useEffect(() => {
     setSampleName(sample.sample_name ?? "");
@@ -89,86 +82,48 @@ export function SampleDetailPanel({
     setTestToAdd("");
   }, [sample]);
 
-  const patchMut = useMutation({
-    mutationFn: () => {
-      const weightTrim = sampleWeight.trim();
-      const body: Parameters<typeof patchSample>[1] = {
-        notes,
-        sample_name: sampleName.trim() || undefined,
-        packaging_type: packagingType.trim(),
-        collection_date: collectionDate.trim() || null,
-      };
-      if (weightTrim) body.sample_weight = weightTrim;
-      else body.sample_weight = null;
-      if (assignedAt.trim()) {
-        const dt = new Date(assignedAt);
-        body.assigned_at = Number.isNaN(dt.getTime()) ? null : dt.toISOString();
-      } else {
-        body.assigned_at = null;
-      }
-      return patchSample(sample.id, body);
-    },
+  const patchMut = usePatchSample({
     onSuccess: () => {
       toast.success("Sample updated.");
       onUpdated();
     },
-    onError: (e) => toast.error(getApiErrorMessage(e)),
   });
 
-  const assignAnalystMut = useMutation({
-    mutationFn: () =>
-      assignSampleAnalyst(sample.id, {
-        assigned_analyst: analystId,
-        reassigned_reason: reassignedReason.trim() || undefined,
-      }),
+  const assignAnalystMut = useAssignSampleAnalyst({
     onSuccess: () => {
       toast.success("Analyst assigned.");
       onUpdated();
     },
-    onError: (e) => toast.error(getApiErrorMessage(e)),
   });
 
-  const prepMut = useMutation({
-    mutationFn: () => createPreparationRecord({ sample: sample.id }),
+  const prepMut = useCreatePreparationRecord({
     onSuccess: () => {
       toast.success("Preparation record created.");
-      void queryClient.invalidateQueries({ queryKey: ["preparation-records"] });
       onUpdated();
     },
-    onError: (e) => toast.error(getApiErrorMessage(e)),
   });
 
-  const delMut = useMutation({
-    mutationFn: () => deleteSampleHard(sample.id),
+  const delMut = useDeleteSample({
     onSuccess: () => {
       toast.success("Sample deleted.");
       onUpdated();
       onClose();
     },
-    onError: (e) => toast.error(getApiErrorMessage(e)),
   });
 
-  const assignMut = useMutation({
-    mutationFn: () => assignTestToSample({ sample: sample.id, test: testToAdd }),
+  const assignMut = useAssignTestToSample({
     onSuccess: () => {
       toast.success("Test assigned.");
       setTestToAdd("");
-      queryClient.invalidateQueries({ queryKey: ["staff-sample", sample.id] });
-      queryClient.invalidateQueries({ queryKey: ["staff-samples"] });
       onUpdated();
     },
-    onError: (e) => toast.error(getApiErrorMessage(e)),
   });
 
-  const removeTestMut = useMutation({
-    mutationFn: removeSampleTestAssignment,
+  const removeTestMut = useRemoveSampleTestAssignment({
     onSuccess: () => {
       toast.success("Assignment removed.");
-      queryClient.invalidateQueries({ queryKey: ["staff-sample", sample.id] });
-      queryClient.invalidateQueries({ queryKey: ["staff-samples"] });
       onUpdated();
     },
-    onError: (e) => toast.error(getApiErrorMessage(e)),
   });
 
   const assignedTestIds = new Set(sample.sample_tests.map((t) => t.test));
@@ -286,7 +241,7 @@ export function SampleDetailPanel({
             size="sm"
             variant="secondary"
             disabled={prepMut.isPending}
-            onClick={() => prepMut.mutate()}
+            onClick={() => prepMut.mutate({ sample: sample.id })}
           >
             Create preparation record
           </Button>
@@ -312,7 +267,9 @@ export function SampleDetailPanel({
             <Button
               type="button"
               disabled={!testToAdd || assignMut.isPending}
-              onClick={() => assignMut.mutate()}
+              onClick={() =>
+                assignMut.mutate({ sample: sample.id, test: testToAdd })
+              }
             >
               Assign test
             </Button>
@@ -364,7 +321,15 @@ export function SampleDetailPanel({
               variant="secondary"
               size="sm"
               disabled={assignAnalystMut.isPending}
-              onClick={() => assignAnalystMut.mutate()}
+              onClick={() =>
+                assignAnalystMut.mutate({
+                  sampleId: sample.id,
+                  body: {
+                    assigned_analyst: analystId,
+                    reassigned_reason: reassignedReason.trim() || undefined,
+                  },
+                })
+              }
             >
               Assign analyst
             </Button>
@@ -410,7 +375,28 @@ export function SampleDetailPanel({
             <Textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} />
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button type="button" onClick={() => patchMut.mutate()} disabled={patchMut.isPending}>
+            <Button
+              type="button"
+              onClick={() => {
+                const weightTrim = sampleWeight.trim();
+                const body: Parameters<typeof patchMut.mutate>[0]["body"] = {
+                  notes,
+                  sample_name: sampleName.trim() || undefined,
+                  packaging_type: packagingType.trim(),
+                  collection_date: collectionDate.trim() || null,
+                };
+                if (weightTrim) body.sample_weight = weightTrim;
+                else body.sample_weight = null;
+                if (assignedAt.trim()) {
+                  const dt = new Date(assignedAt);
+                  body.assigned_at = Number.isNaN(dt.getTime()) ? null : dt.toISOString();
+                } else {
+                  body.assigned_at = null;
+                }
+                patchMut.mutate({ id: sample.id, body });
+              }}
+              disabled={patchMut.isPending}
+            >
               Save metadata
             </Button>
             <Button
@@ -418,7 +404,7 @@ export function SampleDetailPanel({
               variant="destructive"
               disabled={delMut.isPending}
               onClick={() => {
-                if (confirm("Permanently delete this sample?")) delMut.mutate();
+                if (confirm("Permanently delete this sample?")) delMut.mutate(sample.id);
               }}
             >
               <Trash2 className="size-4" />

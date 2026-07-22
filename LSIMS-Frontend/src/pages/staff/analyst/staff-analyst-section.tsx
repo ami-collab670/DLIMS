@@ -1,11 +1,10 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { fetchSample, fetchSamples } from "@/features/laboratory/api";
+import { useSample, useSamples } from "@/features/laboratory/hooks";
 import { getApiErrorMessage } from "@/lib/api";
 import { shortJobId } from "@/lib/laboratory";
 import { isSampleAwaitingPayment, isSampleReadyForDeptAssignment } from "@/lib/laboratory";
@@ -53,7 +52,6 @@ export function StaffAnalystSection({
   /** Analyst-only bench at /staff/analyst — assignment filter + no ops copy. */
   analystBenchOnly?: boolean;
 }) {
-  const queryClient = useQueryClient();
   const user = useAuthStore((s) => s.user);
   const userId = user?.id;
   const [page, setPage] = useState(1);
@@ -67,21 +65,19 @@ export function StaffAnalystSection({
     const t = window.setTimeout(() => setDebounced(search), 350);
     return () => clearTimeout(t);
   }, [search]);
+  const listParams = useMemo(
+    () => ({
+      page,
+      job: jobFilter || undefined,
+      sample_status: statusFilter || undefined,
+      search: debounced || undefined,
+    }),
+    [page, jobFilter, statusFilter, debounced],
+  );
 
-  const { data, isLoading, isError, error } = useQuery({
-    queryKey: ["staff-analyst", "list", page, jobFilter, statusFilter, debounced],
-    queryFn: () =>
-      fetchSamples({
-        page,
-        job: jobFilter || undefined,
-        sample_status: statusFilter || undefined,
-        search: debounced || undefined,
-      }),
-  });
+  const { data, isLoading, isError, error } = useSamples(listParams);
 
-  const { data: detail } = useQuery({
-    queryKey: ["staff-analyst", "detail", selectedId],
-    queryFn: () => fetchSample(selectedId!),
+  const { data: detail } = useSample(selectedId ?? "", {
     enabled: Boolean(selectedId),
   });
 
@@ -137,10 +133,7 @@ export function StaffAnalystSection({
       {intake ? (
         <RegisterSampleForm
           showIntakeChecklist={hidePreparation}
-          onCreated={() => {
-            queryClient.invalidateQueries({ queryKey: ["staff-analyst"] });
-            queryClient.invalidateQueries({ queryKey: ["staff-job-orders"] });
-          }}
+          onCreated={() => {}}
         />
       ) : isAnalyst || analystBenchOnly ? (
         <div
@@ -351,12 +344,7 @@ export function StaffAnalystSection({
           showResultEntry={canPatchSample || isAnalyst}
           showSampleRouting={showSampleRouting}
           onClose={() => setSelectedId(null)}
-          onUpdated={() => {
-            queryClient.invalidateQueries({ queryKey: ["staff-analyst"] });
-            queryClient.invalidateQueries({
-              queryKey: ["staff-analyst", "detail", selectedId],
-            });
-          }}
+          onUpdated={() => {}}
         />
       ) : null}
     </div>

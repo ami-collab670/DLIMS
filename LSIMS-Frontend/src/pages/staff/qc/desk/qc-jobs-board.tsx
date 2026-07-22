@@ -1,12 +1,11 @@
 import { ROUTES } from "@/lib/routing";
-import { useQuery } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { JobRoleHoldBadge } from "@/components/jobs/job-role-hold-badge";
-import { fetchRoles } from "@/features/accounts/api";
-import { fetchJobOrders } from "@/features/jobs/api";
-import { fetchQCDecisions } from "@/features/laboratory/api";
+import { useRoles } from "@/features/accounts/hooks";
+import { useJobOrders } from "@/features/jobs/hooks";
+import { useQCDecisions } from "@/features/laboratory/hooks";
 import { getApiErrorMessage } from "@/lib/api";
 import { JOB_STATUS_LABEL, shortJobId } from "@/lib/laboratory";
 import { shouldHideClientSampleNames } from "@/lib/laboratory";
@@ -17,23 +16,17 @@ export function QcJobsBoard() {
   const user = useAuthStore((s) => s.user);
   const hideClient = shouldHideClientSampleNames(user) || isQcManager(user);
 
-  const { data: roles = [] } = useQuery({
-    queryKey: ["admin-roles"],
-    queryFn: () => fetchRoles(),
-    staleTime: 60_000,
-  });
+  const { data: roles = [] } = useRoles(undefined, { staleTime: 60_000 });
 
-  const { data, isLoading, isError, error } = useQuery({
-    queryKey: ["lims-qc-jobs"],
-    queryFn: () =>
-      fetchJobOrders({
-        page: 1,
-        page_size: 50,
-        current_status: "qc",
-        is_cancelled: false,
-      }),
-    staleTime: 30_000,
-  });
+  const { data, isLoading, isError, error } = useJobOrders(
+    {
+      page: 1,
+      page_size: 50,
+      current_status: "qc",
+      is_cancelled: false,
+    },
+    { staleTime: 30_000 },
+  );
 
   return (
     <section id="jobs" className="space-y-3">
@@ -98,16 +91,12 @@ export function QcJobsBoard() {
 }
 
 export function QcRecentDecisionsStrip() {
-  const { data, isLoading } = useQuery({
-    queryKey: ["qc-desk-recent-decisions-strip"],
-    queryFn: async () => {
-      const res = await fetchQCDecisions({ page: 1, page_size: 5 });
-      return res.results;
-    },
-    staleTime: 30_000,
-  });
+  const { data, isLoading } = useQCDecisions(
+    { page: 1, page_size: 5 },
+    { staleTime: 30_000 },
+  );
 
-  const rows = data ?? [];
+  const rows = data?.results ?? [];
 
   return (
     <section className="space-y-3">

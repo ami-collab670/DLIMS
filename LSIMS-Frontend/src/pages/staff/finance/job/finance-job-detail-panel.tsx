@@ -1,13 +1,11 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { JobRoleHoldBadge } from "@/components/jobs/job-role-hold-badge";
 import { Button } from "@/components/ui/button";
-import { fetchRoles } from "@/features/accounts/api";
-import { fetchFinancialRecords } from "@/features/laboratory/api";
-import { laboratoryQueryKeys } from "@/features/laboratory/query-keys";
+import { useRoles } from "@/features/accounts/hooks";
+import { useFinancialRecords } from "@/features/laboratory/hooks";
 import { JOB_PRIORITY_LABEL, JOB_STATUS_LABEL, shortJobId } from "@/lib/laboratory";
 import { formatMoneyFromApi } from "@/lib/formatting";
 import { clientJobReferenceLabel } from "@/lib/laboratory";
@@ -33,7 +31,6 @@ type Props = {
 };
 
 export function FinanceJobDetailPanel({ job, onClose, onUpdated }: Props) {
-  const queryClient = useQueryClient();
   const [createExpected, setCreateExpected] = useState("");
   const [editing, setEditing] = useState(false);
   const [editExpected, setEditExpected] = useState("");
@@ -47,20 +44,10 @@ export function FinanceJobDetailPanel({ job, onClose, onUpdated }: Props) {
   const refLabel = clientJobReferenceLabel(job.description);
   const suggestedAmount = suggestedInvoiceAmount(billingSummary);
 
-  const { data: roles = [] } = useQuery({
-    queryKey: ["admin-roles"],
-    queryFn: () => fetchRoles(),
-    staleTime: 60_000,
-  });
+  const { data: roles = [] } = useRoles();
 
-  const {
-    data: financialData,
-    isLoading: invoiceLoading,
-    refetch: refetchInvoice,
-  } = useQuery({
-    queryKey: laboratoryQueryKeys.financialRecords({ job: job.id }),
-    queryFn: () => fetchFinancialRecords({ job: job.id, page: 1 }),
-    staleTime: 0,
+  const { data: financialData, isLoading: invoiceLoading } = useFinancialRecords({
+    job: job.id,
   });
 
   const record: FinancialRecord | null = financialData?.results[0] ?? null;
@@ -76,7 +63,6 @@ export function FinanceJobDetailPanel({ job, onClose, onUpdated }: Props) {
   }, [record, suggestedAmount]);
 
   const handleSuccess = () => {
-    void refetchInvoice();
     onUpdated();
     setEditing(false);
   };
@@ -170,7 +156,6 @@ export function FinanceJobDetailPanel({ job, onClose, onUpdated }: Props) {
                   onStatusChange={setEditStatus}
                   onCancel={() => setEditing(false)}
                   onSuccess={handleSuccess}
-                  queryClient={queryClient}
                 />
               )}
             </div>
@@ -187,7 +172,6 @@ export function FinanceJobDetailPanel({ job, onClose, onUpdated }: Props) {
                 expectedAmount={createExpected}
                 onExpectedAmountChange={setCreateExpected}
                 onSuccess={handleSuccess}
-                queryClient={queryClient}
               />
             </div>
           )}

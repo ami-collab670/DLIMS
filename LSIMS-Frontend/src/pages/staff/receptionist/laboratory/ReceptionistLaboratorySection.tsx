@@ -1,4 +1,5 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import type { JobOrderListParams } from "@/features/jobs/api";
+import { useJobOrder, useJobOrders } from "@/features/jobs/hooks";
 import { AlertCircle, Loader2, Plus } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -8,7 +9,6 @@ import { TablePaginationFooter } from "@/components/data-table/table-pagination-
 import { TableToolbar } from "@/components/data-table/table-toolbar";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { fetchJobOrder, fetchJobOrders } from "@/features/jobs/api";
 import {
   DEFAULT_JOB_ORDER_SORT,
   toOrderingParam,
@@ -45,7 +45,6 @@ export function ReceptionistLaboratorySection() {
   const intake = canIntakeSamples(user);
   const manageJobs = canManageJobsAndSamples(user);
 
-  const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedJobId = searchParams.get("job");
   const [page, setPage] = useState(1);
@@ -60,7 +59,7 @@ export function ReceptionistLaboratorySection() {
   useEffect(() => setPage(1), [debouncedSearch, statusFilter, priorityFilter, sort, pageSize]);
 
   const listParams = useMemo(() => {
-    const p: Parameters<typeof fetchJobOrders>[0] = {
+    const p: JobOrderListParams = {
       page,
       page_size: pageSize,
       ordering: toOrderingParam(sort),
@@ -75,18 +74,14 @@ export function ReceptionistLaboratorySection() {
     setSort((prev) => toggleSortState(prev, key));
   }, []);
 
-  const { data: listData, isLoading, isError, error, isFetching } = useQuery({
-    queryKey: ["staff-job-orders", listParams],
-    queryFn: () => fetchJobOrders(listParams),
-  });
+  const { data: listData, isLoading, isError, error, isFetching } =
+    useJobOrders(listParams);
 
   const {
     data: detailJob,
     isLoading: detailLoading,
     isError: detailError,
-  } = useQuery({
-    queryKey: ["staff-job-order", selectedJobId],
-    queryFn: () => fetchJobOrder(selectedJobId!),
+  } = useJobOrder(selectedJobId ?? "", {
     enabled: Boolean(selectedJobId),
   });
 
@@ -146,10 +141,7 @@ export function ReceptionistLaboratorySection() {
               open={intakeOpen}
               onOpenChange={setIntakeOpen}
               showIntakeChecklist
-              onCreated={(job) => {
-                queryClient.invalidateQueries({ queryKey: ["staff-job-orders"] });
-                openJob(job.id);
-              }}
+              onCreated={(job) => openJob(job.id)}
             />
           </div>
         ) : null}
@@ -320,12 +312,7 @@ export function ReceptionistLaboratorySection() {
                 job={displayJob}
                 onClose={closeJob}
                 manageJobs={manageJobs}
-                onUpdated={() => {
-                  queryClient.invalidateQueries({ queryKey: ["staff-job-orders"] });
-                  queryClient.invalidateQueries({
-                    queryKey: ["staff-job-order", displayJob.id],
-                  });
-                }}
+                onUpdated={() => {}}
               />
             )}
           </div>

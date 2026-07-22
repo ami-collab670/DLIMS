@@ -1,13 +1,11 @@
-import { useMutation } from "@tanstack/react-query";
 import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import {
-  deleteTestCatalogItem,
-  patchTestCatalogItem,
-} from "@/features/laboratory/api";
-import { getApiErrorMessage } from "@/lib/api";
+  useDeleteTestCatalogItem,
+  usePatchTestCatalogItem,
+} from "@/features/laboratory/hooks";
 import type { TestCatalogItem } from "@/types/laboratory";
 
 export function CatalogRow({
@@ -23,23 +21,18 @@ export function CatalogRow({
   hideDepartmentColumn?: boolean;
   onPatched: () => void;
 }) {
-  const patchMut = useMutation({
-    mutationFn: (is_active: boolean) =>
-      patchTestCatalogItem(test.id, { is_active }),
+  const patchMut = usePatchTestCatalogItem({
     onSuccess: () => {
       toast.success("Catalog updated.");
       onPatched();
     },
-    onError: (e) => toast.error(getApiErrorMessage(e)),
   });
 
-  const deleteMut = useMutation({
-    mutationFn: () => deleteTestCatalogItem(test.id),
+  const deleteMut = useDeleteTestCatalogItem({
     onSuccess: () => {
       toast.success("Test deleted.");
       onPatched();
     },
-    onError: (e) => toast.error(getApiErrorMessage(e)),
   });
 
   return (
@@ -61,7 +54,9 @@ export function CatalogRow({
             <input
               type="checkbox"
               checked={test.is_active}
-              onChange={(e) => patchMut.mutate(e.target.checked)}
+              onChange={(e) =>
+                patchMut.mutate({ id: test.id, body: { is_active: e.target.checked } })
+              }
               disabled={patchMut.isPending}
             />
             Active
@@ -86,7 +81,7 @@ export function CatalogRow({
                   `Delete test "${test.test_code}"? If it is referenced, deactivate instead.`,
                 )
               ) {
-                deleteMut.mutate();
+                deleteMut.mutate(test.id);
               }
             }}
           >

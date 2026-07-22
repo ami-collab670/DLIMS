@@ -1,19 +1,14 @@
-import { useQuery } from "@tanstack/react-query";
 import { AlertCircle, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 
-import { fetchJobOrders } from "@/features/jobs/api";
+import { useJobOrders } from "@/features/jobs/hooks";
 import { shortJobId } from "@/lib/laboratory";
 import { clientJobReferenceLabel } from "@/lib/laboratory";
-import { dashboardKeys } from "@/lib/staff/dashboard/query-keys";
-
 export function FinanceHoldQueue() {
-  const { data, isLoading, isError } = useQuery({
-    queryKey: dashboardKeys.financeHoldQueue,
-    queryFn: () =>
-      fetchJobOrders({ page: 1, page_size: 25, current_status: "finance_hold", is_cancelled: false }),
-    staleTime: 60_000,
-  });
+  const { data, isLoading, isError } = useJobOrders(
+    { page: 1, page_size: 25, current_status: "finance_hold", is_cancelled: false },
+    { staleTime: 60_000 },
+  );
 
   const jobs = data?.results ?? [];
   const preview = jobs.slice(0, 8);

@@ -1,31 +1,25 @@
 import { staffPath } from "@/lib/staff";
-import { useQuery } from "@tanstack/react-query";
 import { BookOpen, FlaskConical, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 
-import { fetchJobOrders } from "@/features/jobs/api";
-import { fetchSamples, fetchTestCatalog } from "@/features/laboratory/api";
-
-import { dashboardKeys } from "@/lib/staff/dashboard/query-keys";
+import { useJobOrders } from "@/features/jobs/hooks";
+import { useSamples, useTestCatalog } from "@/features/laboratory/hooks";
 
 export function StaffDashboardStatsGrid() {
-  const { data: jobsData, isLoading: jobsLoading } = useQuery({
-    queryKey: dashboardKeys.recentJobs,
-    queryFn: () => fetchJobOrders({ page: 1 }),
-    staleTime: 45_000,
-  });
+  const { data: jobsData, isLoading: jobsLoading } = useJobOrders(
+    { page: 1 },
+    { staleTime: 45_000 },
+  );
 
-  const { data: samplesData, isLoading: samplesLoading } = useQuery({
-    queryKey: ["staff-dashboard", "analyst", "total-count"],
-    queryFn: () => fetchSamples({ page: 1 }),
-    staleTime: 60_000,
-  });
+  const { data: samplesData, isLoading: samplesLoading } = useSamples(
+    { page: 1 },
+    { staleTime: 60_000 },
+  );
 
-  const { data: catalogData, isLoading: catalogLoading } = useQuery({
-    queryKey: dashboardKeys.catalogActive,
-    queryFn: () => fetchTestCatalog({ page: 1, is_active: true }),
-    staleTime: 120_000,
-  });
+  const { data: catalogData, isLoading: catalogLoading } = useTestCatalog(
+    { page: 1, is_active: true },
+    { staleTime: 120_000 },
+  );
 
   const jobsCount = jobsData?.count ?? "—";
   const samplesCount = samplesData?.count ?? "—";

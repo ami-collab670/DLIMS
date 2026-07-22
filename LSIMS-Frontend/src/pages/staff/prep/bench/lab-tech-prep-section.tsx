@@ -1,4 +1,3 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -7,15 +6,14 @@ import { TablePaginationFooter } from "@/components/data-table/table-pagination-
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { laboratoryQueryKeys } from "@/features/laboratory/query-keys";
 import {
-  completePreparationRecord,
-  fetchPreparationRecords,
-  startPreparationRecord,
-} from "@/features/laboratory/api";
-import { getApiErrorMessage } from "@/lib/api";
+  useCompletePreparationRecord,
+  usePreparationRecords,
+  useStartPreparationRecord,
+} from "@/features/laboratory/hooks";
 import { staffPreparationSampleCode } from "@/lib/laboratory";
 import { dashboardKeys } from "@/lib/staff/dashboard/query-keys";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "@/stores/auth-store";
 import type { PreparationRecord, PreparationStatus } from "@/types/laboratory";
 
@@ -43,18 +41,35 @@ export function LabTechPrepSection() {
   const [selected, setSelected] = useState<PreparationRecord | null>(null);
   const [completeNotes, setCompleteNotes] = useState("");
 
-  const { data, isLoading, isError, isFetching } = useQuery({
-    queryKey: laboratoryQueryKeys.preparationRecords({
-      scope: "lab-tech-bench",
-      status: statusTab === "all" ? undefined : statusTab,
-    }),
-    queryFn: () =>
-      fetchPreparationRecords({
-        page: 1,
-        page_size: 200,
-        status: statusTab === "all" ? undefined : statusTab,
-      }),
+  const prepParams = {
+    page: 1,
+    page_size: 200,
+    status: statusTab === "all" ? undefined : statusTab,
+  };
+
+  const { data, isLoading, isError, isFetching } = usePreparationRecords(prepParams, {
     staleTime: 20_000,
+  });
+
+  const invalidateDashboard = () => {
+    void queryClient.invalidateQueries({ queryKey: dashboardKeys.labTechDeskKpis });
+    void queryClient.invalidateQueries({ queryKey: dashboardKeys.labTechDeskQueuePreview });
+  };
+
+  const startMut = useStartPreparationRecord({
+    onSuccess: () => {
+      toast.success("Preparation started — assigned to you.");
+      invalidateDashboard();
+    },
+  });
+
+  const completeMut = useCompletePreparationRecord({
+    onSuccess: () => {
+      toast.success("Preparation completed.");
+      setSelected(null);
+      setCompleteNotes("");
+      invalidateDashboard();
+    },
   });
 
   const visibleRows = useMemo(() => {
@@ -65,35 +80,6 @@ export function LabTechPrepSection() {
     const start = (page - 1) * LAB_TECH_PREP_PAGE_SIZE;
     return visibleRows.slice(start, start + LAB_TECH_PREP_PAGE_SIZE);
   }, [page, visibleRows]);
-
-  const invalidate = () => {
-    void queryClient.invalidateQueries({ queryKey: ["preparation-records"] });
-    void queryClient.invalidateQueries({ queryKey: dashboardKeys.labTechDeskKpis });
-    void queryClient.invalidateQueries({ queryKey: dashboardKeys.labTechDeskQueuePreview });
-  };
-
-  const startMut = useMutation({
-    mutationFn: (id: string) => startPreparationRecord(id),
-    onSuccess: () => {
-      toast.success("Preparation started — assigned to you.");
-      invalidate();
-    },
-    onError: (e) => toast.error(getApiErrorMessage(e)),
-  });
-
-  const completeMut = useMutation({
-    mutationFn: () =>
-      completePreparationRecord(selected!.id, {
-        notes: completeNotes.trim() || undefined,
-      }),
-    onSuccess: () => {
-      toast.success("Preparation completed.");
-      setSelected(null);
-      setCompleteNotes("");
-      invalidate();
-    },
-    onError: (e) => toast.error(getApiErrorMessage(e)),
-  });
 
   return (
     <section className="space-y-4">
@@ -210,7 +196,12 @@ export function LabTechPrepSection() {
             <Button
               type="button"
               disabled={completeMut.isPending}
-              onClick={() => completeMut.mutate()}
+              onClick={() =>
+                completeMut.mutate({
+                  id: selected.id,
+                  body: { notes: completeNotes.trim() || undefined },
+                })
+              }
             >
               Confirm complete
             </Button>

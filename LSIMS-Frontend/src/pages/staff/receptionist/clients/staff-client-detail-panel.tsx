@@ -1,4 +1,3 @@
-import { useMutation } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
@@ -8,8 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { createNotification } from "@/features/notifications/api";
-import { getApiErrorMessage } from "@/lib/api";
+import { useCreateNotification } from "@/features/notifications/hooks";
 import {
   JOB_PRIORITY_LABEL,
   JOB_STATUS_LABEL,
@@ -46,21 +44,12 @@ export function StaffClientDetailPanel({ client, clientJobs, onClose }: Props) {
     [client.first_name, client.last_name].filter(Boolean).join(" ").trim() ||
     client.email;
 
-  const sendMut = useMutation({
-    mutationFn: () =>
-      createNotification({
-        recipient: client.email,
-        title: sendTitle.trim(),
-        body: sendBody.trim(),
-        kind: sendKind,
-      }),
+  const sendMut = useCreateNotification({
     onSuccess: () => {
-      toast.success("Message sent to client.");
       setSendTitle("");
       setSendBody("");
       setShowMessage(false);
     },
-    onError: (e) => toast.error(getApiErrorMessage(e)),
   });
 
   return (
@@ -139,7 +128,12 @@ export function StaffClientDetailPanel({ client, clientJobs, onClose }: Props) {
                 toast.error("Title and message are required.");
                 return;
               }
-              sendMut.mutate();
+              sendMut.mutate({
+                recipient: client.email,
+                title: sendTitle.trim(),
+                body: sendBody.trim(),
+                kind: sendKind,
+              });
             }}
           >
             <p className="text-sm font-medium">Send to {client.email}</p>

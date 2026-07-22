@@ -1,4 +1,3 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
 import { BookOpen, CheckCircle2, Dice5, FilePlus2, Loader2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -8,8 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { fetchLabClients } from "@/features/accounts/api";
-import { createStaffJob } from "@/features/jobs/api";
+import { useLabClients } from "@/features/accounts/hooks";
+import {
+  useClientServiceCatalog,
+  useCreateStaffJob,
+} from "@/features/jobs/hooks";
 import { ClientServiceCatalogPicker } from "@/features/jobs/components/client-service-catalog-picker";
 import { getDemoClientServiceCatalog } from "@/features/jobs/lib/client-service-catalog-demo";
 import {
@@ -29,8 +31,6 @@ import {
   sumSelectedPrices,
   type ClientCatalogIndex,
 } from "@/lib/laboratory/catalog/client-catalog";
-import { fetchClientServiceCatalog } from "@/features/laboratory/api";
-import { getApiErrorMessage } from "@/lib/api";
 import { formatMoney } from "@/lib/formatting";
 import {
   JOB_PRIORITY_LABEL,
@@ -77,10 +77,7 @@ export function StaffJobIntakeWizard({
   const [packagingOk, setPackagingOk] = useState(false);
   const [catalogDialogOpen, setCatalogDialogOpen] = useState(false);
 
-  const { data: clients = [] } = useQuery({
-    queryKey: ["lab-clients-picker"],
-    queryFn: fetchLabClients,
-  });
+  const { data: clients = [] } = useLabClients();
 
   const {
     data: catalogData,
@@ -88,11 +85,7 @@ export function StaffJobIntakeWizard({
     isError: catalogError,
     error: catalogErrorDetail,
     refetch: refetchCatalog,
-  } = useQuery({
-    queryKey: ["client-service-catalog"],
-    queryFn: fetchClientServiceCatalog,
-    staleTime: 120_000,
-  });
+  } = useClientServiceCatalog();
 
   const { groups: catalogGroups, index: catalogIndex } = useMemo(() => {
     if (!catalogData) {
@@ -152,13 +145,11 @@ export function StaffJobIntakeWizard({
       ? (perSampleSelections[activeSampleIndex] ?? new Set())
       : selected;
 
-  const mut = useMutation({
-    mutationFn: createStaffJob,
+  const mut = useCreateStaffJob({
     onSuccess: (job) => {
       toast.success("Job order created — send to Finance for invoicing.");
       setCreatedJob(job);
     },
-    onError: (e) => toast.error(getApiErrorMessage(e)),
   });
 
   useEffect(() => {

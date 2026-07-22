@@ -1,25 +1,18 @@
 import { staffPath } from "@/lib/staff";
-import { useQuery } from "@tanstack/react-query";
 import { Clock, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 
-import { fetchJobOrders } from "@/features/jobs/api";
+import { useJobOrders } from "@/features/jobs/hooks";
 import {
   JOB_PRIORITY_LABEL,
   JOB_STATUS_LABEL,
   shortJobId,
 } from "@/lib/laboratory";
 
-import { dashboardKeys } from "@/lib/staff/dashboard/query-keys";
-
 const PREVIEW_LIMIT = 6;
 
 export function StaffDashboardRecentJobs() {
-  const { data, isLoading, isError } = useQuery({
-    queryKey: dashboardKeys.recentJobs,
-    queryFn: () => fetchJobOrders({ page: 1 }),
-    staleTime: 45_000,
-  });
+  const { data, isLoading, isError } = useJobOrders({ page: 1 }, { staleTime: 45_000 });
 
   const rows = [...(data?.results ?? [])].slice(0, PREVIEW_LIMIT);
 

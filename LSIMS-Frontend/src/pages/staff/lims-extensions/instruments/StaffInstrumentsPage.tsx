@@ -1,4 +1,3 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -9,21 +8,18 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  createCalibrationRecord,
-  deleteCalibrationRecord,
-  fetchCalibrationRecords,
-  patchCalibrationRecord,
-} from "@/features/laboratory/api";
-import { fetchAnalysisResults } from "@/features/laboratory/api";
-import { laboratoryQueryKeys } from "@/features/laboratory/query-keys";
-import { getApiErrorMessage } from "@/lib/api";
+  useAnalysisResults,
+  useCalibrationRecords,
+  useCreateCalibrationRecord,
+  useDeleteCalibrationRecord,
+  usePatchCalibrationRecord,
+} from "@/features/laboratory/hooks";
 import type { CalibrationRecord } from "@/types/laboratory";
 
 import { LimsPageIntro } from "../lims-page-intro";
 import { StaffRoleBanner } from "../staff-role-banner";
 
 export default function StaffInstrumentsPage() {
-  const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
   const analysisResultFilter = searchParams.get("analysis_result") ?? "";
   const [showCreate, setShowCreate] = useState(false);
@@ -36,15 +32,11 @@ export default function StaffInstrumentsPage() {
     notes: "",
   });
 
-  const { data, isLoading, isError } = useQuery({
-    queryKey: laboratoryQueryKeys.calibrationRecords(
-      analysisResultFilter ? { analysis_result: analysisResultFilter } : undefined,
-    ),
-    queryFn: () =>
-      fetchCalibrationRecords({
-        page: 1,
-        analysis_result: analysisResultFilter || undefined,
-      }),
+  const calibrationParams = analysisResultFilter
+    ? { page: 1 as const, analysis_result: analysisResultFilter }
+    : { page: 1 as const };
+
+  const { data, isLoading, isError } = useCalibrationRecords(calibrationParams, {
     staleTime: 30_000,
   });
 
@@ -54,26 +46,13 @@ export default function StaffInstrumentsPage() {
     }
   }, [analysisResultFilter]);
 
-  const { data: approvedResults } = useQuery({
-    queryKey: laboratoryQueryKeys.analysisResults({ state: "approved" }),
-    queryFn: () => fetchAnalysisResults({ page: 1, state: "approved" }),
-    staleTime: 60_000,
-  });
+  const { data: approvedResults } = useAnalysisResults(
+    { page: 1, state: "approved" },
+    { staleTime: 60_000 },
+  );
   const resultOptions = approvedResults?.results ?? [];
 
-  const invalidate = () => {
-    void queryClient.invalidateQueries({ queryKey: ["calibration-records"] });
-  };
-
-  const createMut = useMutation({
-    mutationFn: () =>
-      createCalibrationRecord({
-        analysis_result: form.analysis_result.trim(),
-        instrument_name: form.instrument_name.trim(),
-        calibration_reference: form.calibration_reference.trim() || undefined,
-        calibration_date: form.calibration_date.trim() || null,
-        notes: form.notes.trim() || undefined,
-      }),
+  const createMut = useCreateCalibrationRecord({
     onSuccess: () => {
       toast.success("Calibration record created.");
       setShowCreate(false);
@@ -84,34 +63,20 @@ export default function StaffInstrumentsPage() {
         calibration_date: "",
         notes: "",
       });
-      invalidate();
     },
-    onError: (e) => toast.error(getApiErrorMessage(e)),
   });
 
-  const patchMut = useMutation({
-    mutationFn: () =>
-      patchCalibrationRecord(editing!.id, {
-        instrument_name: form.instrument_name.trim(),
-        calibration_reference: form.calibration_reference.trim(),
-        calibration_date: form.calibration_date.trim() || null,
-        notes: form.notes.trim(),
-      }),
+  const patchMut = usePatchCalibrationRecord({
     onSuccess: () => {
       toast.success("Calibration updated.");
       setEditing(null);
-      invalidate();
     },
-    onError: (e) => toast.error(getApiErrorMessage(e)),
   });
 
-  const deleteMut = useMutation({
-    mutationFn: deleteCalibrationRecord,
+  const deleteMut = useDeleteCalibrationRecord({
     onSuccess: () => {
       toast.success("Calibration deleted.");
-      invalidate();
     },
-    onError: (e) => toast.error(getApiErrorMessage(e)),
   });
 
   const rows = data?.results ?? [];
@@ -154,13 +119,28 @@ export default function StaffInstrumentsPage() {
               toast.error("Instrument name is required.");
               return;
             }
-            if (editing) patchMut.mutate();
-            else {
+            if (editing) {
+              patchMut.mutate({
+                id: editing.id,
+                body: {
+                  instrument_name: form.instrument_name.trim(),
+                  calibration_reference: form.calibration_reference.trim(),
+                  calibration_date: form.calibration_date.trim() || null,
+                  notes: form.notes.trim(),
+                },
+              });
+            } else {
               if (!form.analysis_result.trim()) {
                 toast.error("Analysis result ID is required.");
                 return;
               }
-              createMut.mutate();
+              createMut.mutate({
+                analysis_result: form.analysis_result.trim(),
+                instrument_name: form.instrument_name.trim(),
+                calibration_reference: form.calibration_reference.trim() || undefined,
+                calibration_date: form.calibration_date.trim() || null,
+                notes: form.notes.trim() || undefined,
+              });
             }
           }}
         >

@@ -1,21 +1,14 @@
-import { useQuery } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { TablePaginationFooter } from "@/components/data-table/table-pagination-footer";
 import { Label } from "@/components/ui/label";
-import { fetchAnalysisResult } from "@/features/laboratory/api";
-import { fetchQCDecisions } from "@/features/laboratory/api";
-import { laboratoryQueryKeys } from "@/features/laboratory/query-keys";
+import { useQCDecisions, useQcHistoryEnrichedRows } from "@/features/laboratory/hooks";
 import { getApiErrorMessage } from "@/lib/api";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { QC_DESK_PAGE_SIZE } from "@/lib/staff/qc/constants";
 import { formatDecidedAt } from "@/lib/formatting";
-import type { AnalysisResult, QCDecision, QCDecisionValue } from "@/types/laboratory";
-
-type EnrichedDecision = QCDecision & {
-  resultDetail?: AnalysisResult | null;
-};
+import type { QCDecisionValue } from "@/types/laboratory";
 
 export default function QcHistoryPage() {
   const [page, setPage] = useState(1);
@@ -37,30 +30,16 @@ export default function QcHistoryPage() {
     [page, decisionFilter, debouncedSearch],
   );
 
-  const { data, isLoading, isError, error, isFetching } = useQuery({
-    queryKey: laboratoryQueryKeys.qcDecisions(listParams),
-    queryFn: () => fetchQCDecisions(listParams),
+  const { data, isLoading, isError, error, isFetching } = useQCDecisions(listParams, {
     staleTime: 30_000,
   });
 
-  const { data: enrichedRows = [], isLoading: enrichLoading } = useQuery({
-    queryKey: ["qc-history-enriched", listParams, data?.results.map((d) => d.id).join(",")],
-    queryFn: async (): Promise<EnrichedDecision[]> => {
-      const decisions = data?.results ?? [];
-      const details = await Promise.all(
-        decisions.map(async (d) => {
-          try {
-            const resultDetail = await fetchAnalysisResult(d.analysis_result);
-            return { ...d, resultDetail };
-          } catch {
-            return { ...d, resultDetail: null };
-          }
-        }),
-      );
-      return details;
-    },
-    enabled: Boolean(data?.results.length),
-  });
+  const { data: enrichedRows = [], isLoading: enrichLoading } = useQcHistoryEnrichedRows(
+    data?.results,
+  );
+
+  const tableLoading =
+    isLoading || (Boolean(data?.results?.length) && enrichLoading);
 
   const filteredRows = useMemo(() => {
     let rows = enrichedRows;
@@ -179,7 +158,7 @@ export default function QcHistoryPage() {
       </div>
 
       <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
-        {isLoading || enrichLoading ? (
+        {tableLoading ? (
           <div className="flex justify-center py-12">
             <Loader2 className="size-6 animate-spin text-muted-foreground" />
           </div>
@@ -227,7 +206,7 @@ export default function QcHistoryPage() {
             </table>
           </div>
         )}
-        {!isLoading && !enrichLoading && filteredRows.length === 0 ? (
+        {!tableLoading && filteredRows.length === 0 ? (
           <p className="p-6 text-sm text-muted-foreground">No decisions match your filters.</p>
         ) : null}
         {data && data.count > 0 ? (

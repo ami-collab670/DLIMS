@@ -1,17 +1,16 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueries } from "@tanstack/react-query";
 import { Link2, Loader2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { fetchSampleTests } from "@/features/laboratory/api";
 import {
-  assignTestToSample,
-  fetchSampleTests,
-  fetchTestCatalog,
-  removeSampleTestAssignment,
-} from "@/features/laboratory/api";
-import { getApiErrorMessage } from "@/lib/api";
+  useAssignTestToSample,
+  useRemoveSampleTestAssignment,
+  useTestCatalog,
+} from "@/features/laboratory/hooks";
 import type { SampleRecord, SampleTestRow } from "@/types/laboratory";
 
 function sampleLabel(sample: SampleRecord): string {
@@ -19,7 +18,6 @@ function sampleLabel(sample: SampleRecord): string {
 }
 
 export function ReceptionistJobTestAssignments({
-  jobId,
   samples,
   prefillTestId,
   onPrefillTestConsumed,
@@ -29,7 +27,6 @@ export function ReceptionistJobTestAssignments({
   prefillTestId?: string;
   onPrefillTestConsumed?: () => void;
 }) {
-  const queryClient = useQueryClient();
   const [sampleId, setSampleId] = useState("");
   const [testId, setTestId] = useState("");
 
@@ -46,49 +43,34 @@ export function ReceptionistJobTestAssignments({
     return map;
   }, [samples]);
 
-  const { data: testsPage } = useQuery({
-    queryKey: ["test-catalog-assign-picker"],
-    queryFn: () => fetchTestCatalog({ page: 1, page_size: 100, is_active: true }),
+  const { data: testsPage } = useTestCatalog({
+    page: 1,
+    page_size: 100,
+    is_active: true,
   });
 
-  const {
-    data: assignments = [],
-    isLoading: assignmentsLoading,
-  } = useQuery({
-    queryKey: ["sample-tests", "job", jobId, sampleIds],
-    queryFn: async (): Promise<SampleTestRow[]> => {
-      const pages = await Promise.all(
-        sampleIds.map((id) => fetchSampleTests({ sample: id, page: 1 })),
-      );
-      return pages.flatMap((p) => p.results);
-    },
-    enabled: sampleIds.length > 0,
+  const assignmentQueries = useQueries({
+    queries: sampleIds.map((id) => ({
+      queryKey: ["sample-tests", { sample: id, page: 1 }],
+      queryFn: () => fetchSampleTests({ sample: id, page: 1 }),
+      enabled: sampleIds.length > 0,
+    })),
   });
 
-  const invalidate = () => {
-    void queryClient.invalidateQueries({ queryKey: ["sample-tests"] });
-    void queryClient.invalidateQueries({ queryKey: ["sample-tests", "job", jobId] });
-    void queryClient.invalidateQueries({ queryKey: ["staff-analyst"] });
-    void queryClient.invalidateQueries({ queryKey: ["receptionist-job-samples", jobId] });
-  };
+  const assignments = assignmentQueries.flatMap(
+    (q) => q.data?.results ?? [],
+  ) as SampleTestRow[];
+  const assignmentsLoading = assignmentQueries.some((q) => q.isLoading);
 
-  const assignMut = useMutation({
-    mutationFn: () => assignTestToSample({ sample: sampleId, test: testId }),
+  const assignMut = useAssignTestToSample({
     onSuccess: () => {
       toast.success("Test assigned.");
       setTestId("");
-      invalidate();
     },
-    onError: (e) => toast.error(getApiErrorMessage(e)),
   });
 
-  const removeMut = useMutation({
-    mutationFn: removeSampleTestAssignment,
-    onSuccess: () => {
-      toast.success("Assignment removed.");
-      invalidate();
-    },
-    onError: (e) => toast.error(getApiErrorMessage(e)),
+  const removeMut = useRemoveSampleTestAssignment({
+    onSuccess: () => toast.success("Assignment removed."),
   });
 
   if (!samples.length) {
@@ -109,7 +91,7 @@ export function ReceptionistJobTestAssignments({
             toast.error("Choose a sample and a test.");
             return;
           }
-          assignMut.mutate();
+          assignMut.mutate({ sample: sampleId, test: testId });
         }}
       >
         <p className="text-sm font-medium">Assign test</p>

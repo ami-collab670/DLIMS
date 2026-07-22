@@ -1,15 +1,11 @@
 import { staffPath } from "@/lib/staff";
-import { useQuery } from "@tanstack/react-query";
 import { Bell, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 
-import { fetchUnreadNotificationCount } from "@/features/notifications/api";
-import { notificationKeys } from "@/features/notifications/query-keys";
+import { useUnreadCount } from "@/features/notifications/hooks";
 
 export function ReceptionistUnreadNotifications() {
-  const { data: count = 0, isLoading, isError } = useQuery({
-    queryKey: notificationKeys.unreadCount,
-    queryFn: fetchUnreadNotificationCount,
+  const { data: count = 0, isLoading, isError } = useUnreadCount({
     staleTime: 30_000,
     refetchInterval: 30_000,
   });

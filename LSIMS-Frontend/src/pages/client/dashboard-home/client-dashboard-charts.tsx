@@ -1,4 +1,7 @@
-import { useQuery } from "@tanstack/react-query";
+import {
+  useClientActiveJobs,
+  useClientFinancialRecords,
+} from "@/features/client/hooks";
 import { Loader2 } from "lucide-react";
 import type { ReactNode } from "react";
 import {
@@ -13,11 +16,6 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-
-import {
-  fetchAllActiveJobs,
-  fetchClientFinancialRecords,
-} from "@/features/client/lib/dashboard-queries";
 import {
   groupInvoicesByPaymentStatus,
   groupJobsByPriority,
@@ -30,8 +28,6 @@ import {
   chartColorForPriority,
   chartColorForProgressStep,
 } from "@/lib/client";
-
-import { clientDashboardKeys } from "@/lib/client/dashboard/query-keys";
 
 const CHART_HEIGHT = 220;
 
@@ -91,17 +87,9 @@ function CountTooltip({
 }
 
 export function ClientDashboardCharts() {
-  const jobsQuery = useQuery({
-    queryKey: clientDashboardKeys.allActiveJobs,
-    queryFn: fetchAllActiveJobs,
-    staleTime: 45_000,
-  });
+  const jobsQuery = useClientActiveJobs();
 
-  const financeQuery = useQuery({
-    queryKey: clientDashboardKeys.allFinancialRecords,
-    queryFn: fetchClientFinancialRecords,
-    staleTime: 45_000,
-  });
+  const financeQuery = useClientFinancialRecords();
 
   const jobs = jobsQuery.data ?? [];
   const financeRecords = financeQuery.data ?? [];

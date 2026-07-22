@@ -1,14 +1,13 @@
-import { useQuery } from "@tanstack/react-query";
 import { AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 
-import { fetchComplaints } from "@/features/laboratory/api";
+import { useComplaints } from "@/features/laboratory/hooks";
+import {
+  useClientActiveJobs,
+  useClientFinancialRecords,
+} from "@/features/client/hooks";
 import { JOB_STATUS_LABEL } from "@/lib/laboratory";
 import { formatMoney, formatMoneyFromApi } from "@/lib/formatting";
-import {
-  fetchAllActiveJobs,
-  fetchClientFinancialRecords,
-} from "@/features/client/lib/dashboard-queries";
 import {
   complaintsNeedingFollowUp,
   extractClientReferenceLabel,
@@ -22,26 +21,15 @@ import {
   ClientComplaintStatusBadge,
 } from "@/pages/client/complaints/client-complaint-badges";
 
-import { clientDashboardKeys } from "@/lib/client/dashboard/query-keys";
-
 export function ClientDashboardAttention() {
-  const jobsQuery = useQuery({
-    queryKey: clientDashboardKeys.allActiveJobs,
-    queryFn: fetchAllActiveJobs,
-    staleTime: 45_000,
-  });
+  const jobsQuery = useClientActiveJobs();
 
-  const financeQuery = useQuery({
-    queryKey: clientDashboardKeys.allFinancialRecords,
-    queryFn: fetchClientFinancialRecords,
-    staleTime: 45_000,
-  });
+  const financeQuery = useClientFinancialRecords();
 
-  const complaintsQuery = useQuery({
-    queryKey: clientDashboardKeys.attentionComplaints,
-    queryFn: () => fetchComplaints({ page: 1, page_size: 20 }),
-    staleTime: 45_000,
-  });
+  const complaintsQuery = useComplaints(
+    { page: 1, page_size: 20 },
+    { staleTime: 45_000 },
+  );
 
   const loading =
     jobsQuery.isLoading || financeQuery.isLoading || complaintsQuery.isLoading;

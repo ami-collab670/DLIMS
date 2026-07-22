@@ -1,30 +1,15 @@
-import { useQuery } from "@tanstack/react-query";
 import { Loader2, Wallet } from "lucide-react";
 import { Link } from "react-router-dom";
 
+import { useFinanceOutstandingInvoicesQueue } from "@/features/laboratory/hooks";
 import { shortJobId } from "@/lib/laboratory";
 import { clientJobReferenceLabel } from "@/lib/laboratory";
-import { buildJobOrderMap } from "@/features/laboratory/lib/build-job-order-map";
-import { fetchAllFinancialRecords } from "@/features/laboratory/lib/fetch-all-financial-records";
 import { daysSince, formatMoney } from "@/lib/formatting";
-import { dashboardKeys } from "@/lib/staff/dashboard/query-keys";
 import { formatPaymentStatusLabel } from "@/lib/laboratory/labels/payment-labels";
 import { outstandingAmount } from "@/lib/laboratory/finance/dashboard-metrics";
 
-
 export function FinanceOutstandingInvoicesQueue() {
-  const { data, isLoading, isError } = useQuery({
-    queryKey: dashboardKeys.financeOutstanding,
-    queryFn: async () => {
-      const records = await fetchAllFinancialRecords();
-      const outstanding = records.filter(
-        (r) => r.payment_status === "pending" || r.payment_status === "partial",
-      );
-      const jobMap = await buildJobOrderMap(outstanding.map((r) => r.job));
-      return { outstanding, jobMap };
-    },
-    staleTime: 60_000,
-  });
+  const { data, isLoading, isError } = useFinanceOutstandingInvoicesQueue();
 
   const preview = (data?.outstanding ?? []).slice(0, 8);
   const jobMap = data?.jobMap ?? new Map();

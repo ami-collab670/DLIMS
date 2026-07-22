@@ -1,17 +1,12 @@
 import { staffPath } from "@/lib/staff";
-import { useQuery } from "@tanstack/react-query";
 import { ClipboardList, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 
+import { useAwaitingFinanceJobs } from "@/features/laboratory/hooks";
 import { JOB_PRIORITY_LABEL, JOB_STATUS_LABEL, shortJobId } from "@/lib/laboratory";
 
-import { dashboardKeys } from "@/lib/staff/dashboard/query-keys";
-import { fetchAwaitingFinanceJobs } from "@/features/laboratory/lib/fetch-awaiting-finance-jobs";
-
 export function ReceptionistIntakeQueue() {
-  const { data: jobs = [], isLoading, isError } = useQuery({
-    queryKey: dashboardKeys.receptionistIntakeQueue,
-    queryFn: fetchAwaitingFinanceJobs,
+  const { data: jobs = [], isLoading, isError } = useAwaitingFinanceJobs({
     staleTime: 60_000,
   });
 
@@ -52,8 +47,7 @@ export function ReceptionistIntakeQueue() {
 
       {!jobs.length ? (
         <p className="text-sm text-muted-foreground">
-          No jobs in{" "}
-          <strong>{JOB_STATUS_LABEL.pending_finance}</strong> status right now.
+          No jobs are waiting on finance clearance.
         </p>
       ) : (
         <div className="overflow-x-auto rounded-lg border border-border">
@@ -61,28 +55,21 @@ export function ReceptionistIntakeQueue() {
             <thead>
               <tr className="border-b bg-muted/40">
                 <th className="px-3 py-2 font-medium">Job</th>
-                <th className="px-3 py-2 font-medium">Client</th>
-                <th className="px-3 py-2 font-medium">Priority</th>
                 <th className="px-3 py-2 font-medium">Status</th>
+                <th className="px-3 py-2 font-medium">Priority</th>
+                <th className="px-3 py-2 font-medium">Client</th>
               </tr>
             </thead>
             <tbody>
               {preview.map((job) => (
-                <tr key={job.id} className="border-b last:border-0">
-                  <td className="px-3 py-2 font-mono text-xs">
-                    <Link
-                      to={`/staff/laboratory?tab=jobs&job=${job.id}`}
-                      className="font-medium text-primary hover:underline"
-                    >
-                      {shortJobId(job.id)}
-                    </Link>
-                  </td>
-                  <td className="px-3 py-2">{job.client_name}</td>
-                  <td className="px-3 py-2 text-xs">
+                <tr key={job.id} className="border-b border-border/80">
+                  <td className="px-3 py-2 font-mono text-xs">{shortJobId(job.id)}</td>
+                  <td className="px-3 py-2">{JOB_STATUS_LABEL[job.current_status]}</td>
+                  <td className="px-3 py-2 capitalize">
                     {JOB_PRIORITY_LABEL[job.priority]}
                   </td>
-                  <td className="px-3 py-2 text-xs">
-                    {JOB_STATUS_LABEL[job.current_status]}
+                  <td className="max-w-[160px] truncate px-3 py-2 text-muted-foreground">
+                    {job.client_name || job.client}
                   </td>
                 </tr>
               ))}
@@ -90,6 +77,11 @@ export function ReceptionistIntakeQueue() {
           </table>
         </div>
       )}
+      {jobs.length > preview.length ? (
+        <p className="mt-2 text-xs text-muted-foreground">
+          Showing {preview.length} of {jobs.length}.
+        </p>
+      ) : null}
     </section>
   );
 }

@@ -1,18 +1,16 @@
 import { ROUTES } from "@/lib/routing";
-import { useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
 import { BadgeCheck, Clock, Loader2, XCircle } from "lucide-react";
 import { Link } from "react-router-dom";
 import type { LucideIcon } from "lucide-react";
 
-import { fetchJobOrders } from "@/features/jobs/api";
-import { fetchAnalysisResults } from "@/features/laboratory/api";
-import { fetchQCDecisions } from "@/features/laboratory/api";
-import { dashboardKeys } from "@/lib/staff/dashboard/query-keys";
-import { formatSubmittedAt } from "@/lib/formatting";
 import {
-  computeQcKpis,
-  sortSubmittedResults,
-} from "@/lib/laboratory/qc/desk-utils";
+  useAnalysisResults,
+  useQCDecisions,
+  useQcDeskKpis,
+} from "@/features/laboratory/hooks";
+import { formatSubmittedAt } from "@/lib/formatting";
+import { sortSubmittedResults } from "@/lib/laboratory/qc/desk-utils";
 import { QC_PREVIEW_LIMIT } from "@/lib/staff/qc/constants";
 
 function KpiCard({
@@ -52,23 +50,7 @@ function KpiCard({
 }
 
 export function QcDashboardKpiGrid() {
-  const { data: kpis, isLoading } = useQuery({
-    queryKey: dashboardKeys.qcDeskKpis,
-    queryFn: async () => {
-      const [submittedRes, decisionsRes, qcJobs] = await Promise.all([
-        fetchAnalysisResults({ page: 1, page_size: 100, state: "submitted" }),
-        fetchQCDecisions({ page: 1, page_size: 200 }),
-        fetchJobOrders({ page: 1, current_status: "qc", is_cancelled: false }),
-      ]);
-      return computeQcKpis(
-        submittedRes.results,
-        submittedRes.count,
-        decisionsRes.results,
-        qcJobs.count,
-      );
-    },
-    staleTime: 60_000,
-  });
+  const { data: kpis, isLoading } = useQcDeskKpis({ staleTime: 60_000 });
 
   return (
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
@@ -115,18 +97,23 @@ export function QcDashboardKpiGrid() {
 }
 
 export function QcDashboardInboxPreview() {
-  const { data = [], isLoading, isError } = useQuery({
-    queryKey: dashboardKeys.qcDeskInboxPreview,
-    queryFn: async () => {
-      const res = await fetchAnalysisResults({
-        page: 1,
-        page_size: 100,
-        state: "submitted",
-      });
-      return sortSubmittedResults(res.results, "oldest").slice(0, QC_PREVIEW_LIMIT);
+  const { data: submittedData, isLoading, isError } = useAnalysisResults(
+    {
+      page: 1,
+      page_size: 100,
+      state: "submitted",
     },
-    staleTime: 30_000,
-  });
+    { staleTime: 30_000 },
+  );
+
+  const previewRows = useMemo(
+    () =>
+      sortSubmittedResults(submittedData?.results ?? [], "oldest").slice(
+        0,
+        QC_PREVIEW_LIMIT,
+      ),
+    [submittedData?.results],
+  );
 
   return (
     <section className="rounded-xl border border-border bg-card p-4 shadow-sm">
@@ -146,11 +133,11 @@ export function QcDashboardInboxPreview() {
         </div>
       ) : isError ? (
         <p className="py-4 text-sm text-destructive">Could not load inbox.</p>
-      ) : data.length === 0 ? (
+      ) : previewRows.length === 0 ? (
         <p className="py-4 text-sm text-muted-foreground">No submitted results pending review.</p>
       ) : (
         <ul className="mt-3 space-y-2">
-          {data.map((r) => (
+          {previewRows.map((r) => (
             <li
               key={r.id}
               className="flex flex-wrap items-baseline justify-between gap-2 rounded-lg border border-border px-3 py-2 text-sm"
@@ -174,14 +161,12 @@ export function QcDashboardInboxPreview() {
 }
 
 export function QcDashboardRecentDecisions() {
-  const { data = [], isLoading, isError } = useQuery({
-    queryKey: dashboardKeys.qcDeskRecentDecisions,
-    queryFn: async () => {
-      const res = await fetchQCDecisions({ page: 1, page_size: QC_PREVIEW_LIMIT });
-      return res.results;
-    },
-    staleTime: 30_000,
-  });
+  const { data: decisionsData, isLoading, isError } = useQCDecisions(
+    { page: 1, page_size: QC_PREVIEW_LIMIT },
+    { staleTime: 30_000 },
+  );
+
+  const rows = decisionsData?.results ?? [];
 
   return (
     <section className="rounded-xl border border-border bg-card p-4 shadow-sm">
@@ -201,11 +186,11 @@ export function QcDashboardRecentDecisions() {
         </div>
       ) : isError ? (
         <p className="py-4 text-sm text-destructive">Could not load decisions.</p>
-      ) : data.length === 0 ? (
+      ) : rows.length === 0 ? (
         <p className="py-4 text-sm text-muted-foreground">No QC decisions recorded yet.</p>
       ) : (
         <ul className="mt-3 space-y-2">
-          {data.map((d) => (
+          {rows.map((d) => (
             <li
               key={d.id}
               className="rounded-lg border border-border px-3 py-2 text-sm"

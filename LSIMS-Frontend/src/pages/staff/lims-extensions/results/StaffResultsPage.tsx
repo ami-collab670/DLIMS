@@ -13,7 +13,7 @@ import {
   fetchAnalysisResults,
   submitAnalysisResult,
 } from "@/features/laboratory/api";
-import { fetchJobResultSummary } from "@/features/jobs/api";
+import { useJobResultSummary } from "@/features/jobs/hooks";
 import { laboratoryQueryKeys } from "@/features/laboratory/query-keys";
 import { fetchSampleTests, fetchSamples } from "@/features/laboratory/api";
 import { getApiErrorMessage } from "@/lib/api";
@@ -35,11 +35,10 @@ export default function StaffResultsPage() {
   const [draftValue, setDraftValue] = useState("");
   const [draftUnit, setDraftUnit] = useState("");
 
-  const { data: summary, isLoading: summaryLoading, isError: summaryError } = useQuery({
-    queryKey: laboratoryQueryKeys.jobResultSummary(lookupJobId),
-    queryFn: () => fetchJobResultSummary(lookupJobId),
-    enabled: Boolean(lookupJobId),
-  });
+  const { data: summary, isLoading: summaryLoading, isError: summaryError } =
+    useJobResultSummary(lookupJobId, {
+      enabled: Boolean(lookupJobId),
+    });
 
   const { data: draftResults } = useQuery({
     queryKey: laboratoryQueryKeys.analysisResults({ state: "draft" }),
@@ -62,7 +61,6 @@ export default function StaffResultsPage() {
   const sampleTestOptions = sampleTestsPage?.results ?? [];
 
   const invalidate = () => {
-    void queryClient.invalidateQueries({ queryKey: ["job-result-summary"] });
     void queryClient.invalidateQueries({ queryKey: ["analysis-results"] });
   };
 

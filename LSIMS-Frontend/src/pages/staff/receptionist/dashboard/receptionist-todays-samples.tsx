@@ -1,22 +1,22 @@
 import { staffPath } from "@/lib/staff";
-import { useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
 import { Loader2, TestTube } from "lucide-react";
 import { Link } from "react-router-dom";
 
-import { fetchSamples } from "@/features/laboratory/api";
+import { useSamples } from "@/features/laboratory/hooks";
 import { isToday } from "@/lib/formatting";
 import { shortJobId } from "@/lib/laboratory";
 
-import { dashboardKeys } from "@/lib/staff/dashboard/query-keys";
-
 export function ReceptionistTodaysSamples() {
-  const { data, isLoading, isError } = useQuery({
-    queryKey: dashboardKeys.receptionistTodaysSamples,
-    queryFn: () => fetchSamples({ page: 1, page_size: 50 }),
-    staleTime: 60_000,
-  });
+  const { data, isLoading, isError } = useSamples(
+    { page: 1, page_size: 50 },
+    { staleTime: 60_000 },
+  );
 
-  const todaySamples = (data?.results ?? []).filter((s) => isToday(s.created_at));
+  const todaySamples = useMemo(
+    () => (data?.results ?? []).filter((s) => isToday(s.created_at)),
+    [data?.results],
+  );
   const preview = todaySamples.slice(0, 5);
 
   if (isLoading) {

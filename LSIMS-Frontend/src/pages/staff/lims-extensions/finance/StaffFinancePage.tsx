@@ -1,10 +1,9 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { useCallback, useEffect, useMemo } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 
 import { useBreadcrumbSegments } from "@/components/navigation/breadcrumb-segments-context";
-import { fetchJobOrder } from "@/features/jobs/api";
+import { useJobOrder } from "@/features/jobs/hooks";
 import { useTrackedTabs } from "@/hooks/use-tracked-tabs";
 import { shortJobId } from "@/lib/laboratory";
 import { ROUTES } from "@/lib/routing";
@@ -125,7 +124,6 @@ export default function StaffFinancePage() {
   const user = useAuthStore((s) => s.user);
   const receptionist = isReceptionist(user);
   const finance = isFinance(user);
-  const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const tabParam = searchParams.get("tab");
   const selectedJobId = searchParams.get("job") ?? "";
@@ -174,9 +172,7 @@ export default function StaffFinancePage() {
     data: detailJob,
     isLoading: detailLoading,
     isError: detailError,
-  } = useQuery({
-    queryKey: ["staff-job-order", selectedJobId],
-    queryFn: () => fetchJobOrder(selectedJobId),
+  } = useJobOrder(selectedJobId, {
     enabled: Boolean(selectedJobId) && !receptionist,
   });
 
@@ -227,12 +223,7 @@ export default function StaffFinancePage() {
             <FinanceJobDetailPanel
               job={detailJob}
               onClose={closeJob}
-              onUpdated={() => {
-                queryClient.invalidateQueries({ queryKey: ["financial-records"] });
-                queryClient.invalidateQueries({
-                  queryKey: ["staff-job-order", detailJob.id],
-                });
-              }}
+              onUpdated={() => {}}
             />
           )}
         </div>

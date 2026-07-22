@@ -1,11 +1,9 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
-import { fetchProfile, updateProfile } from "@/features/profile/api";
-import { getApiErrorMessage } from "@/lib/api";
+import { useProfile, useUpdateProfile } from "@/features/profile/hooks";
 import {
   profileFormSchema,
   type ProfileFormValues,
@@ -35,12 +33,8 @@ export default function ProfileManagementPage({
   showWorkspaceSettings = true,
   staffProfile = false,
 }: Props) {
-  const queryClient = useQueryClient();
   const setUser = useAuthStore((s) => s.setUser);
-  const { data: profile, isLoading } = useQuery({
-    queryKey: ["profile"],
-    queryFn: fetchProfile,
-  });
+  const { data: profile, isLoading } = useProfile();
 
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileFormSchema),
@@ -68,14 +62,11 @@ export default function ProfileManagementPage({
     });
   }, [profile, reset]);
 
-  const mutation = useMutation({
-    mutationFn: updateProfile,
+  const mutation = useUpdateProfile({
     onSuccess: (user) => {
       setUser(user);
-      void queryClient.invalidateQueries({ queryKey: ["profile"] });
       toast.success("Profile saved.");
     },
-    onError: (e) => toast.error(getApiErrorMessage(e)),
   });
 
   function onSubmit(values: ProfileFormValues) {

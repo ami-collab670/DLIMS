@@ -1,23 +1,18 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
 import { CheckCircle2, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 
+import { useAllFinancialRecords } from "@/features/laboratory/hooks";
 import { shortJobId } from "@/lib/laboratory";
-import { dashboardKeys } from "@/lib/staff/dashboard/query-keys";
-
 import { needsWaiverReleaseCheck } from "@/lib/laboratory/finance/dashboard-metrics";
-import { fetchAllFinancialRecords } from "@/features/laboratory/lib/fetch-all-financial-records";
-
 
 export function FinanceWaiverReleaseQueue() {
-  const { data = [], isLoading, isError } = useQuery({
-    queryKey: dashboardKeys.financeWaiverRelease,
-    queryFn: async () => {
-      const records = await fetchAllFinancialRecords();
-      return records.filter(needsWaiverReleaseCheck);
-    },
-    staleTime: 60_000,
-  });
+  const { data: records = [], isLoading, isError } = useAllFinancialRecords();
+
+  const data = useMemo(
+    () => records.filter(needsWaiverReleaseCheck),
+    [records],
+  );
 
   const preview = data.slice(0, 8);
 

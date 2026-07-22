@@ -1,11 +1,8 @@
 import { staffPath } from "@/lib/staff";
-import { useQuery } from "@tanstack/react-query";
 import { Loader2, MessageSquare } from "lucide-react";
 import { Link } from "react-router-dom";
 
-import { fetchNotifications } from "@/features/notifications/api";
-
-import { dashboardKeys } from "@/lib/staff/dashboard/query-keys";
+import { useNotifications } from "@/features/notifications/hooks";
 
 function formatWhen(iso: string) {
   try {
@@ -19,11 +16,10 @@ function formatWhen(iso: string) {
 }
 
 export function ReceptionistRecentMessages() {
-  const { data, isLoading, isError } = useQuery({
-    queryKey: dashboardKeys.receptionistRecentMessages,
-    queryFn: () => fetchNotifications({ page: 1, kind: "message" }),
-    staleTime: 30_000,
-  });
+  const { data, isLoading, isError } = useNotifications(
+    { page: 1, kind: "message" },
+    { staleTime: 30_000 },
+  );
 
   const messages = data?.results ?? [];
   const preview = messages.slice(0, 5);

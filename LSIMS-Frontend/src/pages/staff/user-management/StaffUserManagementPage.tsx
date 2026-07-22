@@ -1,4 +1,3 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -6,16 +5,15 @@ import { useBreadcrumbSegments } from "@/components/navigation/breadcrumb-segmen
 import { TableToolbar } from "@/components/data-table/table-toolbar";
 import { Button } from "@/components/ui/button";
 import { useTrackedTabs } from "@/hooks/use-tracked-tabs";
+import type { UpdateAdminUserBody } from "@/features/accounts/api";
 import {
-  adminChangeUserPassword,
-  createAdminUser,
-  deactivateAdminUser,
-  fetchAdminUsers,
-  patchAdminUser,
-  type UpdateAdminUserBody,
-} from "@/features/accounts/api";
+  useAdminChangeUserPassword,
+  useAdminUsers,
+  useCreateAdminUser,
+  useDeactivateAdminUser,
+  usePatchAdminUser,
+} from "@/features/accounts/hooks";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
-import { getApiErrorMessage } from "@/lib/api";
 import type { TablePageSize } from "@/lib/table";
 import type { AdminUserRow } from "@/types/account-admin";
 
@@ -35,7 +33,6 @@ const USER_MANAGEMENT_TAB_LABELS = {
 } as const;
 
 export default function StaffUserManagementPage() {
-  const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<TablePageSize>(DEFAULT_TABLE_PAGE_SIZE);
   const [search, setSearch] = useState("");
@@ -60,68 +57,18 @@ export default function StaffUserManagementPage() {
     isLoading,
     isError,
     error,
-  } = useQuery({
-    queryKey: ["admin-users", page, pageSize, debounced],
-    queryFn: () =>
-      fetchAdminUsers({
-        page,
-        page_size: pageSize,
-        search: debounced || undefined,
-      }),
+  } = useAdminUsers({
+    page,
+    page_size: pageSize,
+    search: debounced || undefined,
   });
 
-  const invalidateUsers = () => {
-    void queryClient.invalidateQueries({ queryKey: ["admin-users"] });
-  };
+  const createMut = useCreateAdminUser();
+  const deactivateMut = useDeactivateAdminUser();
+  const patchAdminMut = usePatchAdminUser();
+  const changePasswordMut = useAdminChangeUserPassword();
 
-  const createMut = useMutation({
-    mutationFn: createAdminUser,
-    onSuccess: () => {
-      toast.success("User created.");
-      invalidateUsers();
-      setShowCreate(false);
-      setCreateFormKey((k) => k + 1);
-    },
-    onError: (e) => toast.error(getApiErrorMessage(e)),
-  });
-
-  const deactivateMut = useMutation({
-    mutationFn: deactivateAdminUser,
-    onSuccess: () => {
-      toast.success("User deactivated.");
-      invalidateUsers();
-    },
-    onError: (e) => toast.error(getApiErrorMessage(e)),
-  });
-
-  const reactivateMut = useMutation({
-    mutationFn: (userId: string) => patchAdminUser(userId, { is_active: true }),
-    onSuccess: () => {
-      toast.success("User reactivated.");
-      invalidateUsers();
-    },
-    onError: (e) => toast.error(getApiErrorMessage(e)),
-  });
-
-  const updateMut = useMutation({
-    mutationFn: async (opts: {
-      id: string;
-      patch: UpdateAdminUserBody;
-      newPassword?: string;
-    }) => {
-      const row = await patchAdminUser(opts.id, opts.patch);
-      if (opts.newPassword) {
-        await adminChangeUserPassword(opts.id, opts.newPassword);
-      }
-      return row;
-    },
-    onSuccess: () => {
-      toast.success("User updated.");
-      invalidateUsers();
-      setEditingUser(null);
-    },
-    onError: (e) => toast.error(getApiErrorMessage(e)),
-  });
+  const updatePending = patchAdminMut.isPending || changePasswordMut.isPending;
 
   const totalPages = listData
     ? Math.max(1, Math.ceil(listData.count / pageSize))
@@ -131,7 +78,9 @@ export default function StaffUserManagementPage() {
     if (
       confirm(`Deactivate ${u.email}? They will not be able to sign in.`)
     ) {
-      deactivateMut.mutate(u.id);
+      deactivateMut.mutate(u.id, {
+        onSuccess: () => toast.success("User deactivated."),
+      });
     }
   }
 
@@ -139,8 +88,31 @@ export default function StaffUserManagementPage() {
     if (
       confirm(`Reactivate ${u.email}? They will be able to sign in again.`)
     ) {
-      reactivateMut.mutate(u.id);
+      patchAdminMut.mutate(
+        { userId: u.id, body: { is_active: true } },
+        { onSuccess: () => toast.success("User reactivated.") },
+      );
     }
+  }
+
+  async function handleSave(input: {
+    patch: UpdateAdminUserBody;
+    newPassword?: string;
+  }) {
+    if (!editingUser) return;
+
+    await patchAdminMut.mutateAsync({
+      userId: editingUser.id,
+      body: input.patch,
+    });
+    if (input.newPassword) {
+      await changePasswordMut.mutateAsync({
+        userId: editingUser.id,
+        newPassword: input.newPassword,
+      });
+    }
+    toast.success("User updated.");
+    setEditingUser(null);
   }
 
   return (
@@ -207,7 +179,15 @@ export default function StaffUserManagementPage() {
       {showCreate ? (
         <UserCreateForm
           key={createFormKey}
-          onSubmit={(body) => createMut.mutate(body)}
+          onSubmit={(body) =>
+            createMut.mutate(body, {
+              onSuccess: () => {
+                toast.success("User created.");
+                setShowCreate(false);
+                setCreateFormKey((k) => k + 1);
+              },
+            })
+          }
           isPending={createMut.isPending}
         />
       ) : null}
@@ -216,14 +196,8 @@ export default function StaffUserManagementPage() {
         <UserEditDialog
           user={editingUser}
           onClose={() => setEditingUser(null)}
-          isPending={updateMut.isPending}
-          onSave={(input) =>
-            updateMut.mutateAsync({
-              id: editingUser.id,
-              patch: input.patch,
-              newPassword: input.newPassword,
-            })
-          }
+          isPending={updatePending}
+          onSave={handleSave}
         />
       ) : null}
 
@@ -241,8 +215,8 @@ export default function StaffUserManagementPage() {
         onReactivate={handleReactivate}
         actionDisabled={
           deactivateMut.isPending ||
-          reactivateMut.isPending ||
-          updateMut.isPending
+          patchAdminMut.isPending ||
+          changePasswordMut.isPending
         }
       />
         </>
