@@ -14,4 +14,5 @@ export const env = {
     (import.meta.env.DEV ? "" : ""),
   cmsApiBaseUrl: cmsApiBaseUrl.replace(/\/$/, ""),
   appName: import.meta.env.VITE_APP_NAME ?? "LSIMS",
+  previewSecret: import.meta.env.VITE_PREVIEW_SECRET ?? "",
 } as const;

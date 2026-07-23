@@ -12,6 +12,7 @@ export const ROUTES = {
     collectionPoints: "/contact/collection-points",
     careers: "/contact/careers",
   },
+  preview: "/preview",
   login: "/login",
   signup: "/signup",
   forgotPassword: "/forgot-password",

@@ -48,6 +48,7 @@ import { NewsDetailPage } from "@/pages/public/news-detail-page";
 import { NewsIndexPage } from "@/pages/public/news-index-page";
 import { ServiceDetailPage } from "@/pages/public/service-detail-page";
 import { ServicesIndexPage } from "@/pages/public/services-index-page";
+import { CmsPreviewPage } from "@/pages/preview/CmsPreviewPage";
 import ProfileManagementPage from "@/pages/profile/ProfileManagementPage";
 import StaffClientsPage from "@/pages/staff/StaffClientsPage";
 import StaffCompliancePage from "@/pages/staff/StaffCompliancePage";
@@ -88,6 +89,7 @@ export const appRoutes: RouteObject[] = [
         element: <ContactCollectionPointsPage />,
       },
       { path: ROUTES.contact.careers, element: <ContactCareersPage /> },
+      { path: ROUTES.preview, element: <CmsPreviewPage /> },
 
       // ── Auth zone (lazy-loaded so auth bundle errors cannot block public routes) ──
       {

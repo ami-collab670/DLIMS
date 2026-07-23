@@ -10,6 +10,7 @@ import { mapNewsArticle, mapNewsArticles } from "@/features/cms/mappers/news";
 import { mapPartners } from "@/features/cms/mappers/partner";
 import { mapService, mapServices } from "@/features/cms/mappers/service";
 import { mapSiteSettings } from "@/features/cms/mappers/site-settings";
+import { getCmsPublicationStatus } from "@/features/cms/preview";
 import { resolvePublicNavLinks } from "@/features/cms/resolve-public-nav-links";
 import type {
   AboutPageContent,
@@ -189,7 +190,7 @@ export async function fetchServices(): Promise<ServiceItem[]> {
       "/services",
       {
         params: {
-          status: "published",
+          status: getCmsPublicationStatus(),
           sort: "sortOrder:asc",
           "pagination[pageSize]": 100,
         },
@@ -209,7 +210,7 @@ export async function fetchService(slug: string): Promise<ServiceItem | null> {
     const { data } = await withCmsRetry(async () =>
       cmsClient.get<StrapiCollectionResponse<StrapiService>>("/services", {
         params: {
-          status: "published",
+          status: getCmsPublicationStatus(),
           "filters[slug][$eq]": slug,
           "pagination[pageSize]": 1,
         },
@@ -233,7 +234,7 @@ export async function fetchNewsArticles(): Promise<NewsArticle[]> {
       StrapiCollectionResponse<StrapiNewsArticle>
     >("/news-articles", {
       params: {
-        status: "published",
+        status: getCmsPublicationStatus(),
         sort: "publishedDate:desc",
         "pagination[pageSize]": 100,
       },
@@ -254,7 +255,7 @@ export async function fetchNewsArticle(slug: string): Promise<NewsArticle | null
         "/news-articles",
         {
           params: {
-            status: "published",
+            status: getCmsPublicationStatus(),
             "filters[slug][$eq]": slug,
             "pagination[pageSize]": 1,
           },
@@ -279,7 +280,7 @@ export async function fetchEvents(): Promise<EventItem[]> {
       "/events",
       {
         params: {
-          status: "published",
+          status: getCmsPublicationStatus(),
           sort: "date:desc",
           "pagination[pageSize]": 100,
         },
@@ -299,7 +300,7 @@ export async function fetchEvent(slug: string): Promise<EventItem | null> {
     const { data } = await withCmsRetry(async () =>
       cmsClient.get<StrapiCollectionResponse<StrapiEvent>>("/events", {
         params: {
-          status: "published",
+          status: getCmsPublicationStatus(),
           "filters[slug][$eq]": slug,
           "pagination[pageSize]": 1,
         },

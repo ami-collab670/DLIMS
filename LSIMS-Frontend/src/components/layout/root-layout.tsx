@@ -7,6 +7,7 @@ import { CmsDevFallbackBanner } from "@/features/cms/components/cms-dev-fallback
 import { ROUTES } from "@/lib/routing";
 
 const AUTH_ROUTES = [ROUTES.login, ROUTES.signup, ROUTES.forgotPassword] as const;
+const PREVIEW_ROUTE = ROUTES.preview;
 
 export function RootLayout() {
   const { pathname } = useLocation();
@@ -16,6 +17,7 @@ export function RootLayout() {
   const hidePublicChrome =
     pathname.startsWith("/staff") ||
     pathname.startsWith("/client") ||
+    pathname === PREVIEW_ROUTE ||
     isAuthRoute;
 
   return (

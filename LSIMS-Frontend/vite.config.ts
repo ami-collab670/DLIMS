@@ -11,6 +11,9 @@ export default defineConfig({
     },
   },
   server: {
+    headers: {
+      'Content-Security-Policy': "frame-ancestors 'self' http://localhost:1337 http://127.0.0.1:1337",
+    },
     proxy: {
       '/api': {
         // docker-compose sets VITE_PROXY_API=http://backend:8000; local dev uses localhost

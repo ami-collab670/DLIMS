@@ -54,6 +54,7 @@ services:
       # Vite dev server proxies /api → Django (see vite.config.ts)
       VITE_PROXY_API: http://backend:8000
       VITE_CMS_PROXY: http://cms:1337
+      VITE_PREVIEW_SECRET: devPreviewSecret
       CHOKIDAR_USEPOLLING: 'true'
       WATCHPACK_POLLING: 'true'
       NODE_OPTIONS: '--max-old-space-size=4096'
@@ -85,6 +86,8 @@ services:
       ENCRYPTION_KEY: devEncryptionKey1234567890123456
       HOST: 0.0.0.0
       PORT: 1337
+      CLIENT_URL: http://localhost:5173
+      PREVIEW_SECRET: devPreviewSecret
       NODE_OPTIONS: '--max-old-space-size=4096'
     volumes:
       - ./cms:/opt/app
