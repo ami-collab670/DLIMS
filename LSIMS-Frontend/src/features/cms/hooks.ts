@@ -1,8 +1,16 @@
 import { useQuery } from "@tanstack/react-query";
 
 import {
+  fetchAboutPage,
+  fetchContactPage,
+  fetchEvent,
+  fetchEvents,
   fetchHomePage,
-  fetchMarketingPage,
+  fetchNewsArticle,
+  fetchNewsArticles,
+  fetchPartners,
+  fetchService,
+  fetchServices,
   fetchSiteSettings,
 } from "@/features/cms/api";
 import { CmsUnavailableError } from "@/features/cms/cms-errors";
@@ -36,12 +44,88 @@ export function useHomePage() {
   });
 }
 
-export function useMarketingPage(slug: string) {
+export function useAboutPage() {
   return useQuery({
-    queryKey: cmsQueryKeys.marketingPage(slug),
-    queryFn: () => fetchMarketingPage(slug),
+    queryKey: cmsQueryKeys.aboutPage(),
+    queryFn: fetchAboutPage,
     staleTime: CMS_STALE_TIME_MS,
     retry: cmsQueryRetry,
+  });
+}
+
+export function useServices() {
+  return useQuery({
+    queryKey: cmsQueryKeys.services(),
+    queryFn: fetchServices,
+    staleTime: CMS_STALE_TIME_MS,
+    retry: cmsQueryRetry,
+  });
+}
+
+export function useService(slug: string) {
+  return useQuery({
+    queryKey: cmsQueryKeys.service(slug),
+    queryFn: () => fetchService(slug),
+    staleTime: CMS_STALE_TIME_MS,
+    retry: cmsQueryRetry,
+    enabled: Boolean(slug),
+  });
+}
+
+export function useNewsArticles() {
+  return useQuery({
+    queryKey: cmsQueryKeys.news(),
+    queryFn: fetchNewsArticles,
+    staleTime: CMS_STALE_TIME_MS,
+    retry: cmsQueryRetry,
+  });
+}
+
+export function useNewsArticle(slug: string) {
+  return useQuery({
+    queryKey: cmsQueryKeys.newsArticle(slug),
+    queryFn: () => fetchNewsArticle(slug),
+    staleTime: CMS_STALE_TIME_MS,
+    retry: cmsQueryRetry,
+    enabled: Boolean(slug),
+  });
+}
+
+export function useEvents() {
+  return useQuery({
+    queryKey: cmsQueryKeys.events(),
+    queryFn: fetchEvents,
+    staleTime: CMS_STALE_TIME_MS,
+    retry: cmsQueryRetry,
+  });
+}
+
+export function useEvent(slug: string) {
+  return useQuery({
+    queryKey: cmsQueryKeys.event(slug),
+    queryFn: () => fetchEvent(slug),
+    staleTime: CMS_STALE_TIME_MS,
+    retry: cmsQueryRetry,
+    enabled: Boolean(slug),
+  });
+}
+
+export function usePartners() {
+  return useQuery({
+    queryKey: cmsQueryKeys.partners(),
+    queryFn: fetchPartners,
+    staleTime: CMS_STALE_TIME_MS,
+    retry: cmsQueryRetry,
+  });
+}
+
+export function useContactPage(slug: string) {
+  return useQuery({
+    queryKey: cmsQueryKeys.contactPage(slug),
+    queryFn: () => fetchContactPage(slug),
+    staleTime: CMS_STALE_TIME_MS,
+    retry: cmsQueryRetry,
+    enabled: Boolean(slug),
   });
 }
 

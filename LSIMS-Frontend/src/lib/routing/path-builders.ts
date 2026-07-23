@@ -39,3 +39,15 @@ export function getNotificationsPath(
     ? ROUTES.staff.notifications
     : ROUTES.client.notifications;
 }
+
+export function servicePath(slug: string): string {
+  return `${ROUTES.services.root}/${slug}`;
+}
+
+export function newsPath(slug: string): string {
+  return `${ROUTES.news}/${slug}`;
+}
+
+export function eventPath(slug: string): string {
+  return `${ROUTES.events}/${slug}`;
+}

@@ -1,0 +1,42 @@
+{
+  "kind": "collectionType",
+  "collectionName": "news_articles",
+  "info": {
+    "singularName": "news-article",
+    "pluralName": "news-articles",
+    "displayName": "News Article",
+    "description": "Public news articles"
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "attributes": {
+    "slug": {
+      "type": "uid",
+      "targetField": "title",
+      "required": true
+    },
+    "title": {
+      "type": "string",
+      "required": true
+    },
+    "description": {
+      "type": "text",
+      "required": true
+    },
+    "publishedDate": {
+      "type": "string",
+      "required": true
+    },
+    "category": {
+      "type": "string",
+      "required": true
+    },
+    "body": {
+      "type": "blocks"
+    },
+    "seoDescription": {
+      "type": "text"
+    }
+  }
+}

@@ -441,10 +441,130 @@ export interface AdminUser extends Struct.CollectionTypeSchema {
   };
 }
 
+export interface ApiAboutPageAboutPage extends Struct.SingleTypeSchema {
+  collectionName: 'about_pages';
+  info: {
+    description: 'Public about page content';
+    displayName: 'About Page';
+    pluralName: 'about-pages';
+    singularName: 'about-page';
+  };
+  options: {
+    draftAndPublish: false;
+  };
+  attributes: {
+    accreditation: Schema.Attribute.Component<
+      'marketing.accreditation-item',
+      true
+    >;
+    accreditationHeader: Schema.Attribute.Component<
+      'marketing.section-header',
+      false
+    >;
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    heroSubtitle: Schema.Attribute.Text & Schema.Attribute.Required;
+    heroTitle: Schema.Attribute.String & Schema.Attribute.Required;
+    highlight: Schema.Attribute.Component<'marketing.highlight-stat', false>;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::about-page.about-page'
+    > &
+      Schema.Attribute.Private;
+    milestones: Schema.Attribute.Component<'marketing.milestone', true>;
+    milestonesHeader: Schema.Attribute.Component<
+      'marketing.section-header',
+      false
+    >;
+    missionBody: Schema.Attribute.Text & Schema.Attribute.Required;
+    missionTitle: Schema.Attribute.String & Schema.Attribute.Required;
+    partnersHeader: Schema.Attribute.Component<
+      'marketing.section-header',
+      false
+    >;
+    publishedAt: Schema.Attribute.DateTime;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    values: Schema.Attribute.Component<'marketing.value-prop', true>;
+    valuesHeader: Schema.Attribute.Component<'marketing.section-header', false>;
+    visionBody: Schema.Attribute.Text & Schema.Attribute.Required;
+    visionTitle: Schema.Attribute.String & Schema.Attribute.Required;
+  };
+}
+
+export interface ApiContactPageContactPage extends Struct.CollectionTypeSchema {
+  collectionName: 'contact_pages';
+  info: {
+    description: 'Contact section pages by slug';
+    displayName: 'Contact Page';
+    pluralName: 'contact-pages';
+    singularName: 'contact-page';
+  };
+  options: {
+    draftAndPublish: false;
+  };
+  attributes: {
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    details: Schema.Attribute.Component<'marketing.contact-detail', true>;
+    heroSubtitle: Schema.Attribute.Text & Schema.Attribute.Required;
+    heroTitle: Schema.Attribute.String & Schema.Attribute.Required;
+    intro: Schema.Attribute.Text & Schema.Attribute.Required;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::contact-page.contact-page'
+    > &
+      Schema.Attribute.Private;
+    publishedAt: Schema.Attribute.DateTime;
+    slug: Schema.Attribute.UID<'heroTitle'> & Schema.Attribute.Required;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+  };
+}
+
+export interface ApiEventEvent extends Struct.CollectionTypeSchema {
+  collectionName: 'events';
+  info: {
+    description: 'Public events';
+    displayName: 'Event';
+    pluralName: 'events';
+    singularName: 'event';
+  };
+  options: {
+    draftAndPublish: true;
+  };
+  attributes: {
+    body: Schema.Attribute.Blocks;
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    date: Schema.Attribute.String & Schema.Attribute.Required;
+    description: Schema.Attribute.Text & Schema.Attribute.Required;
+    eventStatus: Schema.Attribute.String & Schema.Attribute.Required;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<'oneToMany', 'api::event.event'> &
+      Schema.Attribute.Private;
+    location: Schema.Attribute.String & Schema.Attribute.Required;
+    publishedAt: Schema.Attribute.DateTime;
+    slug: Schema.Attribute.UID<'title'> & Schema.Attribute.Required;
+    time: Schema.Attribute.String & Schema.Attribute.Required;
+    title: Schema.Attribute.String & Schema.Attribute.Required;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+  };
+}
+
 export interface ApiHomePageHomePage extends Struct.SingleTypeSchema {
   collectionName: 'home_pages';
   info: {
-    description: 'Public home page hero content';
+    description: 'Public home page content';
     displayName: 'Home Page';
     pluralName: 'home-pages';
     singularName: 'home-page';
@@ -456,24 +576,62 @@ export interface ApiHomePageHomePage extends Struct.SingleTypeSchema {
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
-    heroSubtitle: Schema.Attribute.Text & Schema.Attribute.Required;
-    heroTitle: Schema.Attribute.String & Schema.Attribute.Required;
+    eventsHeader: Schema.Attribute.Component<'marketing.section-header', false>;
+    eventsIndexHeader: Schema.Attribute.Component<
+      'marketing.section-header',
+      false
+    >;
+    eventsPageHeroSubtitle: Schema.Attribute.Text;
+    eventsPageHeroTitle: Schema.Attribute.String;
+    featuredBannerCtaHref: Schema.Attribute.String &
+      Schema.Attribute.DefaultTo<'/signup'>;
+    featuredBannerCtaLabel: Schema.Attribute.String &
+      Schema.Attribute.DefaultTo<'Get started'>;
+    featuredBannerDescription: Schema.Attribute.Text;
+    featuredBannerTitle: Schema.Attribute.String;
+    heroSlides: Schema.Attribute.Component<'hero.hero-slide', true>;
     locale: Schema.Attribute.String & Schema.Attribute.Private;
     localizations: Schema.Attribute.Relation<
       'oneToMany',
       'api::home-page.home-page'
     > &
       Schema.Attribute.Private;
-    primaryCtaLabel: Schema.Attribute.String &
-      Schema.Attribute.Required &
-      Schema.Attribute.DefaultTo<'Sign in'>;
+    newsHeader: Schema.Attribute.Component<'marketing.section-header', false>;
+    newsIndexHeader: Schema.Attribute.Component<
+      'marketing.section-header',
+      false
+    >;
+    newsPageHeroSubtitle: Schema.Attribute.Text;
+    newsPageHeroTitle: Schema.Attribute.String;
+    partnersHeader: Schema.Attribute.Component<
+      'marketing.section-header',
+      false
+    >;
+    processHeader: Schema.Attribute.Component<
+      'marketing.section-header',
+      false
+    >;
+    processSteps: Schema.Attribute.Component<'marketing.process-step', true>;
     publishedAt: Schema.Attribute.DateTime;
-    secondaryCtaLabel: Schema.Attribute.String &
-      Schema.Attribute.Required &
-      Schema.Attribute.DefaultTo<'Create account'>;
+    servicesHeader: Schema.Attribute.Component<
+      'marketing.section-header',
+      false
+    >;
+    servicesMegaMenuDescription: Schema.Attribute.Text;
+    servicesMegaMenuEyebrow: Schema.Attribute.String;
+    servicesMegaMenuTitle: Schema.Attribute.String;
+    servicesPageHeroSubtitle: Schema.Attribute.Text;
+    servicesPageHeroTitle: Schema.Attribute.String;
+    stats: Schema.Attribute.Component<'marketing.stat-item', true>;
+    statsHeader: Schema.Attribute.Component<'marketing.section-header', false>;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
+    valueProps: Schema.Attribute.Component<'marketing.value-prop', true>;
+    valuePropsHeader: Schema.Attribute.Component<
+      'marketing.section-header',
+      false
+    >;
   };
 }
 
@@ -511,6 +669,112 @@ export interface ApiMarketingPageMarketingPage
   };
 }
 
+export interface ApiNewsArticleNewsArticle extends Struct.CollectionTypeSchema {
+  collectionName: 'news_articles';
+  info: {
+    description: 'Public news articles';
+    displayName: 'News Article';
+    pluralName: 'news-articles';
+    singularName: 'news-article';
+  };
+  options: {
+    draftAndPublish: true;
+  };
+  attributes: {
+    body: Schema.Attribute.Blocks;
+    category: Schema.Attribute.String & Schema.Attribute.Required;
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    description: Schema.Attribute.Text & Schema.Attribute.Required;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::news-article.news-article'
+    > &
+      Schema.Attribute.Private;
+    publishedAt: Schema.Attribute.DateTime;
+    publishedDate: Schema.Attribute.String & Schema.Attribute.Required;
+    seoDescription: Schema.Attribute.Text;
+    slug: Schema.Attribute.UID<'title'> & Schema.Attribute.Required;
+    title: Schema.Attribute.String & Schema.Attribute.Required;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+  };
+}
+
+export interface ApiPartnerPartner extends Struct.CollectionTypeSchema {
+  collectionName: 'partners';
+  info: {
+    description: 'Partner and accreditation logos';
+    displayName: 'Partner';
+    pluralName: 'partners';
+    singularName: 'partner';
+  };
+  options: {
+    draftAndPublish: false;
+  };
+  attributes: {
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    href: Schema.Attribute.String;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::partner.partner'
+    > &
+      Schema.Attribute.Private;
+    logoUrl: Schema.Attribute.String & Schema.Attribute.Required;
+    name: Schema.Attribute.String & Schema.Attribute.Required;
+    partnerKey: Schema.Attribute.String &
+      Schema.Attribute.Required &
+      Schema.Attribute.Unique;
+    publishedAt: Schema.Attribute.DateTime;
+    sortOrder: Schema.Attribute.Integer & Schema.Attribute.DefaultTo<0>;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+  };
+}
+
+export interface ApiServiceService extends Struct.CollectionTypeSchema {
+  collectionName: 'services';
+  info: {
+    description: 'Laboratory services catalog';
+    displayName: 'Service';
+    pluralName: 'services';
+    singularName: 'service';
+  };
+  options: {
+    draftAndPublish: true;
+  };
+  attributes: {
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    description: Schema.Attribute.Text & Schema.Attribute.Required;
+    highlights: Schema.Attribute.JSON & Schema.Attribute.Required;
+    iconKey: Schema.Attribute.String & Schema.Attribute.Required;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::service.service'
+    > &
+      Schema.Attribute.Private;
+    longDescription: Schema.Attribute.Text & Schema.Attribute.Required;
+    publishedAt: Schema.Attribute.DateTime;
+    seoDescription: Schema.Attribute.Text;
+    slug: Schema.Attribute.UID<'title'> & Schema.Attribute.Required;
+    sortOrder: Schema.Attribute.Integer & Schema.Attribute.DefaultTo<0>;
+    title: Schema.Attribute.String & Schema.Attribute.Required;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+  };
+}
+
 export interface ApiSiteSettingSiteSetting extends Struct.SingleTypeSchema {
   collectionName: 'site_settings';
   info: {
@@ -526,6 +790,11 @@ export interface ApiSiteSettingSiteSetting extends Struct.SingleTypeSchema {
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
+    footerLinkGroups: Schema.Attribute.Component<
+      'navigation.footer-link-group',
+      true
+    >;
+    footerTagline: Schema.Attribute.Text & Schema.Attribute.Required;
     locale: Schema.Attribute.String & Schema.Attribute.Private;
     localizations: Schema.Attribute.Relation<
       'oneToMany',
@@ -537,6 +806,7 @@ export interface ApiSiteSettingSiteSetting extends Struct.SingleTypeSchema {
     siteName: Schema.Attribute.String &
       Schema.Attribute.Required &
       Schema.Attribute.DefaultTo<'LSIMS'>;
+    socialLinks: Schema.Attribute.Component<'navigation.social-link', true>;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
@@ -1054,8 +1324,14 @@ declare module '@strapi/strapi' {
       'admin::transfer-token': AdminTransferToken;
       'admin::transfer-token-permission': AdminTransferTokenPermission;
       'admin::user': AdminUser;
+      'api::about-page.about-page': ApiAboutPageAboutPage;
+      'api::contact-page.contact-page': ApiContactPageContactPage;
+      'api::event.event': ApiEventEvent;
       'api::home-page.home-page': ApiHomePageHomePage;
       'api::marketing-page.marketing-page': ApiMarketingPageMarketingPage;
+      'api::news-article.news-article': ApiNewsArticleNewsArticle;
+      'api::partner.partner': ApiPartnerPartner;
+      'api::service.service': ApiServiceService;
       'api::site-setting.site-setting': ApiSiteSettingSiteSetting;
       'plugin::content-releases.release': PluginContentReleasesRelease;
       'plugin::content-releases.release-action': PluginContentReleasesReleaseAction;

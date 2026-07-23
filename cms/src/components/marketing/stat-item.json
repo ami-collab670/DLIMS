@@ -1,0 +1,9 @@
+{
+  "collectionName": "components_marketing_stat_items",
+  "info": { "displayName": "Stat Item", "icon": "chartPie" },
+  "attributes": {
+    "label": { "type": "string", "required": true },
+    "value": { "type": "string", "required": true },
+    "context": { "type": "string", "required": true }
+  }
+}

@@ -1,0 +1,74 @@
+{
+  "kind": "singleType",
+  "collectionName": "about_pages",
+  "info": {
+    "singularName": "about-page",
+    "pluralName": "about-pages",
+    "displayName": "About Page",
+    "description": "Public about page content"
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "attributes": {
+    "heroTitle": {
+      "type": "string",
+      "required": true
+    },
+    "heroSubtitle": {
+      "type": "text",
+      "required": true
+    },
+    "missionTitle": {
+      "type": "string",
+      "required": true
+    },
+    "missionBody": {
+      "type": "text",
+      "required": true
+    },
+    "visionTitle": {
+      "type": "string",
+      "required": true
+    },
+    "visionBody": {
+      "type": "text",
+      "required": true
+    },
+    "highlight": {
+      "type": "component",
+      "component": "marketing.highlight-stat"
+    },
+    "valuesHeader": {
+      "type": "component",
+      "component": "marketing.section-header"
+    },
+    "values": {
+      "type": "component",
+      "repeatable": true,
+      "component": "marketing.value-prop"
+    },
+    "milestonesHeader": {
+      "type": "component",
+      "component": "marketing.section-header"
+    },
+    "milestones": {
+      "type": "component",
+      "repeatable": true,
+      "component": "marketing.milestone"
+    },
+    "accreditationHeader": {
+      "type": "component",
+      "component": "marketing.section-header"
+    },
+    "accreditation": {
+      "type": "component",
+      "repeatable": true,
+      "component": "marketing.accreditation-item"
+    },
+    "partnersHeader": {
+      "type": "component",
+      "component": "marketing.section-header"
+    }
+  }
+}

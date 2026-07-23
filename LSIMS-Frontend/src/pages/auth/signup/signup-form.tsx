@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { ROUTES } from "@/lib/routing";
 import type { UseFormReturn } from "react-hook-form";
 import { Link } from "react-router-dom";
@@ -17,6 +18,23 @@ type Props = {
   submitting: boolean;
 };
 
+function FormSection({
+  title,
+  children,
+}: {
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="space-y-4">
+      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        {title}
+      </p>
+      {children}
+    </div>
+  );
+}
+
 export function SignupForm({ form, onSubmit, submitting }: Props) {
   const {
     register,
@@ -32,15 +50,16 @@ export function SignupForm({ form, onSubmit, submitting }: Props) {
     passwordConfirm.length > 0 && password !== passwordConfirm;
 
   return (
-    <>
-      <form className="space-y-4" onSubmit={handleSubmit(onSubmit)} noValidate>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2 sm:col-span-2">
+    <form className="space-y-6" onSubmit={handleSubmit(onSubmit)} noValidate>
+      <FormSection title="Account">
+        <div className="space-y-4">
+          <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
             <Input
               id="email"
               type="email"
               autoComplete="email"
+              placeholder="you@organization.com"
               aria-invalid={!!errors.email}
               {...register("email")}
             />
@@ -49,6 +68,44 @@ export function SignupForm({ form, onSubmit, submitting }: Props) {
             ) : null}
           </div>
 
+          <div className="space-y-2">
+            <Label htmlFor="password">Password</Label>
+            <PasswordInput
+              id="password"
+              autoComplete="new-password"
+              aria-invalid={!!errors.password}
+              {...register("password")}
+            />
+            <PasswordStrengthIndicator password={password} />
+            {errors.password ? (
+              <p className="text-xs text-destructive">
+                {errors.password.message}
+              </p>
+            ) : null}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="passwordConfirm">Confirm password</Label>
+            <PasswordInput
+              id="passwordConfirm"
+              autoComplete="new-password"
+              aria-invalid={!!errors.passwordConfirm || passwordsMismatch}
+              {...register("passwordConfirm")}
+            />
+            {passwordsMismatch ? (
+              <p className="text-xs text-destructive">Passwords do not match</p>
+            ) : null}
+            {errors.passwordConfirm && !passwordsMismatch ? (
+              <p className="text-xs text-destructive">
+                {errors.passwordConfirm.message}
+              </p>
+            ) : null}
+          </div>
+        </div>
+      </FormSection>
+
+      <FormSection title="Your details">
+        <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
             <Label htmlFor="first_name">First name</Label>
             <Input
@@ -78,56 +135,22 @@ export function SignupForm({ form, onSubmit, submitting }: Props) {
               <p className="text-xs text-destructive">{errors.phone.message}</p>
             ) : null}
           </div>
-
-          <div className="space-y-2 sm:col-span-2">
-            <Label htmlFor="password">Password</Label>
-            <PasswordInput
-              id="password"
-              autoComplete="new-password"
-              aria-invalid={!!errors.password}
-              {...register("password")}
-            />
-            <PasswordStrengthIndicator password={password} />
-            {errors.password ? (
-              <p className="text-xs text-destructive">
-                {errors.password.message}
-              </p>
-            ) : null}
-          </div>
-
-          <div className="space-y-2 sm:col-span-2">
-            <Label htmlFor="passwordConfirm">Confirm password</Label>
-            <PasswordInput
-              id="passwordConfirm"
-              autoComplete="new-password"
-              aria-invalid={!!errors.passwordConfirm || passwordsMismatch}
-              {...register("passwordConfirm")}
-            />
-            {passwordsMismatch ? (
-              <p className="text-xs text-destructive">Passwords do not match</p>
-            ) : null}
-            {errors.passwordConfirm && !passwordsMismatch ? (
-              <p className="text-xs text-destructive">
-                {errors.passwordConfirm.message}
-              </p>
-            ) : null}
-          </div>
         </div>
+      </FormSection>
 
-        <Button type="submit" className="w-full" disabled={submitting}>
-          {submitting ? "Creating account…" : "Sign up"}
-        </Button>
-      </form>
+      <Button type="submit" size="lg" className="w-full" disabled={submitting}>
+        {submitting ? "Creating account…" : "Create account"}
+      </Button>
 
-      <p className="text-center text-sm text-muted-foreground">
+      <p className="border-t border-border pt-4 text-center text-sm text-muted-foreground">
         Already have an account?{" "}
         <Link
           to={ROUTES.login}
-          className="text-primary underline-offset-4 hover:underline"
+          className="font-medium text-primary underline-offset-4 hover:underline"
         >
           Sign in
         </Link>
       </p>
-    </>
+    </form>
   );
 }

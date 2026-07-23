@@ -1,0 +1,12 @@
+{
+  "collectionName": "components_navigation_footer_link_groups",
+  "info": { "displayName": "Footer Link Group", "icon": "layer" },
+  "attributes": {
+    "title": { "type": "string", "required": true },
+    "links": {
+      "type": "component",
+      "repeatable": true,
+      "component": "navigation.footer-link"
+    }
+  }
+}

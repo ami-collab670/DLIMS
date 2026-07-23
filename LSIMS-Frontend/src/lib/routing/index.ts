@@ -3,6 +3,9 @@ export {
   clientComplaintsUrl,
   clientPath,
   clientResultsJobUrl,
+  eventPath,
   getDashboardPath,
   getNotificationsPath,
+  newsPath,
+  servicePath,
 } from "./path-builders";

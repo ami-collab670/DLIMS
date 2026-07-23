@@ -1,3 +1,4 @@
+import { lazy, Suspense, type ReactNode } from "react";
 import { ROUTES } from "@/lib/routing";
 import { staffPath } from "@/lib/staff";
 import { type RouteObject, Navigate } from "react-router-dom";
@@ -12,9 +13,22 @@ import { ProtectedRoute } from "@/components/auth/protected-route";
 import { ClientDashboardLayout } from "@/components/layout/dashboard/client-dashboard-layout";
 import { StaffDashboardLayout } from "@/components/layout/dashboard/staff-dashboard-layout";
 import { RootLayout } from "@/components/layout/root-layout";
-import ForgotPasswordPage from "@/pages/auth/ForgotPasswordPage";
-import LoginPage from "@/pages/auth/LoginPage";
-import SignupPage from "@/pages/auth/SignupPage";
+
+const LoginPage = lazy(() => import("@/pages/auth/LoginPage"));
+const SignupPage = lazy(() => import("@/pages/auth/SignupPage"));
+const ForgotPasswordPage = lazy(() => import("@/pages/auth/ForgotPasswordPage"));
+
+function AuthRouteFallback() {
+  return (
+    <div className="flex min-h-dvh items-center justify-center">
+      <p className="text-sm text-muted-foreground">Loading…</p>
+    </div>
+  );
+}
+
+function withAuthSuspense(element: ReactNode) {
+  return <Suspense fallback={<AuthRouteFallback />}>{element}</Suspense>;
+}
 import ClientDashboardHome from "@/pages/client/ClientDashboardHome";
 import ClientComplaintsPage from "@/pages/client/ClientComplaintsPage";
 import ClientNotificationsPage from "@/pages/client/ClientNotificationsPage";
@@ -24,7 +38,16 @@ import ClientNotFoundPage from "@/pages/errors/ClientNotFoundPage";
 import PublicNotFoundPage from "@/pages/errors/PublicNotFoundPage";
 import StaffNotFoundPage from "@/pages/errors/StaffNotFoundPage";
 import Home from "@/pages/Home";
-import { MarketingPage } from "@/pages/public/MarketingPage";
+import { ContactCareersPage } from "@/pages/public/contact/contact-careers-page";
+import { ContactCollectionPointsPage } from "@/pages/public/contact/contact-collection-points-page";
+import { ContactMainPage } from "@/pages/public/contact/contact-main-page";
+import { EventDetailPage } from "@/pages/public/events-detail-page";
+import { EventsIndexPage } from "@/pages/public/events-index-page";
+import { AboutPage } from "@/pages/public/about-page";
+import { NewsDetailPage } from "@/pages/public/news-detail-page";
+import { NewsIndexPage } from "@/pages/public/news-index-page";
+import { ServiceDetailPage } from "@/pages/public/service-detail-page";
+import { ServicesIndexPage } from "@/pages/public/services-index-page";
 import ProfileManagementPage from "@/pages/profile/ProfileManagementPage";
 import StaffClientsPage from "@/pages/staff/StaffClientsPage";
 import StaffCompliancePage from "@/pages/staff/StaffCompliancePage";
@@ -52,14 +75,33 @@ export const appRoutes: RouteObject[] = [
     children: [
       // ── Public zone ──
       { path: ROUTES.home, element: <Home /> },
-      { path: ROUTES.about, element: <MarketingPage slug="about" /> },
-      { path: ROUTES.services, element: <MarketingPage slug="services" /> },
-      { path: ROUTES.contact, element: <MarketingPage slug="contact" /> },
+      { path: ROUTES.about, element: <AboutPage /> },
+      { path: ROUTES.services.root, element: <ServicesIndexPage /> },
+      { path: `${ROUTES.services.root}/:slug`, element: <ServiceDetailPage /> },
+      { path: ROUTES.news, element: <NewsIndexPage /> },
+      { path: `${ROUTES.news}/:slug`, element: <NewsDetailPage /> },
+      { path: ROUTES.events, element: <EventsIndexPage /> },
+      { path: `${ROUTES.events}/:slug`, element: <EventDetailPage /> },
+      { path: ROUTES.contact.root, element: <ContactMainPage /> },
+      {
+        path: ROUTES.contact.collectionPoints,
+        element: <ContactCollectionPointsPage />,
+      },
+      { path: ROUTES.contact.careers, element: <ContactCareersPage /> },
 
-      // ── Auth zone ──
-      { path: ROUTES.login, element: <LoginPage /> },
-      { path: ROUTES.signup, element: <SignupPage /> },
-      { path: ROUTES.forgotPassword, element: <ForgotPasswordPage /> },
+      // ── Auth zone (lazy-loaded so auth bundle errors cannot block public routes) ──
+      {
+        path: ROUTES.login,
+        element: withAuthSuspense(<LoginPage />),
+      },
+      {
+        path: ROUTES.signup,
+        element: withAuthSuspense(<SignupPage />),
+      },
+      {
+        path: ROUTES.forgotPassword,
+        element: withAuthSuspense(<ForgotPasswordPage />),
+      },
 
       // ── Staff zone ──
       {

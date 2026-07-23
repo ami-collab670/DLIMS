@@ -1,0 +1,8 @@
+{
+  "collectionName": "components_navigation_footer_links",
+  "info": { "displayName": "Footer Link", "icon": "link" },
+  "attributes": {
+    "label": { "type": "string", "required": true },
+    "href": { "type": "string", "required": true }
+  }
+}

@@ -1,9 +1,8 @@
 import { useHomePage } from "@/features/cms/hooks";
-import { DEFAULT_HOME_PAGE } from "@/features/cms/defaults";
 
 export function HomeHero() {
-  const { data, isLoading } = useHomePage();
-  const content = data ?? DEFAULT_HOME_PAGE;
+  const { data, isLoading, isError } = useHomePage();
+  const slide = data?.heroSlides[0];
 
   if (isLoading) {
     return (
@@ -14,12 +13,16 @@ export function HomeHero() {
     );
   }
 
+  if (isError || !slide) {
+    return null;
+  }
+
   return (
     <div className="space-y-3">
       <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">
-        {content.heroTitle}
+        {slide.title}
       </h1>
-      <p className="text-muted-foreground">{content.heroSubtitle}</p>
+      <p className="text-muted-foreground">{slide.subtitle}</p>
     </div>
   );
 }

@@ -1,7 +1,6 @@
 import { Link } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
-import { DEFAULT_HOME_PAGE } from "@/features/cms/defaults";
 import { useHomePage } from "@/features/cms/hooks";
 import { getDashboardPath, ROUTES } from "@/lib/routing";
 import type { AuthUser } from "@/types/auth";
@@ -14,9 +13,9 @@ export function HomeAuthActions({
   ready: boolean;
 }) {
   const { data: homePage } = useHomePage();
-  const primaryLabel = homePage?.primaryCtaLabel ?? DEFAULT_HOME_PAGE.primaryCtaLabel;
+  const primaryLabel = homePage?.heroSlides[0]?.primaryCta?.label ?? "Sign in";
   const secondaryLabel =
-    homePage?.secondaryCtaLabel ?? DEFAULT_HOME_PAGE.secondaryCtaLabel;
+    homePage?.heroSlides[0]?.secondaryCta?.label ?? "Create account";
 
   if (!ready) return null;
 

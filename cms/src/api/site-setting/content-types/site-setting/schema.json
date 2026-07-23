@@ -16,10 +16,24 @@
       "required": true,
       "default": "LSIMS"
     },
+    "footerTagline": {
+      "type": "text",
+      "required": true
+    },
     "navLinks": {
       "type": "component",
       "repeatable": true,
       "component": "navigation.nav-link"
+    },
+    "footerLinkGroups": {
+      "type": "component",
+      "repeatable": true,
+      "component": "navigation.footer-link-group"
+    },
+    "socialLinks": {
+      "type": "component",
+      "repeatable": true,
+      "component": "navigation.social-link"
     }
   }
 }

@@ -5,29 +5,108 @@
     "singularName": "home-page",
     "pluralName": "home-pages",
     "displayName": "Home Page",
-    "description": "Public home page hero content"
+    "description": "Public home page content"
   },
   "options": {
     "draftAndPublish": false
   },
   "attributes": {
-    "heroTitle": {
-      "type": "string",
-      "required": true
+    "heroSlides": {
+      "type": "component",
+      "repeatable": true,
+      "component": "hero.hero-slide"
     },
-    "heroSubtitle": {
-      "type": "text",
-      "required": true
+    "stats": {
+      "type": "component",
+      "repeatable": true,
+      "component": "marketing.stat-item"
     },
-    "primaryCtaLabel": {
-      "type": "string",
-      "required": true,
-      "default": "Sign in"
+    "servicesHeader": {
+      "type": "component",
+      "component": "marketing.section-header"
     },
-    "secondaryCtaLabel": {
+    "statsHeader": {
+      "type": "component",
+      "component": "marketing.section-header"
+    },
+    "newsHeader": {
+      "type": "component",
+      "component": "marketing.section-header"
+    },
+    "eventsHeader": {
+      "type": "component",
+      "component": "marketing.section-header"
+    },
+    "partnersHeader": {
+      "type": "component",
+      "component": "marketing.section-header"
+    },
+    "processSteps": {
+      "type": "component",
+      "repeatable": true,
+      "component": "marketing.process-step"
+    },
+    "valueProps": {
+      "type": "component",
+      "repeatable": true,
+      "component": "marketing.value-prop"
+    },
+    "processHeader": {
+      "type": "component",
+      "component": "marketing.section-header"
+    },
+    "valuePropsHeader": {
+      "type": "component",
+      "component": "marketing.section-header"
+    },
+    "featuredBannerTitle": {
+      "type": "string"
+    },
+    "featuredBannerDescription": {
+      "type": "text"
+    },
+    "featuredBannerCtaLabel": {
       "type": "string",
-      "required": true,
-      "default": "Create account"
+      "default": "Get started"
+    },
+    "featuredBannerCtaHref": {
+      "type": "string",
+      "default": "/signup"
+    },
+    "servicesPageHeroTitle": {
+      "type": "string"
+    },
+    "servicesPageHeroSubtitle": {
+      "type": "text"
+    },
+    "newsPageHeroTitle": {
+      "type": "string"
+    },
+    "newsPageHeroSubtitle": {
+      "type": "text"
+    },
+    "eventsPageHeroTitle": {
+      "type": "string"
+    },
+    "eventsPageHeroSubtitle": {
+      "type": "text"
+    },
+    "newsIndexHeader": {
+      "type": "component",
+      "component": "marketing.section-header"
+    },
+    "eventsIndexHeader": {
+      "type": "component",
+      "component": "marketing.section-header"
+    },
+    "servicesMegaMenuEyebrow": {
+      "type": "string"
+    },
+    "servicesMegaMenuTitle": {
+      "type": "string"
+    },
+    "servicesMegaMenuDescription": {
+      "type": "text"
     }
   }
 }

@@ -1,0 +1,47 @@
+{
+  "kind": "collectionType",
+  "collectionName": "services",
+  "info": {
+    "singularName": "service",
+    "pluralName": "services",
+    "displayName": "Service",
+    "description": "Laboratory services catalog"
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "attributes": {
+    "slug": {
+      "type": "uid",
+      "targetField": "title",
+      "required": true
+    },
+    "title": {
+      "type": "string",
+      "required": true
+    },
+    "description": {
+      "type": "text",
+      "required": true
+    },
+    "longDescription": {
+      "type": "text",
+      "required": true
+    },
+    "highlights": {
+      "type": "json",
+      "required": true
+    },
+    "iconKey": {
+      "type": "string",
+      "required": true
+    },
+    "seoDescription": {
+      "type": "text"
+    },
+    "sortOrder": {
+      "type": "integer",
+      "default": 0
+    }
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "kind": "collectionType",
+  "collectionName": "contact_pages",
+  "info": {
+    "singularName": "contact-page",
+    "pluralName": "contact-pages",
+    "displayName": "Contact Page",
+    "description": "Contact section pages by slug"
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "attributes": {
+    "slug": {
+      "type": "uid",
+      "targetField": "heroTitle",
+      "required": true
+    },
+    "heroTitle": {
+      "type": "string",
+      "required": true
+    },
+    "heroSubtitle": {
+      "type": "text",
+      "required": true
+    },
+    "intro": {
+      "type": "text",
+      "required": true
+    },
+    "details": {
+      "type": "component",
+      "repeatable": true,
+      "component": "marketing.contact-detail"
+    }
+  }
+}

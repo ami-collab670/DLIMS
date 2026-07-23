@@ -23,7 +23,8 @@ import {
   type ForgotPasswordRequestValues,
 } from "@/lib/validation/auth/forgot-password-request-schema";
 
-import { LoginPageLayout } from "../login/login-page-layout";
+import { AuthPageLayout } from "../components/auth-page-layout";
+import { AuthStepIndicator } from "../components/auth-step-indicator";
 
 export default function ForgotPasswordPage() {
   const navigate = useNavigate();
@@ -89,17 +90,19 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <LoginPageLayout
+    <AuthPageLayout
+      variant="forgot-password"
       title="Forgot password"
       description={
         step === "request"
           ? "Enter your account email to receive a one-time reset code."
           : `Enter the 6-digit code sent to ${emailForReset || "your email"}.`
       }
+      headerExtra={<AuthStepIndicator activeStep={step} />}
     >
       {step === "request" ? (
         <form
-          className="space-y-4 text-left"
+          className="space-y-5 text-left"
           onSubmit={requestForm.handleSubmit(onRequest)}
           noValidate
         >
@@ -109,6 +112,7 @@ export default function ForgotPasswordPage() {
               id="reset-email"
               type="email"
               autoComplete="email"
+              placeholder="you@organization.com"
               {...requestForm.register("email")}
             />
             {requestForm.formState.errors.email ? (
@@ -117,18 +121,21 @@ export default function ForgotPasswordPage() {
               </p>
             ) : null}
           </div>
-          <Button type="submit" className="w-full" disabled={submitting}>
+          <Button type="submit" size="lg" className="w-full" disabled={submitting}>
             {submitting ? "Sending…" : "Send reset code"}
           </Button>
-          <p className="text-center text-sm text-muted-foreground">
-            <Link to={ROUTES.login} className="font-medium text-primary underline-offset-4 hover:underline">
-              ← Back to sign in
+          <p className="border-t border-border pt-4 text-center text-sm text-muted-foreground">
+            <Link
+              to={ROUTES.login}
+              className="font-medium text-primary underline-offset-4 hover:underline"
+            >
+              Back to sign in
             </Link>
           </p>
         </form>
       ) : (
         <form
-          className="space-y-4 text-left"
+          className="space-y-5 text-left"
           onSubmit={confirmForm.handleSubmit(onConfirm)}
           noValidate
         >
@@ -149,6 +156,7 @@ export default function ForgotPasswordPage() {
               autoComplete="one-time-code"
               maxLength={6}
               placeholder="000000"
+              className="tracking-widest"
               {...confirmForm.register("otp")}
             />
             {confirmForm.formState.errors.otp ? (
@@ -192,10 +200,10 @@ export default function ForgotPasswordPage() {
               </p>
             ) : null}
           </div>
-          <Button type="submit" className="w-full" disabled={submitting}>
+          <Button type="submit" size="lg" className="w-full" disabled={submitting}>
             {submitting ? "Updating…" : "Reset password"}
           </Button>
-          <div className="flex flex-col gap-2 text-center text-sm text-muted-foreground">
+          <div className="flex flex-col gap-2 border-t border-border pt-4 text-center text-sm text-muted-foreground">
             <button
               type="button"
               className="font-medium text-primary underline-offset-4 hover:underline"
@@ -206,12 +214,15 @@ export default function ForgotPasswordPage() {
             >
               Use a different email
             </button>
-            <Link to={ROUTES.login} className="font-medium text-primary underline-offset-4 hover:underline">
-              ← Back to sign in
+            <Link
+              to={ROUTES.login}
+              className="font-medium text-primary underline-offset-4 hover:underline"
+            >
+              Back to sign in
             </Link>
           </div>
         </form>
       )}
-    </LoginPageLayout>
+    </AuthPageLayout>
   );
 }

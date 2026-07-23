@@ -12,8 +12,8 @@ export function CmsDevFallbackBanner() {
       role="status"
       className="border-b border-amber-500/40 bg-amber-500/10 px-4 py-2 text-center text-sm text-amber-900 dark:text-amber-200"
     >
-      Showing fallback content — CMS is unavailable. Check that the Strapi service
-      is running at port 1337.
+      CMS is unavailable — public marketing content may not render. Check that
+      Strapi is running at port 1337.
     </div>
   );
 }

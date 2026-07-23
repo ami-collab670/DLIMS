@@ -1,0 +1,9 @@
+{
+  "collectionName": "components_navigation_social_links",
+  "info": { "displayName": "Social Link", "icon": "earth" },
+  "attributes": {
+    "label": { "type": "string", "required": true },
+    "platformId": { "type": "string", "required": true },
+    "href": { "type": "string", "required": true }
+  }
+}
