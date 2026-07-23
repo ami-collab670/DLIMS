@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,30 +14,16 @@ import {
   useConfirmPasswordReset,
   useRequestPasswordReset,
 } from "@/features/auth/hooks";
+import {
+  forgotPasswordConfirmSchema,
+  type ForgotPasswordConfirmValues,
+} from "@/lib/validation/auth/forgot-password-confirm-schema";
+import {
+  forgotPasswordRequestSchema,
+  type ForgotPasswordRequestValues,
+} from "@/lib/validation/auth/forgot-password-request-schema";
 
 import { LoginPageLayout } from "../login/login-page-layout";
-
-const requestSchema = z.object({
-  email: z.string().email("Enter a valid email address"),
-});
-
-const confirmSchema = z
-  .object({
-    email: z.string().email(),
-    otp: z
-      .string()
-      .length(6, "OTP must be 6 digits")
-      .regex(/^\d+$/, "OTP must be numeric"),
-    new_password: z.string().min(8, "Password must be at least 8 characters"),
-    confirm_password: z.string().min(1, "Confirm your new password"),
-  })
-  .refine((data) => data.new_password === data.confirm_password, {
-    message: "Passwords do not match",
-    path: ["confirm_password"],
-  });
-
-type RequestValues = z.infer<typeof requestSchema>;
-type ConfirmValues = z.infer<typeof confirmSchema>;
 
 export default function ForgotPasswordPage() {
   const navigate = useNavigate();
@@ -48,13 +33,13 @@ export default function ForgotPasswordPage() {
   const requestMut = useRequestPasswordReset();
   const confirmMut = useConfirmPasswordReset();
 
-  const requestForm = useForm<RequestValues>({
-    resolver: zodResolver(requestSchema),
+  const requestForm = useForm<ForgotPasswordRequestValues>({
+    resolver: zodResolver(forgotPasswordRequestSchema),
     defaultValues: { email: "" },
   });
 
-  const confirmForm = useForm<ConfirmValues>({
-    resolver: zodResolver(confirmSchema),
+  const confirmForm = useForm<ForgotPasswordConfirmValues>({
+    resolver: zodResolver(forgotPasswordConfirmSchema),
     defaultValues: {
       email: "",
       otp: "",
@@ -71,7 +56,7 @@ export default function ForgotPasswordPage() {
   const submitting =
     step === "request" ? requestMut.isPending : confirmMut.isPending;
 
-  function onRequest(values: RequestValues) {
+  function onRequest(values: ForgotPasswordRequestValues) {
     const email = values.email.trim().toLowerCase();
     requestMut.mutate(email, {
       onSuccess: () => {
@@ -85,7 +70,7 @@ export default function ForgotPasswordPage() {
     });
   }
 
-  function onConfirm(values: ConfirmValues) {
+  function onConfirm(values: ForgotPasswordConfirmValues) {
     confirmMut.mutate(
       {
         email: values.email.trim().toLowerCase(),

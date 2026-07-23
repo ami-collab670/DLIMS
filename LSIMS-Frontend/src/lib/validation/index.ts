@@ -14,6 +14,14 @@ export {
 } from "./password-strength";
 export { loginSchema, type LoginValues } from "./auth/login-schema";
 export { signupSchema, type SignupValues } from "./auth/signup-schema";
+export {
+  forgotPasswordConfirmSchema,
+  type ForgotPasswordConfirmValues,
+} from "./auth/forgot-password-confirm-schema";
+export {
+  forgotPasswordRequestSchema,
+  type ForgotPasswordRequestValues,
+} from "./auth/forgot-password-request-schema";
 export { emptyToUndefined } from "./form-normalize";
 export {
   passwordChangeFormSchema,

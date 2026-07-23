@@ -65,3 +65,9 @@ coverage.xml
 _redate_commits.ps1
 collab-sprint2-code-only.patch
 nul
+
+# .cursor rules files
+.cursor/rules/
+.cursor/rules/*
+.cursor/rules/README.md
+.cursor/*

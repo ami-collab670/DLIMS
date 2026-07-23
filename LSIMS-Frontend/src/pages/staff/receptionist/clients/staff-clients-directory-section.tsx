@@ -1,11 +1,11 @@
-import { useQuery } from "@tanstack/react-query";
 import { AlertCircle, Loader2, Users } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
 import { useBreadcrumbSegments } from "@/components/navigation/breadcrumb-segments-context";
 import { TableToolbar } from "@/components/data-table/table-toolbar";
-import { fetchLabClients } from "@/features/accounts/api";
+import { useLabClients } from "@/features/accounts/hooks";
+import { useAllJobOrdersForClientIndex } from "@/features/jobs/hooks";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { getApiErrorMessage } from "@/lib/api";
 import { isReceptionist } from "@/lib/staff";
@@ -19,15 +19,11 @@ import {
 } from "@/lib/staff/receptionist/client-search";
 
 import { StaffClientDetailPanel } from "./staff-client-detail-panel";
-import { fetchAllJobOrdersForClientIndex } from "@/features/jobs/lib/fetch-all-job-orders-for-client-index";
 import {
   clientMatchesSearch,
   jobCountByClientEmail,
   jobsForClient,
 } from "@/lib/staff/receptionist/client-jobs";
-
-const CLIENTS_QUERY_KEY = ["staff-lab-clients"] as const;
-const CLIENT_JOBS_INDEX_KEY = ["staff-clients-job-index"] as const;
 
 export function StaffClientsDirectorySection() {
   const user = useAuthStore((s) => s.user);
@@ -39,17 +35,9 @@ export function StaffClientsDirectorySection() {
   const [searchInput, setSearchInput] = useState("");
   const debouncedSearch = useDebouncedValue(searchInput);
 
-  const clientsQuery = useQuery({
-    queryKey: CLIENTS_QUERY_KEY,
-    queryFn: fetchLabClients,
-    staleTime: 60_000,
-  });
+  const clientsQuery = useLabClients({ staleTime: 60_000 });
 
-  const jobsQuery = useQuery({
-    queryKey: CLIENT_JOBS_INDEX_KEY,
-    queryFn: fetchAllJobOrdersForClientIndex,
-    staleTime: 60_000,
-  });
+  const jobsQuery = useAllJobOrdersForClientIndex({ staleTime: 60_000 });
 
   const jobCounts = useMemo(
     () => jobCountByClientEmail(jobsQuery.data ?? []),

@@ -64,13 +64,6 @@ export { CLIENT_QUICK_ACTION_ITEMS } from "./dashboard/quick-actions";
 export { NOTIFICATION_KIND_LABEL } from "./notifications/kind-labels";
 
 export {
-  clientJobRequestSchema,
-  clientJobSampleSchema,
-  type ClientJobRequestValues,
-  type ClientJobSampleValues,
-} from "./validation/job-request-schema";
-
-export {
 
   CLIENT_PROGRESS_BADGE_CLASS,
 

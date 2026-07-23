@@ -1,10 +1,11 @@
-import { Loader2 } from "lucide-react";
+import { Loader2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useSample, useSamples } from "@/features/laboratory/hooks";
+import { useAnalysisResults, useSample, useSamples } from "@/features/laboratory/hooks";
 import { getApiErrorMessage } from "@/lib/api";
 import { shortJobId } from "@/lib/laboratory";
 import { isSampleAwaitingPayment, isSampleReadyForDeptAssignment } from "@/lib/laboratory";
@@ -13,9 +14,11 @@ import {
   staffSampleRowLabel,
 } from "@/lib/laboratory";
 import { cn } from "@/lib/ui";
+import { staffPath } from "@/lib/staff";
 import { ReceptionistTestCatalogReference } from "@/pages/staff/receptionist/shared/receptionist-test-catalog-reference";
 import { filterMyAssignedSamples } from "@/lib/laboratory/analyst/desk-utils";
 import { useAuthStore } from "@/stores/auth-store";
+import type { AnalysisResultState } from "@/types/laboratory";
 
 import {
   ANALYST_LIST_PAGE_SIZE,
@@ -23,6 +26,17 @@ import {
 } from "@/lib/staff/analyst/constants";
 import { AnalystSampleDetailPanel } from "./analyst-sample-detail-panel";
 import { RegisterSampleForm } from "./register-sample-form";
+
+const BENCH_RESULT_FOCUS_STATES = new Set<AnalysisResultState>(["draft", "rejected"]);
+
+function parseBenchResultState(raw: string | null): AnalysisResultState | null {
+  if (raw === "draft" || raw === "rejected") return raw;
+  return null;
+}
+
+function benchResultStateLabel(state: AnalysisResultState): string {
+  return state === "rejected" ? "rejected" : "draft";
+}
 
 export function StaffAnalystSection({
   intake,
@@ -54,6 +68,11 @@ export function StaffAnalystSection({
 }) {
   const user = useAuthStore((s) => s.user);
   const userId = user?.id;
+  const [searchParams] = useSearchParams();
+  const resultStateFilter = analystBenchOnly
+    ? parseBenchResultState(searchParams.get("resultState"))
+    : null;
+  const resultStateActive = resultStateFilter != null;
   const [page, setPage] = useState(1);
   const [jobFilter, setJobFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
@@ -65,17 +84,38 @@ export function StaffAnalystSection({
     const t = window.setTimeout(() => setDebounced(search), 350);
     return () => clearTimeout(t);
   }, [search]);
+
   const listParams = useMemo(
     () => ({
-      page,
+      page: resultStateActive ? 1 : page,
+      page_size: resultStateActive ? 100 : undefined,
       job: jobFilter || undefined,
       sample_status: statusFilter || undefined,
       search: debounced || undefined,
     }),
-    [page, jobFilter, statusFilter, debounced],
+    [page, jobFilter, statusFilter, debounced, resultStateActive],
   );
 
   const { data, isLoading, isError, error } = useSamples(listParams);
+
+  const { data: focusedResultsData, isLoading: focusedResultsLoading } = useAnalysisResults(
+    { page: 1, page_size: 100, state: resultStateFilter ?? undefined },
+    {
+      enabled: resultStateActive && BENCH_RESULT_FOCUS_STATES.has(resultStateFilter!),
+      staleTime: 20_000,
+    },
+  );
+
+  const focusedSampleIds = useMemo(() => {
+    if (!resultStateActive || !focusedResultsData) return null;
+    const ids = new Set<string>();
+    for (const result of focusedResultsData.results) {
+      if (!userId || result.analyst === userId) {
+        ids.add(result.sample);
+      }
+    }
+    return ids;
+  }, [focusedResultsData, resultStateActive, userId]);
 
   const { data: detail } = useSample(selectedId ?? "", {
     enabled: Boolean(selectedId),
@@ -92,13 +132,18 @@ export function StaffAnalystSection({
     if (isAnalyst || analystBenchOnly) {
       rows = filterMyAssignedSamples(rows, userId);
     }
+    if (resultStateActive && focusedSampleIds !== null) {
+      rows = rows.filter((s) => focusedSampleIds.has(s.id));
+    }
     return rows;
   }, [
     analystBenchOnly,
     data?.results,
     filterAwaitingPayment,
     filterReadyForDeptAssignment,
+    focusedSampleIds,
     isAnalyst,
+    resultStateActive,
     userId,
   ]);
 
@@ -118,6 +163,14 @@ export function StaffAnalystSection({
   const totalPages = data
     ? Math.max(1, Math.ceil(data.count / ANALYST_LIST_PAGE_SIZE))
     : 1;
+
+  const tableLoading = isLoading || (resultStateActive && focusedResultsLoading);
+  const showPagination =
+    !resultStateActive &&
+    data &&
+    (filterAwaitingPayment || filterReadyForDeptAssignment
+      ? visibleResults.length > 0
+      : data.count > 0);
 
   return (
     <div className="space-y-4">
@@ -225,8 +278,27 @@ export function StaffAnalystSection({
         </p>
       ) : null}
 
+      {resultStateActive && resultStateFilter ? (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-primary/30 bg-primary/5 px-4 py-3 text-sm">
+          <p className="text-muted-foreground">
+            Showing samples with{" "}
+            <span className="font-medium text-foreground">
+              {benchResultStateLabel(resultStateFilter)} results
+            </span>{" "}
+            assigned to you.
+          </p>
+          <Link
+            to={staffPath("analyst")}
+            className="inline-flex h-8 items-center gap-1 rounded-md px-3 text-sm font-medium hover:bg-muted"
+          >
+            <X className="size-4" aria-hidden />
+            Clear filter
+          </Link>
+        </div>
+      ) : null}
+
       <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
-        {isLoading ? (
+        {tableLoading ? (
           <div className="flex justify-center py-12">
             <Loader2 className="size-6 animate-spin text-muted-foreground" />
           </div>
@@ -251,7 +323,19 @@ export function StaffAnalystSection({
                 </tr>
               </thead>
               <tbody>
-                {visibleResults.map((s) => (
+                {visibleResults.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={isAnalyst ? 3 : 5}
+                      className="px-4 py-8 text-center text-sm text-muted-foreground"
+                    >
+                      {resultStateActive && resultStateFilter
+                        ? `No samples with ${benchResultStateLabel(resultStateFilter)} results assigned to you.`
+                        : "No samples match your filters."}
+                    </td>
+                  </tr>
+                ) : (
+                  visibleResults.map((s) => (
                   <tr
                     key={s.id}
                     className={cn(
@@ -288,15 +372,13 @@ export function StaffAnalystSection({
                       {s.sample_status.replace(/_/g, " ")}
                     </td>
                   </tr>
-                ))}
+                  ))
+                )}
               </tbody>
             </table>
           </div>
         )}
-        {data &&
-        (filterAwaitingPayment || filterReadyForDeptAssignment
-          ? visibleResults.length > 0
-          : data.count > 0) ? (
+        {showPagination ? (
           <div className="flex items-center justify-between border-t px-4 py-2 text-xs text-muted-foreground">
             <span>
               {(page - 1) * ANALYST_LIST_PAGE_SIZE + 1}–

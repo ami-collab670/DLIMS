@@ -1,13 +1,11 @@
 import { staffPath } from "@/lib/staff";
-import { useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
 import { AlertCircle, FileEdit, Loader2, Send, TestTube } from "lucide-react";
 import { Link } from "react-router-dom";
 import type { LucideIcon } from "lucide-react";
 
-import { fetchAnalysisResults } from "@/features/laboratory/api";
-import { fetchSamples } from "@/features/laboratory/api";
+import { useAnalysisResults, useSamples } from "@/features/laboratory/hooks";
 import { staffSampleDisplayCode } from "@/lib/laboratory";
-import { dashboardKeys } from "@/lib/staff/dashboard/query-keys";
 import { useAuthStore } from "@/stores/auth-store";
 
 import { ANALYST_DESK_PREVIEW_LIMIT } from "@/lib/staff/analyst/constants";
@@ -59,25 +57,36 @@ export function AnalystDashboardKpiGrid() {
   const user = useAuthStore((s) => s.user);
   const userId = user?.id;
 
-  const { data: kpis, isLoading } = useQuery({
-    queryKey: dashboardKeys.analystDeskKpis,
-    queryFn: async () => {
-      const [samplesRes, draftRes, submittedRes, rejectedRes] = await Promise.all([
-        fetchSamples({ page: 1, page_size: 100 }),
-        fetchAnalysisResults({ page: 1, page_size: 100, state: "draft" }),
-        fetchAnalysisResults({ page: 1, page_size: 100, state: "submitted" }),
-        fetchAnalysisResults({ page: 1, page_size: 100, state: "rejected" }),
-      ]);
-      const assigned = filterMyAssignedSamples(samplesRes.results, userId);
-      return computeAnalystKpis(
-        assigned,
-        draftRes.results,
-        submittedRes.results,
-        rejectedRes.results,
-      );
-    },
-    staleTime: 60_000,
-  });
+  const { data: samplesRes, isLoading: samplesLoading } = useSamples(
+    { page: 1, page_size: 100 },
+    { staleTime: 60_000 },
+  );
+  const { data: draftRes, isLoading: draftLoading } = useAnalysisResults(
+    { page: 1, page_size: 100, state: "draft" },
+    { staleTime: 60_000 },
+  );
+  const { data: submittedRes, isLoading: submittedLoading } = useAnalysisResults(
+    { page: 1, page_size: 100, state: "submitted" },
+    { staleTime: 60_000 },
+  );
+  const { data: rejectedRes, isLoading: rejectedLoading } = useAnalysisResults(
+    { page: 1, page_size: 100, state: "rejected" },
+    { staleTime: 60_000 },
+  );
+
+  const kpis = useMemo(() => {
+    if (!samplesRes || !draftRes || !submittedRes || !rejectedRes) return undefined;
+    const assigned = filterMyAssignedSamples(samplesRes.results, userId);
+    return computeAnalystKpis(
+      assigned,
+      draftRes.results,
+      submittedRes.results,
+      rejectedRes.results,
+    );
+  }, [samplesRes, draftRes, submittedRes, rejectedRes, userId]);
+
+  const isLoading =
+    samplesLoading || draftLoading || submittedLoading || rejectedLoading;
 
   return (
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -121,17 +130,18 @@ export function AnalystDashboardAssignedPreview() {
   const user = useAuthStore((s) => s.user);
   const userId = user?.id;
 
-  const { data: rows = [], isLoading } = useQuery({
-    queryKey: dashboardKeys.analystDeskAssignedPreview,
-    queryFn: async () => {
-      const res = await fetchSamples({ page: 1, page_size: 100 });
-      return sortAssignedSamplesOldest(filterMyAssignedSamples(res.results, userId)).slice(
-        0,
-        ANALYST_DESK_PREVIEW_LIMIT,
-      );
-    },
-    staleTime: 45_000,
-  });
+  const { data: samplesRes, isLoading } = useSamples(
+    { page: 1, page_size: 100 },
+    { staleTime: 45_000 },
+  );
+
+  const rows = useMemo(() => {
+    if (!samplesRes) return [];
+    return sortAssignedSamplesOldest(filterMyAssignedSamples(samplesRes.results, userId)).slice(
+      0,
+      ANALYST_DESK_PREVIEW_LIMIT,
+    );
+  }, [samplesRes, userId]);
 
   return (
     <section className="rounded-xl border border-border bg-card p-4 shadow-sm">
@@ -164,18 +174,11 @@ export function AnalystDashboardAssignedPreview() {
 }
 
 export function AnalystDashboardRecentSubmissions() {
-  const { data: rows = [], isLoading } = useQuery({
-    queryKey: dashboardKeys.analystDeskRecentSubmissions,
-    queryFn: async () => {
-      const res = await fetchAnalysisResults({
-        page: 1,
-        page_size: ANALYST_DESK_PREVIEW_LIMIT,
-        state: "submitted",
-      });
-      return res.results;
-    },
-    staleTime: 45_000,
-  });
+  const { data, isLoading } = useAnalysisResults(
+    { page: 1, page_size: ANALYST_DESK_PREVIEW_LIMIT, state: "submitted" },
+    { staleTime: 45_000 },
+  );
+  const rows = data?.results ?? [];
 
   return (
     <section className="rounded-xl border border-border bg-card p-4 shadow-sm">

@@ -1,5 +1,5 @@
 import { staffPath } from "@/lib/staff";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
@@ -8,17 +8,16 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  createAnalysisResult,
-  fetchAnalysisResults,
-  submitAnalysisResult,
-} from "@/features/laboratory/api";
+import { createAnalysisResult, submitAnalysisResult } from "@/features/laboratory/api";
 import { useJobResultSummary } from "@/features/jobs/hooks";
-import { laboratoryQueryKeys } from "@/features/laboratory/query-keys";
-import { fetchSampleTests, fetchSamples } from "@/features/laboratory/api";
+import {
+  useAnalysisResults,
+  useSamples,
+  useSampleTests,
+} from "@/features/laboratory/hooks";
 import { getApiErrorMessage } from "@/lib/api";
 import { shortJobId } from "@/lib/laboratory";
-import { canManageJobsAndSamples } from "@/lib/staff";
+import { canManageJobsAndSamples, isStaffAdmin, isStaffAnalyst } from "@/lib/staff";
 import { useAuthStore } from "@/stores/auth-store";
 
 import { LIMS_EXTENSION_PAGE_SIZE } from "@/lib/staff/lims-extensions/constants";
@@ -28,6 +27,7 @@ import { StaffRoleBanner } from "../staff-role-banner";
 export default function StaffResultsPage() {
   const user = useAuthStore((s) => s.user);
   const canPatchSamples = canManageJobsAndSamples(user);
+  const canManageAnalysisResults = isStaffAdmin(user) || isStaffAnalyst(user);
   const queryClient = useQueryClient();
   const [jobId, setJobId] = useState("");
   const [lookupJobId, setLookupJobId] = useState("");
@@ -40,23 +40,20 @@ export default function StaffResultsPage() {
       enabled: Boolean(lookupJobId),
     });
 
-  const { data: draftResults } = useQuery({
-    queryKey: laboratoryQueryKeys.analysisResults({ state: "draft" }),
-    queryFn: () => fetchAnalysisResults({ page: 1, state: "draft" }),
-    staleTime: 20_000,
-  });
+  const { data: draftResults } = useAnalysisResults(
+    { page: 1, state: "draft" },
+    { staleTime: 20_000, enabled: canManageAnalysisResults },
+  );
 
-  const { data: inPrepSamples } = useQuery({
-    queryKey: ["lims-results-samples", "in_analysis"],
-    queryFn: () => fetchSamples({ page: 1, sample_status: "in_analysis" }),
-    staleTime: 45_000,
-  });
+  const { data: inPrepSamples } = useSamples(
+    { page: 1, sample_status: "in_analysis" },
+    { staleTime: 45_000 },
+  );
 
-  const { data: sampleTestsPage } = useQuery({
-    queryKey: ["lims-results-sample-tests"],
-    queryFn: () => fetchSampleTests({ page: 1 }),
-    staleTime: 45_000,
-  });
+  const { data: sampleTestsPage } = useSampleTests(
+    { page: 1 },
+    { staleTime: 45_000, enabled: canManageAnalysisResults },
+  );
 
   const sampleTestOptions = sampleTestsPage?.results ?? [];
 
@@ -96,8 +93,9 @@ export default function StaffResultsPage() {
     <div className="space-y-8">
       <LimsPageIntro title="Results &amp; analysis tracking">
         <p>
-          Look up approved analytical values per job, enter draft results linked to sample-tests, and
-          submit them for QC review.
+          {canManageAnalysisResults
+            ? "Look up approved analytical values per job, enter draft results linked to sample-tests, and submit them for QC review."
+            : "Look up analytical values and result states per job. Draft entry and submission are limited to analysts and administrators."}
         </p>
       </LimsPageIntro>
 
@@ -168,6 +166,8 @@ export default function StaffResultsPage() {
         ) : null}
       </section>
 
+      {canManageAnalysisResults ? (
+        <>
       <section className="space-y-3 rounded-xl border bg-card p-4 shadow-sm">
         <h3 className="text-sm font-semibold">Enter draft result</h3>
         <form
@@ -263,6 +263,8 @@ export default function StaffResultsPage() {
           ) : null}
         </div>
       </section>
+        </>
+      ) : null}
 
       <section className="space-y-3">
         <h3 className="text-sm font-semibold">Samples in analysis</h3>

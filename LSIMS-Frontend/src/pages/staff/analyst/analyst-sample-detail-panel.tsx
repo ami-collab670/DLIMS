@@ -1,11 +1,6 @@
-import { Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { useLabAnalysts } from "@/features/accounts/hooks";
 import {
   useAnalysisResults,
@@ -27,10 +22,9 @@ import {
   useDepartmentLabTechDirectory,
 } from "@/features/staff/hooks";
 import { getApiErrorMessage } from "@/lib/api";
-import { shortJobId } from "@/lib/laboratory";
 import { isSampleAwaitingPayment } from "@/lib/laboratory";
-import { canCreatePreparationRecord } from "@/lib/staff";
 import { staffSampleDisplayCode } from "@/lib/laboratory";
+import { canCreatePreparationRecord } from "@/lib/staff";
 import {
   isUserUuid,
   resolveInitialAnalystUserId,
@@ -38,7 +32,15 @@ import {
 import { useAuthStore } from "@/stores/auth-store";
 import type { AnalysisResult, SampleRecord } from "@/types/laboratory";
 
-import { AnalystCalibrationSection } from "./analyst-calibration-section";
+import { AnalystSampleAdminEdit } from "./analyst-sample-admin-edit";
+import { AnalystSampleAnalystAssign } from "./analyst-sample-analyst-assign";
+import { AnalystSampleAssignedTests } from "./analyst-sample-assigned-tests";
+import { AnalystSampleCatalogTestAssign } from "./analyst-sample-catalog-test-assign";
+import { AnalystSampleMetadataDisplay } from "./analyst-sample-metadata-display";
+import { AnalystSamplePanelHeader } from "./analyst-sample-panel-header";
+import { AnalystSamplePrepStatusBanner } from "./analyst-sample-prep-status-banner";
+import { AnalystSampleResultEntry } from "./analyst-sample-result-entry";
+import { AnalystSampleRoutingPanel } from "./analyst-sample-routing-panel";
 
 function formatDateForInput(isoOrDate: string | null | undefined): string {
   if (!isoOrDate) return "";
@@ -70,6 +72,17 @@ function formatDisplayDateTime(iso: string | null | undefined): string {
   return d.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
 }
 
+function findEditableResult(
+  results: AnalysisResult[],
+  sampleTestId: string,
+): AnalysisResult | undefined {
+  return results.find(
+    (r) =>
+      r.sample_test === sampleTestId &&
+      (r.state === "draft" || r.state === "rejected"),
+  );
+}
+
 export function AnalystSampleDetailPanel({
   sample,
   canPatchSample,
@@ -84,9 +97,7 @@ export function AnalystSampleDetailPanel({
   canPatchSample: boolean;
   canAssignAnalyst: boolean;
   hideClientSampleNames: boolean;
-  /** Bench result entry — analysts and reception/admin; not department managers. */
   showResultEntry?: boolean;
-  /** QC routing — assign analyst, create prep, optional lab tech pre-assign. */
   showSampleRouting?: boolean;
   onClose: () => void;
   onUpdated: () => void;
@@ -363,504 +374,148 @@ export function AnalystSampleDetailPanel({
   const hasAssignedTests = sample.sample_tests.length > 0;
   const showRoutingPanel = showSampleRouting && canAssignAnalyst;
 
+  const isRejectedDraft =
+    findEditableResult(sampleResults, resultSampleTest)?.state === "rejected";
+
+  function handleAssignAnalyst() {
+    assignAnalystMut.mutate({
+      sampleId: sample.id,
+      body: {
+        assigned_analyst: selectedAnalystId,
+        reassigned_reason: reassignedReason.trim() || undefined,
+      },
+    });
+  }
+
   return (
     <div className="rounded-xl border bg-card p-4 shadow-sm">
-      <div className="mb-3 flex items-center justify-between gap-2">
-        <div>
-          <p className="text-xs text-muted-foreground">
-            {isBlindView ? "Blind sample" : "Sample"}
-          </p>
-          <p className="font-mono font-semibold">{displayCode}</p>
-          {isBlindView ? (
-            <p className="mt-1 text-xs text-muted-foreground">
-              Client identifiers are hidden; workflow status follows the parent job.
-            </p>
-          ) : null}
-          {pendingPermanentCode ? (
-            <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
-              Sample not yet released for laboratory work (permanent code pending).
-            </p>
-          ) : null}
-        </div>
-        <Button type="button" variant="ghost" size="sm" onClick={onClose}>
-          Close
-        </Button>
-      </div>
+      <AnalystSamplePanelHeader
+        displayCode={displayCode}
+        isBlindView={isBlindView}
+        pendingPermanentCode={pendingPermanentCode}
+        onClose={onClose}
+      />
 
-      <dl className="grid gap-2 text-sm sm:grid-cols-2">
-        {!isBlindView && !hideClientSampleNames && sample.sample_name ? (
-          <div className="sm:col-span-2">
-            <dt className="text-xs text-muted-foreground">Name</dt>
-            <dd>{sample.sample_name}</dd>
-          </div>
-        ) : null}
-        <div>
-          <dt className="text-xs text-muted-foreground">Workflow status</dt>
-          <dd className="capitalize">{sample.sample_status.replace(/_/g, " ")}</dd>
-        </div>
-        <div>
-          <dt className="text-xs text-muted-foreground">Blind code</dt>
-          <dd className="font-mono">{sample.blind_alias_code ?? "—"}</dd>
-        </div>
-        {sample.job ? (
-          <div>
-            <dt className="text-xs text-muted-foreground">Job</dt>
-            <dd className="font-mono text-xs">{shortJobId(sample.job)}</dd>
-          </div>
-        ) : null}
-        {sample.job_status ? (
-          <div>
-            <dt className="text-xs text-muted-foreground">Job status</dt>
-            <dd className="capitalize">{sample.job_status.replace(/_/g, " ")}</dd>
-          </div>
-        ) : null}
-      </dl>
+      <AnalystSampleMetadataDisplay
+        sample={sample}
+        isBlindView={isBlindView}
+        hideClientSampleNames={hideClientSampleNames}
+        canPatchSample={canPatchSample}
+        formatDisplayDate={formatDisplayDate}
+        formatDisplayDateTime={formatDisplayDateTime}
+      />
 
-      {!canPatchSample ? (
-        <div className="mt-4 space-y-3 border-t pt-4">
-          <p className="text-sm font-medium">Technical details</p>
-          <dl className="grid gap-3 text-sm sm:grid-cols-2">
-            <div>
-              <dt className="text-xs text-muted-foreground">Sample weight (g)</dt>
-              <dd>{sample.sample_weight != null && sample.sample_weight !== "" ? sample.sample_weight : "—"}</dd>
-            </div>
-            <div>
-              <dt className="text-xs text-muted-foreground">Packaging</dt>
-              <dd>{sample.packaging_type?.trim() ? sample.packaging_type : "—"}</dd>
-            </div>
-            <div>
-              <dt className="text-xs text-muted-foreground">Collection date</dt>
-              <dd>{formatDisplayDate(sample.collection_date)}</dd>
-            </div>
-            <div>
-              <dt className="text-xs text-muted-foreground">Assigned at</dt>
-              <dd>{formatDisplayDateTime(sample.assigned_at)}</dd>
-            </div>
-          </dl>
-        </div>
-      ) : null}
-
-      <div className="mt-3 text-sm">
-        <span className="text-muted-foreground">Assigned tests: </span>
-        {sample.sample_tests.length ? (
-          <ul className="mt-1 list-inside list-disc text-sm">
-            {sample.sample_tests.map((t) => (
-              <li key={t.id} className="flex flex-wrap items-center gap-2">
-                <span className="font-mono text-xs">
-                  {t.test_code} — {t.test_name}
-                </span>
-                {canPatchSample ? (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 text-destructive"
-                    disabled={removeTestMut.isPending}
-                    onClick={() => {
-                      if (confirm(`Remove ${t.test_code} from this sample?`)) {
-                        removeTestMut.mutate(t.id);
-                      }
-                    }}
-                  >
-                    Remove
-                  </Button>
-                ) : null}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          "—"
-        )}
-      </div>
+      <AnalystSampleAssignedTests
+        sampleTests={sample.sample_tests}
+        canPatchSample={canPatchSample}
+        removePending={removeTestMut.isPending}
+        onRemoveTest={(sampleTestId, testCode) => {
+          if (confirm(`Remove ${testCode} from this sample?`)) {
+            removeTestMut.mutate(sampleTestId);
+          }
+        }}
+      />
 
       {showResultEntry && prepRecord ? (
-        <div className="mt-3 rounded-md border border-border bg-muted/30 px-3 py-2 text-xs">
-          <span className="font-medium text-foreground">Prep status: </span>
-          <span className="capitalize">{prepRecord.status.replace(/_/g, " ")}</span>
-          {prepRecord.completed_at ? (
-            <span className="text-muted-foreground">
-              {" "}
-              · completed {formatDisplayDateTime(prepRecord.completed_at)}
-            </span>
-          ) : null}
-        </div>
+        <AnalystSamplePrepStatusBanner
+          prepRecord={prepRecord}
+          formatDisplayDateTime={formatDisplayDateTime}
+        />
       ) : null}
 
       {showResultEntry && sample.sample_tests.length ? (
-        <div className="mt-4 space-y-3 border-t pt-4">
-          <p className="text-sm font-medium">Enter analysis result</p>
-          <p className="text-xs text-muted-foreground">
-            Save a draft, add calibrations below, then submit to your department QC manager.
-          </p>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="space-y-1 sm:col-span-2">
-              <Label>Sample-test assignment</Label>
-              <select
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
-                value={resultSampleTest}
-                onChange={(e) => setResultSampleTest(e.target.value)}
-              >
-                {sample.sample_tests.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.test_code} — {t.test_name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-1">
-              <Label>Value</Label>
-              <Input
-                value={resultValue}
-                onChange={(e) => setResultValue(e.target.value)}
-              />
-            </div>
-            <div className="space-y-1">
-              <Label>Unit</Label>
-              <Input value={resultUnit} onChange={(e) => setResultUnit(e.target.value)} />
-            </div>
-          </div>
-          {activeDraftId ? (
-            <p className="text-xs text-muted-foreground">
-              Draft saved
-              {findEditableResult(sampleResults, resultSampleTest)?.state === "rejected"
-                ? " (rejected — revise and resubmit)"
-                : ""}
-              .
-            </p>
-          ) : null}
-          <div className="flex flex-wrap gap-2">
-            <Button
-              type="button"
-              size="sm"
-              variant="secondary"
-              disabled={
-                !resultSampleTest || !resultValue.trim() || saveDraftPending
-              }
-              onClick={() => void handleSaveDraft()}
-            >
-              Save draft
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              disabled={
-                !resultSampleTest ||
-                !resultValue.trim() ||
-                submitPending ||
-                saveDraftPending
-              }
-              onClick={() => void handleSubmitResult()}
-            >
-              Submit for QC
-            </Button>
-          </div>
-          {activeDraftId ? (
-            <AnalystCalibrationSection analysisResultId={activeDraftId} />
-          ) : null}
-        </div>
+        <AnalystSampleResultEntry
+          sampleTests={sample.sample_tests}
+          resultSampleTest={resultSampleTest}
+          onResultSampleTestChange={setResultSampleTest}
+          resultValue={resultValue}
+          onResultValueChange={setResultValue}
+          resultUnit={resultUnit}
+          onResultUnitChange={setResultUnit}
+          activeDraftId={activeDraftId}
+          isRejectedDraft={Boolean(isRejectedDraft)}
+          saveDraftPending={saveDraftPending}
+          submitPending={submitPending}
+          onSaveDraft={() => void handleSaveDraft()}
+          onSubmitResult={() => void handleSubmitResult()}
+        />
       ) : null}
 
-      {canPatchSample && testsForPicker.length ? (
-        <div className="mt-4 space-y-2 border-t pt-4">
-          <Label>Assign catalog test</Label>
-          <div className="flex flex-wrap gap-2">
-            <select
-              className="flex min-w-[200px] flex-1 h-9 rounded-md border border-input bg-transparent px-3 text-sm"
-              value={testToAdd}
-              onChange={(e) => setTestToAdd(e.target.value)}
-            >
-              <option value="">Select test…</option>
-              {testsForPicker.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.test_code} — {t.test_name}
-                </option>
-              ))}
-            </select>
-            <Button
-              type="button"
-              disabled={!testToAdd || assignMut.isPending}
-              onClick={() =>
-                assignMut.mutate({ sample: sample.id, test: testToAdd })
-              }
-            >
-              Assign test
-            </Button>
-          </div>
-        </div>
+      {canPatchSample ? (
+        <AnalystSampleCatalogTestAssign
+          testsForPicker={testsForPicker}
+          testToAdd={testToAdd}
+          onTestToAddChange={setTestToAdd}
+          assignPending={assignMut.isPending}
+          onAssign={() => assignMut.mutate({ sample: sample.id, test: testToAdd })}
+        />
       ) : null}
 
       {showRoutingPanel ? (
-        <div className="mt-4 space-y-4 border-t pt-4">
-          <div>
-            <p className="text-sm font-medium">Route sample</p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Assign an analyst, create a preparation record, and optionally pre-assign a lab
-              technician in your department.
-            </p>
-          </div>
-
-          <div className="space-y-3">
-            <p className="text-sm font-medium">Assign analyst</p>
-            {awaitingPayment ? (
-              <p className="text-xs text-muted-foreground">
-                This sample is not yet released for laboratory work. Route samples after the
-                permanent sample code is issued.
-              </p>
-            ) : analystDirectoryLoading ? (
-              <p className="text-xs text-muted-foreground">Loading department analysts…</p>
-            ) : analystOptions.length === 0 ? (
-              <p className="text-xs text-muted-foreground">
-                No analysts found for your department yet. Analysts appear after they work on
-                department samples or results, or ask an administrator.
-              </p>
-            ) : (
-              <>
-                <div className="space-y-1">
-                  <Label>Analyst</Label>
-                  <select
-                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
-                    value={selectedAnalystId}
-                    onChange={(e) => {
-                      setAnalystSelectionTouched(true);
-                      setSelectedAnalystId(e.target.value);
-                    }}
-                  >
-                    <option value="">Unassigned</option>
-                    {analystOptions.map((a) => (
-                      <option key={a.id} value={a.id}>
-                        {a.email}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="space-y-1">
-                  <Label>Reassignment reason</Label>
-                  <Input
-                    value={reassignedReason}
-                    onChange={(e) => setReassignedReason(e.target.value)}
-                  />
-                </div>
-                {analystSelectionChanged ? (
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="sm"
-                    disabled={assignAnalystMut.isPending || !isUserUuid(selectedAnalystId)}
-                    onClick={() =>
-                      assignAnalystMut.mutate({
-                        sampleId: sample.id,
-                        body: {
-                          assigned_analyst: selectedAnalystId,
-                          reassigned_reason: reassignedReason.trim() || undefined,
-                        },
-                      })
-                    }
-                  >
-                    Assign analyst
-                  </Button>
-                ) : null}
-              </>
-            )}
-          </div>
-
-          {canCreatePrep ? (
-            <div className="space-y-3 border-t pt-4">
-              <p className="text-sm font-medium">Preparation routing</p>
-              {awaitingPayment ? (
-                <p className="text-xs text-muted-foreground">
-                  Preparation records can be created after finance clears the sample.
-                </p>
-              ) : prepLoading ? (
-                <p className="text-xs text-muted-foreground">Loading preparation status…</p>
-              ) : prepRecord ? (
-                <dl className="grid gap-2 text-sm sm:grid-cols-2">
-                  <div>
-                    <dt className="text-xs text-muted-foreground">Prep reference</dt>
-                    <dd className="font-mono text-xs">{prepRecord.reference_code}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-xs text-muted-foreground">Status</dt>
-                    <dd className="capitalize">{prepRecord.status.replace(/_/g, " ")}</dd>
-                  </div>
-                  <div className="sm:col-span-2">
-                    <dt className="text-xs text-muted-foreground">Lab technician</dt>
-                    <dd>
-                      {prepRecord.technician_email?.trim()
-                        ? prepRecord.technician_email
-                        : "Unassigned (claimable by any dept lab tech on Start)"}
-                    </dd>
-                  </div>
-                </dl>
-              ) : !hasAssignedTests ? (
-                <p className="text-xs text-muted-foreground">
-                  Assign at least one test to this sample before creating a preparation record.
-                </p>
-              ) : (
-                <>
-                  <p className="text-xs text-muted-foreground">
-                    Creates a prep bench record for lab technicians. Leave technician unassigned
-                    if any lab tech in your department should be able to claim it on Start.
-                  </p>
-                  {labTechDirectoryLoading ? (
-                    <p className="text-xs text-muted-foreground">Loading lab technicians…</p>
-                  ) : (
-                    <div className="space-y-1">
-                      <Label>Lab technician (optional)</Label>
-                      <select
-                        className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
-                        value={selectedLabTechId}
-                        onChange={(e) => setSelectedLabTechId(e.target.value)}
-                      >
-                        <option value="">Unassigned</option>
-                        {labTechDirectory.map((tech) => (
-                          <option key={tech.id} value={tech.id}>
-                            {tech.email}
-                          </option>
-                        ))}
-                      </select>
-                      {labTechDirectory.length === 0 ? (
-                        <p className="text-xs text-muted-foreground">
-                          No lab technicians in directory yet — you can still create the prep
-                          record unassigned.
-                        </p>
-                      ) : null}
-                    </div>
-                  )}
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="secondary"
-                    disabled={createPrepMut.isPending}
-                    onClick={() =>
-                      createPrepMut.mutate({
-                        sample: sample.id,
-                        technician: isUserUuid(selectedLabTechId)
-                          ? selectedLabTechId
-                          : undefined,
-                      })
-                    }
-                  >
-                    Create preparation record
-                  </Button>
-                </>
-              )}
-            </div>
-          ) : null}
-        </div>
+        <AnalystSampleRoutingPanel
+          awaitingPayment={awaitingPayment}
+          analystDirectoryLoading={analystDirectoryLoading}
+          analystOptions={analystOptions}
+          selectedAnalystId={selectedAnalystId}
+          onSelectedAnalystIdChange={setSelectedAnalystId}
+          onAnalystSelectionTouched={() => setAnalystSelectionTouched(true)}
+          reassignedReason={reassignedReason}
+          onReassignedReasonChange={setReassignedReason}
+          analystSelectionChanged={analystSelectionChanged}
+          assignAnalystPending={assignAnalystMut.isPending}
+          canAssignAnalystUuid={isUserUuid(selectedAnalystId)}
+          onAssignAnalyst={handleAssignAnalyst}
+          canCreatePrep={canCreatePrep}
+          prepLoading={prepLoading}
+          prepRecord={prepRecord}
+          hasAssignedTests={hasAssignedTests}
+          labTechDirectoryLoading={labTechDirectoryLoading}
+          labTechDirectory={labTechDirectory}
+          selectedLabTechId={selectedLabTechId}
+          onSelectedLabTechIdChange={setSelectedLabTechId}
+          createPrepPending={createPrepMut.isPending}
+          onCreatePrep={() =>
+            createPrepMut.mutate({
+              sample: sample.id,
+              technician: isUserUuid(selectedLabTechId) ? selectedLabTechId : undefined,
+            })
+          }
+        />
       ) : canAssignAnalyst ? (
         <div className="mt-4 space-y-3 border-t pt-4">
-          <p className="text-sm font-medium">Assign analyst</p>
-          {awaitingPayment ? (
-            <p className="text-xs text-muted-foreground">
-              This sample is not yet released for laboratory work. Assign analysts after the
-              permanent sample code is issued.
-            </p>
-          ) : analystDirectoryLoading ? (
-            <p className="text-xs text-muted-foreground">Loading department analysts…</p>
-          ) : analystOptions.length === 0 ? (
-            <p className="text-xs text-muted-foreground">
-              No analysts found for your department yet. Analysts appear after they work on
-              department samples or results, or ask an administrator.
-            </p>
-          ) : (
-            <>
-              <div className="space-y-1">
-                <Label>Analyst</Label>
-                <select
-                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
-                  value={selectedAnalystId}
-                  onChange={(e) => {
-                    setAnalystSelectionTouched(true);
-                    setSelectedAnalystId(e.target.value);
-                  }}
-                >
-                  <option value="">Unassigned</option>
-                  {analystOptions.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.email}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-1">
-                <Label>Reassignment reason</Label>
-                <Input
-                  value={reassignedReason}
-                  onChange={(e) => setReassignedReason(e.target.value)}
-                />
-              </div>
-              {analystSelectionChanged ? (
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  disabled={assignAnalystMut.isPending || !isUserUuid(selectedAnalystId)}
-                  onClick={() =>
-                    assignAnalystMut.mutate({
-                      sampleId: sample.id,
-                      body: {
-                        assigned_analyst: selectedAnalystId,
-                        reassigned_reason: reassignedReason.trim() || undefined,
-                      },
-                    })
-                  }
-                >
-                  Assign analyst
-                </Button>
-              ) : null}
-            </>
-          )}
+          <AnalystSampleAnalystAssign
+            awaitingPayment={awaitingPayment}
+            analystDirectoryLoading={analystDirectoryLoading}
+            analystOptions={analystOptions}
+            selectedAnalystId={selectedAnalystId}
+            onSelectedAnalystIdChange={setSelectedAnalystId}
+            onAnalystSelectionTouched={() => setAnalystSelectionTouched(true)}
+            reassignedReason={reassignedReason}
+            onReassignedReasonChange={setReassignedReason}
+            analystSelectionChanged={analystSelectionChanged}
+            assignPending={assignAnalystMut.isPending}
+            canAssign={isUserUuid(selectedAnalystId)}
+            onAssign={handleAssignAnalyst}
+          />
         </div>
       ) : null}
 
       {canPatchSample ? (
-        <div className="mt-4 space-y-3 border-t pt-4">
-          <p className="text-sm font-medium">Edit sample (reception/admin)</p>
-          {!isBlindView && !hideClientSampleNames ? (
-            <div className="space-y-1">
-              <Label>Sample name</Label>
-              <Input value={sampleName} onChange={(e) => setSampleName(e.target.value)} />
-            </div>
-          ) : null}
-          <div className="space-y-1">
-            <Label>Notes</Label>
-            <Textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} />
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button
-              type="button"
-              onClick={() =>
-                patchMut.mutate({ id: sample.id, body: buildPatchBody() })
-              }
-              disabled={patchMut.isPending}
-            >
-              Save metadata
-            </Button>
-            <Button
-              type="button"
-              variant="destructive"
-              disabled={delMut.isPending}
-              onClick={() => {
-                if (confirm("Permanently delete this sample?")) delMut.mutate(sample.id);
-              }}
-            >
-              <Trash2 className="size-4" />
-              Delete
-            </Button>
-          </div>
-        </div>
+        <AnalystSampleAdminEdit
+          isBlindView={isBlindView}
+          hideClientSampleNames={hideClientSampleNames}
+          sampleName={sampleName}
+          onSampleNameChange={setSampleName}
+          notes={notes}
+          onNotesChange={setNotes}
+          patchPending={patchMut.isPending}
+          deletePending={delMut.isPending}
+          onSave={() => patchMut.mutate({ id: sample.id, body: buildPatchBody() })}
+          onDelete={() => {
+            if (confirm("Permanently delete this sample?")) delMut.mutate(sample.id);
+          }}
+        />
       ) : null}
     </div>
-  );
-}
-
-function findEditableResult(
-  results: AnalysisResult[],
-  sampleTestId: string,
-): AnalysisResult | undefined {
-  return results.find(
-    (r) =>
-      r.sample_test === sampleTestId &&
-      (r.state === "draft" || r.state === "rejected"),
   );
 }

@@ -160,9 +160,15 @@ export {
 
   revenueCollectedInDays,
 
+  sumAmountPaid,
+
   sumOutstanding,
 
+  avgIntakeToPaidDays,
+
   waiverMetrics,
+
+  waiverMetricsNonPaymentRequired,
 
 } from "./finance/dashboard-metrics";
 

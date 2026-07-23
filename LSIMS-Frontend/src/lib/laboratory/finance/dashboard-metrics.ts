@@ -73,6 +73,55 @@ export function waiverMetrics(records: FinancialRecord[]): {
   return { count, amount };
 }
 
+/** Full reports page: waivers where payment was not required. */
+export function waiverMetricsNonPaymentRequired(records: FinancialRecord[]): {
+  count: number;
+  amount: number;
+} {
+  let count = 0;
+  let amount = 0;
+  for (const r of records) {
+    if (!r.payment_required && r.waiver_approved_at) {
+      count += 1;
+      amount += parseMoney(r.amount_expected);
+    }
+  }
+  return { count, amount };
+}
+
+/** Sum of all amount_paid across records (all-time, not windowed). */
+export function sumAmountPaid(records: FinancialRecord[]): number {
+  let total = 0;
+  for (const r of records) {
+    total += parseMoney(r.amount_paid);
+  }
+  return total;
+}
+
+export function avgIntakeToPaidDays(
+  records: FinancialRecord[],
+  jobCreatedAt: Map<string, string>,
+): number | null {
+  const intakeToPaidDays: number[] = [];
+
+  for (const r of records) {
+    if (r.payment_status === "paid" && r.paid_at) {
+      const created = jobCreatedAt.get(r.job);
+      if (created) {
+        const days =
+          (new Date(r.paid_at).getTime() - new Date(created).getTime()) /
+          (1000 * 60 * 60 * 24);
+        if (Number.isFinite(days) && days >= 0) {
+          intakeToPaidDays.push(days);
+        }
+      }
+    }
+  }
+
+  if (intakeToPaidDays.length === 0) return null;
+  return intakeToPaidDays.reduce((a, b) => a + b, 0) / intakeToPaidDays.length;
+}
+
 export function needsFinanceFollowUp(record: FinancialRecord): boolean {
   if (record.payment_status === "partial") return true;
   if (record.payment_status === "pending" && !record.waiver_approved_at) {

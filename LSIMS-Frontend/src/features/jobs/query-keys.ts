@@ -5,6 +5,7 @@ export const jobKeys = {
   list: (params?: JobOrderListParams) => ["jobs", "list", params] as const,
   detail: (id: string) => ["jobs", "detail", id] as const,
   resultSummary: (jobId: string) => ["jobs", "result-summary", jobId] as const,
+  clientIndex: () => ["jobs", "client-index"] as const,
 };
 
 /** Preserved for cache compatibility with existing client job request form. */

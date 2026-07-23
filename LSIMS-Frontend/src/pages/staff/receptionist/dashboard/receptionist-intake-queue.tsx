@@ -27,12 +27,12 @@ export function ReceptionistIntakeQueue() {
   return (
     <section
       className="rounded-xl border border-border bg-card p-4 shadow-sm"
-      aria-labelledby="receptionist-intake-heading"
+      aria-labelledby="receptionist-finance-clearance-heading"
     >
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <ClipboardList className="size-4 text-primary" aria-hidden />
-        <h3 id="receptionist-intake-heading" className="text-sm font-medium">
-          Intake queue
+        <h3 id="receptionist-finance-clearance-heading" className="text-sm font-medium">
+          Awaiting finance clearance
         </h3>
         <span className="text-xs text-muted-foreground">
           {jobs.length} job{jobs.length === 1 ? "" : "s"} awaiting finance

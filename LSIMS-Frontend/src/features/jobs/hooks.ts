@@ -20,6 +20,7 @@ import {
   type JobOrderListParams,
   type PatchJobBody,
 } from "@/features/jobs/api";
+import { fetchAllJobOrdersForClientIndex } from "@/features/jobs/lib/fetch-all-job-orders-for-client-index";
 import {
   CLIENT_SERVICE_CATALOG_QUERY_KEY,
   jobKeys,
@@ -71,6 +72,17 @@ export function useJobResultSummary(
   return useQuery({
     queryKey: jobKeys.resultSummary(jobId),
     queryFn: () => fetchJobResultSummary(jobId),
+    staleTime: DEFAULT_LIST_STALE_MS,
+    ...options,
+  });
+}
+
+export function useAllJobOrdersForClientIndex(
+  options?: Omit<UseQueryOptions<JobOrder[]>, "queryKey" | "queryFn">,
+) {
+  return useQuery({
+    queryKey: jobKeys.clientIndex(),
+    queryFn: fetchAllJobOrdersForClientIndex,
     staleTime: DEFAULT_LIST_STALE_MS,
     ...options,
   });

@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 
-import { isQcManager } from "@/lib/staff";
+import { canCloseComplaints, isQcManager } from "@/lib/staff";
 import { dashboardKeys } from "@/lib/staff/dashboard/query-keys";
 import { fetchDepartmentJobIds } from "@/features/jobs/lib/fetch-department-job-ids";
 import { useAuthStore } from "@/stores/auth-store";
@@ -13,6 +13,7 @@ import { StaffComplaintsSection } from "./staff-complaints-section";
 export default function StaffCompliancePage() {
   const user = useAuthStore((s) => s.user);
   const qcManager = isQcManager(user);
+  const readOnlyActions = !canCloseComplaints(user);
 
   const { data: departmentJobIds } = useQuery({
     queryKey: dashboardKeys.qcManagerJobIds,
@@ -44,7 +45,7 @@ export default function StaffCompliancePage() {
 
       <StaffComplaintsSection
         departmentJobIds={departmentJobIds}
-        readOnlyActions={qcManager}
+        readOnlyActions={readOnlyActions}
       />
     </div>
   );

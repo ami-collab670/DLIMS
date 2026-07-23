@@ -34,7 +34,7 @@ import { cn } from "@/lib/ui";
 import {
   clientJobRequestSchema,
   type ClientJobRequestValues,
-} from "@/lib/client";
+} from "@/features/jobs/lib/job-request-schema";
 import type { JobOrder } from "@/types/laboratory";
 
 import { ClientServiceCatalogPicker } from "./client-service-catalog-picker";

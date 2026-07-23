@@ -40,13 +40,13 @@ export function AnalystDashboardQuickLinks() {
           icon={AlertCircle}
           label="Needs resubmit"
           description="Rejected results returned for revision."
-          to={staffPath("analyst", { status: "rejected" })}
+          to={staffPath("analyst", { resultState: "rejected" })}
         />
         <QuickLinkCard
           icon={FileEdit}
           label="Draft results"
           description="Continue work on saved drafts."
-          to={staffPath("analyst")}
+          to={staffPath("analyst", { resultState: "draft" })}
         />
       </div>
     </section>
