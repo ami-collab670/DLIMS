@@ -7,6 +7,7 @@ import {
 } from "@/features/cms/components/cms-page-states";
 import { useNewsArticle } from "@/features/cms/hooks";
 import { ROUTES } from "@/lib/routing";
+import { usePublicLocale } from "@/providers/locale-provider";
 
 import { MarketingArticleBody } from "./components/marketing-article-body";
 import { MarketingBreadcrumbs } from "./components/marketing-breadcrumbs";
@@ -15,6 +16,7 @@ import { MarketingFadeInView } from "./components/motion";
 
 export function NewsDetailPage() {
   const { slug = "" } = useParams();
+  const { localizePath } = usePublicLocale();
   const { data: article, isLoading, isError, refetch } = useNewsArticle(slug);
 
   if (isLoading) {
@@ -33,7 +35,7 @@ export function NewsDetailPage() {
           This news article is not available.
         </p>
         <Button asChild className="mt-6" variant="outline">
-          <Link to={ROUTES.news}>Back to news</Link>
+          <Link to={localizePath(ROUTES.news)}>Back to news</Link>
         </Button>
       </MarketingPageShell>
     );
@@ -42,7 +44,7 @@ export function NewsDetailPage() {
   return (
     <MarketingPageShell>
       <MarketingBreadcrumbs
-        items={[{ label: "News", href: ROUTES.news }, { label: article.title }]}
+        items={[{ label: "News", href: localizePath(ROUTES.news) }, { label: article.title }]}
       />
       <article>
         <MarketingFadeInView>
@@ -58,7 +60,7 @@ export function NewsDetailPage() {
         </MarketingFadeInView>
       </article>
       <Button asChild className="mt-10" variant="outline">
-        <Link to={ROUTES.news}>Back to all news</Link>
+        <Link to={localizePath(ROUTES.news)}>Back to all news</Link>
       </Button>
     </MarketingPageShell>
   );

@@ -14,26 +14,56 @@
     "siteName": {
       "type": "string",
       "required": true,
-      "default": "LSIMS"
+      "default": "LSIMS",
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
     },
     "footerTagline": {
       "type": "text",
-      "required": true
+      "required": true,
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
     },
     "navLinks": {
       "type": "component",
       "repeatable": true,
-      "component": "navigation.nav-link"
+      "component": "navigation.nav-link",
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
     },
     "footerLinkGroups": {
       "type": "component",
       "repeatable": true,
-      "component": "navigation.footer-link-group"
+      "component": "navigation.footer-link-group",
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
     },
     "socialLinks": {
       "type": "component",
       "repeatable": true,
-      "component": "navigation.social-link"
+      "component": "navigation.social-link",
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
+    }
+  },
+  "pluginOptions": {
+    "i18n": {
+      "localized": true
     }
   }
 }

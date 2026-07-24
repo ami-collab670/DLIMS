@@ -1,16 +1,95 @@
 {
   "collectionName": "components_hero_hero_slides",
-  "info": { "displayName": "Hero Slide", "icon": "picture" },
+  "info": {
+    "displayName": "Hero Slide",
+    "icon": "picture"
+  },
   "attributes": {
-    "slideKey": { "type": "string", "required": true },
-    "title": { "type": "string", "required": true },
-    "subtitle": { "type": "text", "required": true },
-    "imageUrl": { "type": "string", "required": true },
-    "imageAlt": { "type": "string", "required": true },
-    "gradientFallbackClass": { "type": "string", "required": true },
-    "primaryCtaLabel": { "type": "string" },
-    "primaryCtaHref": { "type": "string" },
-    "secondaryCtaLabel": { "type": "string" },
-    "secondaryCtaHref": { "type": "string" }
+    "slideKey": {
+      "type": "string",
+      "required": true,
+      "pluginOptions": {
+        "i18n": {
+          "localized": false
+        }
+      }
+    },
+    "title": {
+      "type": "string",
+      "required": true,
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
+    },
+    "subtitle": {
+      "type": "text",
+      "required": true,
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
+    },
+    "imageUrl": {
+      "type": "string",
+      "required": true,
+      "pluginOptions": {
+        "i18n": {
+          "localized": false
+        }
+      }
+    },
+    "imageAlt": {
+      "type": "string",
+      "required": true,
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
+    },
+    "gradientFallbackClass": {
+      "type": "string",
+      "required": true,
+      "pluginOptions": {
+        "i18n": {
+          "localized": false
+        }
+      }
+    },
+    "primaryCtaLabel": {
+      "type": "string",
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
+    },
+    "primaryCtaHref": {
+      "type": "string",
+      "pluginOptions": {
+        "i18n": {
+          "localized": false
+        }
+      }
+    },
+    "secondaryCtaLabel": {
+      "type": "string",
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
+    },
+    "secondaryCtaHref": {
+      "type": "string",
+      "pluginOptions": {
+        "i18n": {
+          "localized": false
+        }
+      }
+    }
   }
 }

@@ -1,11 +1,13 @@
 import type { ReactNode } from "react";
 
+import { useAuthPageContent } from "@/features/cms/hooks/use-auth-page";
+
 import { AuthPageLayout } from "../components/auth-page-layout";
 
 export function LoginPageLayout({
   children,
-  title = "Sign in",
-  description = "Use your LSIMS account email and password.",
+  title,
+  description,
   footer,
   headerExtra,
 }: {
@@ -15,11 +17,13 @@ export function LoginPageLayout({
   footer?: ReactNode;
   headerExtra?: ReactNode;
 }) {
+  const authPage = useAuthPageContent();
+
   return (
     <AuthPageLayout
       variant="login"
-      title={title}
-      description={description}
+      title={title ?? authPage.loginTitle}
+      description={description ?? authPage.loginDescription}
       footer={footer}
       headerExtra={headerExtra}
     >

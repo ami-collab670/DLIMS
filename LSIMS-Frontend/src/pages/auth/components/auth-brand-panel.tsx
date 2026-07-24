@@ -1,51 +1,25 @@
-import { FlaskConical, Lock, ShieldCheck } from "lucide-react";
-
 import { APP_NAME_FALLBACK } from "@/features/cms/defaults";
+import {
+  AUTH_PAGE_DEFAULTS,
+  getAuthBrandCopy,
+  type AuthBrandVariant,
+} from "@/features/cms/auth-defaults";
+import { resolveCmsIcon } from "@/features/cms/icon-map";
+import { useAuthPageContent } from "@/features/cms/hooks/use-auth-page";
 import { useSiteSettings } from "@/features/cms/hooks";
 import { cn } from "@/lib/ui/cn";
 
-const TRUST_BULLETS = [
-  {
-    icon: ShieldCheck,
-    title: "Accredited laboratory testing",
-    description: "Validated methods and documented chain of custody.",
-  },
-  {
-    icon: FlaskConical,
-    title: "Full sample traceability",
-    description: "Track specimens from intake through certified results.",
-  },
-  {
-    icon: Lock,
-    title: "Secure client portal",
-    description: "Protected access for job requests, results, and reports.",
-  },
-] as const;
-
-const VARIANT_COPY = {
-  login: {
-    eyebrow: "Client & staff portal",
-    tagline:
-      "Sign in to manage laboratory workflows, submit requests, and access certified results.",
-  },
-  signup: {
-    eyebrow: "Client registration",
-    tagline:
-      "Create an organization account to submit samples and receive results online.",
-  },
-  "forgot-password": {
-    eyebrow: "Account recovery",
-    tagline:
-      "Reset your password securely with a one-time code sent to your registered email.",
-  },
-} as const;
-
-export type AuthBrandVariant = keyof typeof VARIANT_COPY;
+export type { AuthBrandVariant };
 
 export function AuthBrandPanel({ variant }: { variant: AuthBrandVariant }) {
   const { data: siteSettings } = useSiteSettings();
+  const authPage = useAuthPageContent();
   const siteName = siteSettings?.siteName ?? APP_NAME_FALLBACK;
-  const copy = VARIANT_COPY[variant];
+  const copy = getAuthBrandCopy(authPage, variant);
+  const trustBullets =
+    authPage.trustBullets.length > 0
+      ? authPage.trustBullets
+      : AUTH_PAGE_DEFAULTS.trustBullets;
 
   return (
     <aside
@@ -74,8 +48,8 @@ export function AuthBrandPanel({ variant }: { variant: AuthBrandVariant }) {
       </div>
 
       <ul className="relative z-10 space-y-5">
-        {TRUST_BULLETS.map((bullet) => {
-          const Icon = bullet.icon;
+        {trustBullets.map((bullet) => {
+          const Icon = resolveCmsIcon(bullet.iconKey);
           return (
             <li key={bullet.title} className="flex gap-3">
               <span className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-background/20 bg-background/10 text-background">

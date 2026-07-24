@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PasswordInput } from "@/components/ui/password-input";
+import { useAuthPageContent } from "@/features/cms/hooks/use-auth-page";
 
 import type { LoginValues } from "@/lib/validation/auth/login-schema";
 
@@ -16,6 +17,7 @@ type Props = {
 };
 
 export function LoginForm({ form, onSubmit, submitting }: Props) {
+  const authPage = useAuthPageContent();
   const {
     register,
     handleSubmit,
@@ -25,12 +27,12 @@ export function LoginForm({ form, onSubmit, submitting }: Props) {
   return (
     <form className="space-y-5" onSubmit={handleSubmit(onSubmit)} noValidate>
       <div className="space-y-2">
-        <Label htmlFor="email">Email</Label>
+        <Label htmlFor="email">{authPage.loginEmailLabel}</Label>
         <Input
           id="email"
           type="email"
           autoComplete="email"
-          placeholder="you@organization.com"
+          placeholder={authPage.loginEmailPlaceholder}
           aria-invalid={!!errors.email}
           {...register("email")}
         />
@@ -41,12 +43,12 @@ export function LoginForm({ form, onSubmit, submitting }: Props) {
 
       <div className="space-y-2">
         <div className="flex items-center justify-between gap-2">
-          <Label htmlFor="password">Password</Label>
+          <Label htmlFor="password">{authPage.loginPasswordLabel}</Label>
           <Link
             to={ROUTES.forgotPassword}
             className="text-xs font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
           >
-            Forgot password?
+            {authPage.loginForgotPasswordLabel}
           </Link>
         </div>
         <PasswordInput
@@ -63,16 +65,16 @@ export function LoginForm({ form, onSubmit, submitting }: Props) {
       </div>
 
       <Button type="submit" size="lg" className="w-full" disabled={submitting}>
-        {submitting ? "Signing in…" : "Sign in"}
+        {submitting ? authPage.loginSubmittingLabel : authPage.loginSubmitLabel}
       </Button>
 
       <p className="border-t border-border pt-4 text-center text-sm text-muted-foreground">
-        No account?{" "}
+        {authPage.loginFooterPrompt}{" "}
         <Link
           to={ROUTES.signup}
           className="font-medium text-primary underline-offset-4 hover:underline"
         >
-          Create one
+          {authPage.loginFooterLinkLabel}
         </Link>
       </p>
     </form>

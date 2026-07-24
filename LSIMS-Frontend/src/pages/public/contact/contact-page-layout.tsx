@@ -6,6 +6,7 @@ import {
 } from "@/features/cms/components/cms-page-states";
 import type { ContactPageContent } from "@/features/cms/types";
 import { ROUTES } from "@/lib/routing";
+import { usePublicLocale } from "@/providers/locale-provider";
 
 import { MarketingContactDetails } from "@/pages/public/components/marketing-contact-details";
 import { MarketingPageHero } from "@/pages/public/components/marketing-page-hero";
@@ -33,6 +34,8 @@ export function ContactPageLayout({
   onRetry?: () => void;
   children?: ReactNode;
 }) {
+  const { localizePath } = usePublicLocale();
+
   if (isLoading) {
     return <CmsPageSkeleton lines={6} />;
   }
@@ -43,7 +46,7 @@ export function ContactPageLayout({
 
   const tabs = CONTACT_TAB_ROUTES.map((tab) => ({
     label: tabLabels[tab.slug] ?? tab.slug,
-    href: tab.href,
+    href: localizePath(tab.href),
   }));
 
   return (

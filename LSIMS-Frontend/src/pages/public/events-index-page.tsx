@@ -6,6 +6,7 @@ import {
 } from "@/features/cms/components/cms-page-states";
 import { useEvents, useHomePage } from "@/features/cms/hooks";
 import { eventPath } from "@/lib/routing/path-builders";
+import { usePublicLocale } from "@/providers/locale-provider";
 
 import { MarketingPageHero } from "./components/marketing-page-hero";
 import { MarketingPageShell } from "./components/marketing-page-shell";
@@ -13,6 +14,7 @@ import { MarketingGlowCard } from "./components/motion";
 import { MarketingSectionHeader } from "./marketing-section-header";
 
 export function EventsIndexPage() {
+  const { locale } = usePublicLocale();
   const homePage = useHomePage();
   const events = useEvents();
 
@@ -56,7 +58,7 @@ export function EventsIndexPage() {
           {events.data!.map((event) => (
             <MarketingGlowCard
               key={event.slug}
-              to={eventPath(event.slug)}
+              to={eventPath(event.slug, locale)}
               className="flex flex-col p-6"
             >
               <span className="inline-flex w-fit rounded-full bg-muted px-3 py-1 text-xs font-medium">

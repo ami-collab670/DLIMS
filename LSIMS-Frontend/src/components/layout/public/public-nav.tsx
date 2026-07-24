@@ -7,19 +7,27 @@ import { ThemeToggler } from "@/components/ThemeToggler";
 import { Button } from "@/components/ui/button";
 import type { NavLink } from "@/features/cms/types";
 import type { ServiceItem } from "@/features/cms/types";
+import { stripLocalePrefix } from "@/lib/i18n/localize-path";
 import { ROUTES } from "@/lib/routing";
+import { usePublicLocale } from "@/providers/locale-provider";
 import { cn } from "@/lib/ui";
 
 import { PublicServicesNavItem } from "./public-services-nav-item";
 
 function isNavLinkActive(pathname: string, path: string) {
-  if (path === ROUTES.home) {
-    return pathname === ROUTES.home;
+  const { pathnameWithoutLocale } = stripLocalePrefix(pathname);
+  const { pathnameWithoutLocale: linkPath } = stripLocalePrefix(path);
+
+  if (linkPath === ROUTES.home || linkPath === "/") {
+    return pathnameWithoutLocale === ROUTES.home || pathnameWithoutLocale === "/";
   }
-  if (path.includes("#")) {
-    return pathname === ROUTES.home;
+  if (linkPath.includes("#")) {
+    return pathnameWithoutLocale === ROUTES.home || pathnameWithoutLocale === "/";
   }
-  return pathname === path || pathname.startsWith(`${path}/`);
+  return (
+    pathnameWithoutLocale === linkPath ||
+    pathnameWithoutLocale.startsWith(`${linkPath}/`)
+  );
 }
 
 type PublicNavSharedProps = {
@@ -35,6 +43,7 @@ export function PublicNavDesktop({
   onServicesOpenChange,
 }: PublicNavSharedProps) {
   const { pathname } = useLocation();
+  const { localizePath } = usePublicLocale();
   const navRef = useRef<HTMLDivElement>(null);
   const linkRefs = useRef<Map<string, HTMLElement>>(new Map());
   const [indicator, setIndicator] = useState<{ left: number; width: number } | null>(
@@ -82,7 +91,7 @@ export function PublicNavDesktop({
     return () => window.removeEventListener("keydown", handleEscape);
   }, [onServicesOpenChange, servicesOpen]);
 
-  const servicesPath = ROUTES.services.root;
+  const servicesPath = localizePath(ROUTES.services.root);
   const isServicesActive = isNavLinkActive(pathname, servicesPath);
 
   return (
@@ -159,6 +168,7 @@ export function PublicNavMobile({
   onServicesOpenChange,
 }: PublicNavSharedProps & { mobileActions?: ReactNode }) {
   const { pathname } = useLocation();
+  const { localizePath } = usePublicLocale();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mobileServicesExpanded, setMobileServicesExpanded] = useState(false);
 
@@ -175,7 +185,7 @@ export function PublicNavMobile({
     onServicesOpenChange?.(false);
   }, [pathname, onServicesOpenChange]);
 
-  const servicesPath = ROUTES.services.root;
+  const servicesPath = localizePath(ROUTES.services.root);
 
   return (
     <>
@@ -242,7 +252,7 @@ export function PublicNavMobile({
                           ))}
                           <li>
                             <Link
-                              to={ROUTES.services.root}
+                              to={localizePath(ROUTES.services.root)}
                               onClick={() => setMobileOpen(false)}
                               className="block rounded-lg px-3 py-2 text-sm font-medium text-primary"
                             >

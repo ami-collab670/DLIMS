@@ -14,99 +14,234 @@
     "heroSlides": {
       "type": "component",
       "repeatable": true,
-      "component": "hero.hero-slide"
+      "component": "hero.hero-slide",
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
     },
     "stats": {
       "type": "component",
       "repeatable": true,
-      "component": "marketing.stat-item"
+      "component": "marketing.stat-item",
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
     },
     "servicesHeader": {
       "type": "component",
-      "component": "marketing.section-header"
+      "component": "marketing.section-header",
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
     },
     "statsHeader": {
       "type": "component",
-      "component": "marketing.section-header"
+      "component": "marketing.section-header",
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
     },
     "newsHeader": {
       "type": "component",
-      "component": "marketing.section-header"
+      "component": "marketing.section-header",
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
     },
     "eventsHeader": {
       "type": "component",
-      "component": "marketing.section-header"
+      "component": "marketing.section-header",
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
     },
     "partnersHeader": {
       "type": "component",
-      "component": "marketing.section-header"
+      "component": "marketing.section-header",
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
     },
     "processSteps": {
       "type": "component",
       "repeatable": true,
-      "component": "marketing.process-step"
+      "component": "marketing.process-step",
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
     },
     "valueProps": {
       "type": "component",
       "repeatable": true,
-      "component": "marketing.value-prop"
+      "component": "marketing.value-prop",
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
     },
     "processHeader": {
       "type": "component",
-      "component": "marketing.section-header"
+      "component": "marketing.section-header",
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
     },
     "valuePropsHeader": {
       "type": "component",
-      "component": "marketing.section-header"
+      "component": "marketing.section-header",
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
     },
     "featuredBannerTitle": {
-      "type": "string"
+      "type": "string",
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
     },
     "featuredBannerDescription": {
-      "type": "text"
+      "type": "text",
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
     },
     "featuredBannerCtaLabel": {
       "type": "string",
-      "default": "Get started"
+      "default": "Get started",
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
     },
     "featuredBannerCtaHref": {
       "type": "string",
-      "default": "/signup"
+      "default": "/signup",
+      "pluginOptions": {
+        "i18n": {
+          "localized": false
+        }
+      }
     },
     "servicesPageHeroTitle": {
-      "type": "string"
+      "type": "string",
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
     },
     "servicesPageHeroSubtitle": {
-      "type": "text"
+      "type": "text",
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
     },
     "newsPageHeroTitle": {
-      "type": "string"
+      "type": "string",
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
     },
     "newsPageHeroSubtitle": {
-      "type": "text"
+      "type": "text",
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
     },
     "eventsPageHeroTitle": {
-      "type": "string"
+      "type": "string",
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
     },
     "eventsPageHeroSubtitle": {
-      "type": "text"
+      "type": "text",
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
     },
     "newsIndexHeader": {
       "type": "component",
-      "component": "marketing.section-header"
+      "component": "marketing.section-header",
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
     },
     "eventsIndexHeader": {
       "type": "component",
-      "component": "marketing.section-header"
+      "component": "marketing.section-header",
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
     },
     "servicesMegaMenuEyebrow": {
-      "type": "string"
+      "type": "string",
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
     },
     "servicesMegaMenuTitle": {
-      "type": "string"
+      "type": "string",
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
     },
     "servicesMegaMenuDescription": {
-      "type": "text"
+      "type": "text",
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
+    }
+  },
+  "pluginOptions": {
+    "i18n": {
+      "localized": true
     }
   }
 }

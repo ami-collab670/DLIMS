@@ -41,17 +41,20 @@ const config = ({ env }: Core.Config.Shared.ConfigParams): Core.Config.Admin => 
             return null;
           }
 
-          const pathname = getPreviewPathname(uid, document);
+          const pathname = getPreviewPathname(uid, document, locale);
 
           if (!pathname) {
             return null;
           }
+
+          const resolvedLocale = locale ?? 'en';
 
           const params = new URLSearchParams({
             url: pathname,
             secret: previewSecret,
             status: status ?? 'published',
             uid,
+            locale: resolvedLocale,
           });
 
           return `${clientUrl}/preview?${params}`;

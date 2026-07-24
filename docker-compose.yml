@@ -88,6 +88,7 @@ services:
       PORT: 1337
       CLIENT_URL: http://localhost:5173
       PREVIEW_SECRET: devPreviewSecret
+      STRAPI_PLUGIN_I18N_INIT_LOCALE_CODE: en
       NODE_OPTIONS: '--max-old-space-size=4096'
     volumes:
       - ./cms:/opt/app

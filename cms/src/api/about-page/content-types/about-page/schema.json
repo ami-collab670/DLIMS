@@ -13,62 +13,137 @@
   "attributes": {
     "heroTitle": {
       "type": "string",
-      "required": true
+      "required": true,
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
     },
     "heroSubtitle": {
       "type": "text",
-      "required": true
+      "required": true,
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
     },
     "missionTitle": {
       "type": "string",
-      "required": true
+      "required": true,
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
     },
     "missionBody": {
       "type": "text",
-      "required": true
+      "required": true,
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
     },
     "visionTitle": {
       "type": "string",
-      "required": true
+      "required": true,
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
     },
     "visionBody": {
       "type": "text",
-      "required": true
+      "required": true,
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
     },
     "highlight": {
       "type": "component",
-      "component": "marketing.highlight-stat"
+      "component": "marketing.highlight-stat",
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
     },
     "valuesHeader": {
       "type": "component",
-      "component": "marketing.section-header"
+      "component": "marketing.section-header",
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
     },
     "values": {
       "type": "component",
       "repeatable": true,
-      "component": "marketing.value-prop"
+      "component": "marketing.value-prop",
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
     },
     "milestonesHeader": {
       "type": "component",
-      "component": "marketing.section-header"
+      "component": "marketing.section-header",
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
     },
     "milestones": {
       "type": "component",
       "repeatable": true,
-      "component": "marketing.milestone"
+      "component": "marketing.milestone",
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
     },
     "accreditationHeader": {
       "type": "component",
-      "component": "marketing.section-header"
+      "component": "marketing.section-header",
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
     },
     "accreditation": {
       "type": "component",
       "repeatable": true,
-      "component": "marketing.accreditation-item"
+      "component": "marketing.accreditation-item",
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
     },
     "partnersHeader": {
       "type": "component",
-      "component": "marketing.section-header"
+      "component": "marketing.section-header",
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
+    }
+  },
+  "pluginOptions": {
+    "i18n": {
+      "localized": true
     }
   }
 }

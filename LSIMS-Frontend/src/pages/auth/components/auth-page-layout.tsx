@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 
+import { PublicLocaleSwitcher } from "@/components/layout/public/public-locale-switcher";
 import { ThemeToggler } from "@/components/ThemeToggler";
 import { APP_NAME_FALLBACK } from "@/features/cms/defaults";
 import { useSiteSettings } from "@/features/cms/hooks";
@@ -13,6 +14,7 @@ import {
   fadeUpVisible,
 } from "@/pages/public/components/motion/marketing-motion";
 import { usePrefersReducedMotion } from "@/pages/public/components/motion/use-prefers-reduced-motion";
+import { AuthLocaleProvider, usePublicLocale } from "@/providers/locale-provider";
 
 import { AuthBrandPanel, type AuthBrandVariant } from "./auth-brand-panel";
 
@@ -26,7 +28,7 @@ type AuthPageLayoutProps = {
   headerExtra?: ReactNode;
 };
 
-export function AuthPageLayout({
+function AuthPageLayoutContent({
   title,
   description,
   children,
@@ -36,6 +38,7 @@ export function AuthPageLayout({
   headerExtra,
 }: AuthPageLayoutProps) {
   const { data: siteSettings } = useSiteSettings();
+  const { localizePath } = usePublicLocale();
   const siteName = siteSettings?.siteName ?? APP_NAME_FALLBACK;
   const prefersReducedMotion = usePrefersReducedMotion();
 
@@ -73,12 +76,15 @@ export function AuthPageLayout({
       <div className="flex min-h-0 flex-1 flex-col lg:overflow-hidden">
         <header className="flex shrink-0 items-center justify-between border-b border-border/60 px-4 py-3 sm:px-6">
           <Link
-            to={ROUTES.home}
+            to={localizePath(ROUTES.home)}
             className="text-lg font-semibold tracking-tight hover:opacity-90"
           >
             {siteName}
           </Link>
-          <ThemeToggler />
+          <div className="flex items-center gap-1">
+            <PublicLocaleSwitcher mode="auth" compact />
+            <ThemeToggler />
+          </div>
         </header>
 
         <main className="min-h-0 flex-1 overflow-y-auto px-4 py-8 sm:px-6 sm:py-12">
@@ -99,5 +105,13 @@ export function AuthPageLayout({
         </main>
       </div>
     </div>
+  );
+}
+
+export function AuthPageLayout(props: AuthPageLayoutProps) {
+  return (
+    <AuthLocaleProvider>
+      <AuthPageLayoutContent {...props} />
+    </AuthLocaleProvider>
   );
 }

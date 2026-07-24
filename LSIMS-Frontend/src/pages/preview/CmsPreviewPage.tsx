@@ -3,7 +3,8 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 
 import { env } from "@/config/env";
 import { setCmsPreviewMode, type CmsPreviewPublicationStatus } from "@/features/cms/preview";
-import { ROUTES } from "@/lib/routing";
+import { DEFAULT_LOCALE, isSupportedLocale } from "@/lib/i18n/locales";
+import { localizePath } from "@/lib/i18n/localize-path";
 
 function isSafePreviewPath(path: string): boolean {
   return path.startsWith("/") && !path.startsWith("//");
@@ -22,6 +23,9 @@ export function CmsPreviewPage() {
     const secret = searchParams.get("secret");
     const url = searchParams.get("url");
     const status = parsePreviewStatus(searchParams.get("status"));
+    const localeParam = searchParams.get("locale");
+    const locale =
+      localeParam && isSupportedLocale(localeParam) ? localeParam : undefined;
 
     if (!env.previewSecret || secret !== env.previewSecret) {
       setError("Invalid preview token.");
@@ -33,7 +37,7 @@ export function CmsPreviewPage() {
       return;
     }
 
-    setCmsPreviewMode(status);
+    setCmsPreviewMode(status, locale);
     navigate(url, { replace: true });
   }, [navigate, searchParams]);
 
@@ -44,7 +48,7 @@ export function CmsPreviewPage() {
         <button
           type="button"
           className="text-sm text-primary underline-offset-4 hover:underline"
-          onClick={() => navigate(ROUTES.home, { replace: true })}
+          onClick={() => navigate(localizePath("/", DEFAULT_LOCALE), { replace: true })}
         >
           Go to homepage
         </button>

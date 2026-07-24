@@ -8,6 +8,7 @@ import { useHomePage } from "@/features/cms/hooks";
 import type { HeroSlide } from "@/features/cms/types";
 import { getDashboardPath, ROUTES } from "@/lib/routing";
 import type { AuthUser } from "@/types/auth";
+import { usePublicLocale } from "@/providers/locale-provider";
 
 import {
   MarketingHeroSlider,
@@ -21,6 +22,7 @@ export function MarketingHeroSection({
   user: AuthUser | null;
   ready: boolean;
 }) {
+  const { localizePath } = usePublicLocale();
   const { data, isLoading, isError, refetch } = useHomePage();
 
   const getPrimaryCta = useCallback(
@@ -46,11 +48,11 @@ export function MarketingHeroSection({
       return (
         slide.secondaryCta ?? {
           label: "Our services",
-          href: ROUTES.services.root,
+          href: localizePath(ROUTES.services.root),
         }
       );
     },
-    [user],
+    [localizePath, user],
   );
 
   if (isLoading) {

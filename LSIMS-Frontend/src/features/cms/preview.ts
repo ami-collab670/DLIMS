@@ -1,13 +1,19 @@
+import type { SupportedLocale } from "@/lib/i18n/locales";
+
 const CMS_PREVIEW_STORAGE_KEY = "lsims-cms-preview";
 
 export type CmsPreviewPublicationStatus = "draft" | "published";
 
 type CmsPreviewState = {
   status: CmsPreviewPublicationStatus;
+  locale?: SupportedLocale;
 };
 
-export function setCmsPreviewMode(status: CmsPreviewPublicationStatus): void {
-  const state: CmsPreviewState = { status };
+export function setCmsPreviewMode(
+  status: CmsPreviewPublicationStatus,
+  locale?: SupportedLocale,
+): void {
+  const state: CmsPreviewState = { status, locale };
   sessionStorage.setItem(CMS_PREVIEW_STORAGE_KEY, JSON.stringify(state));
 }
 
@@ -33,9 +39,12 @@ export function getCmsPreviewMode(): CmsPreviewState | null {
   }
 }
 
-/** Strapi REST `status` param for collection types when preview mode is active. */
 export function getCmsPublicationStatus(): CmsPreviewPublicationStatus {
   return getCmsPreviewMode()?.status ?? "published";
+}
+
+export function getCmsPreviewLocale(): SupportedLocale | null {
+  return getCmsPreviewMode()?.locale ?? null;
 }
 
 export function isCmsPreviewActive(): boolean {

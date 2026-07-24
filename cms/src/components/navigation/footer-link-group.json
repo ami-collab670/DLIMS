@@ -1,12 +1,28 @@
 {
   "collectionName": "components_navigation_footer_link_groups",
-  "info": { "displayName": "Footer Link Group", "icon": "layer" },
+  "info": {
+    "displayName": "Footer Link Group",
+    "icon": "layer"
+  },
   "attributes": {
-    "title": { "type": "string", "required": true },
+    "title": {
+      "type": "string",
+      "required": true,
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
+    },
     "links": {
       "type": "component",
       "repeatable": true,
-      "component": "navigation.footer-link"
+      "component": "navigation.footer-link",
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
     }
   }
 }

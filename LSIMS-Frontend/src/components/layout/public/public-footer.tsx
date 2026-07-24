@@ -4,6 +4,7 @@ import { Globe, Mail, Share2 } from "lucide-react";
 import { APP_NAME_FALLBACK } from "@/features/cms/defaults";
 import { useSiteSettings } from "@/features/cms/hooks";
 import { ROUTES } from "@/lib/routing";
+import { usePublicLocale } from "@/providers/locale-provider";
 
 const SOCIAL_ICONS = {
   linkedin: Share2,
@@ -12,6 +13,7 @@ const SOCIAL_ICONS = {
 } as const;
 
 export function PublicFooter() {
+  const { localizePath } = usePublicLocale();
   const { data: siteSettings, isLoading, isError } = useSiteSettings();
   const siteName = siteSettings?.siteName ?? (isLoading ? "…" : APP_NAME_FALLBACK);
   const year = new Date().getFullYear();
@@ -31,7 +33,7 @@ export function PublicFooter() {
       <div className="mx-auto grid max-w-7xl grid-cols-1 gap-8 px-4 py-10 md:grid-cols-4 md:py-12">
         <div className="flex flex-col gap-3">
           <Link
-            to={ROUTES.home}
+            to={localizePath(ROUTES.home)}
             className="text-lg font-semibold text-background hover:opacity-90"
           >
             {siteName}

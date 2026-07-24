@@ -1,9 +1,36 @@
 {
   "collectionName": "components_marketing_highlight_stats",
-  "info": { "displayName": "Highlight Stat", "icon": "chartBubble" },
+  "info": {
+    "displayName": "Highlight Stat",
+    "icon": "chartBubble"
+  },
   "attributes": {
-    "label": { "type": "string", "required": true },
-    "value": { "type": "string", "required": true },
-    "context": { "type": "text", "required": true }
+    "label": {
+      "type": "string",
+      "required": true,
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
+    },
+    "value": {
+      "type": "string",
+      "required": true,
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
+    },
+    "context": {
+      "type": "text",
+      "required": true,
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
+    }
   }
 }

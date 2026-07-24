@@ -6,6 +6,7 @@ import {
   FlaskConical,
   Globe,
   Handshake,
+  Lock,
   Microscope,
   Scale,
   ShieldCheck,
@@ -29,6 +30,7 @@ export const CMS_ICON_MAP: Record<string, LucideIcon> = {
   award: Award,
   handshake: Handshake,
   "file-check": FileCheck,
+  lock: Lock,
 };
 
 export function resolveCmsIcon(iconKey: string): LucideIcon {

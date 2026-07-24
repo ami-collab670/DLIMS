@@ -15,6 +15,7 @@ import {
 } from "@/features/cms/api";
 import { CmsUnavailableError } from "@/features/cms/cms-errors";
 import { cmsQueryKeys } from "@/features/cms/query-keys";
+import { usePublicLocale } from "@/providers/locale-provider";
 
 const CMS_STALE_TIME_MS = import.meta.env.DEV ? 30 * 1000 : 5 * 60 * 1000;
 
@@ -27,45 +28,55 @@ function cmsQueryRetry(failureCount: number, error: unknown) {
 }
 
 export function useSiteSettings() {
+  const { locale } = usePublicLocale();
+
   return useQuery({
-    queryKey: cmsQueryKeys.siteSettings(),
-    queryFn: fetchSiteSettings,
+    queryKey: cmsQueryKeys.siteSettings(locale),
+    queryFn: () => fetchSiteSettings(locale),
     staleTime: CMS_STALE_TIME_MS,
     retry: cmsQueryRetry,
   });
 }
 
 export function useHomePage() {
+  const { locale } = usePublicLocale();
+
   return useQuery({
-    queryKey: cmsQueryKeys.homePage(),
-    queryFn: fetchHomePage,
+    queryKey: cmsQueryKeys.homePage(locale),
+    queryFn: () => fetchHomePage(locale),
     staleTime: CMS_STALE_TIME_MS,
     retry: cmsQueryRetry,
   });
 }
 
 export function useAboutPage() {
+  const { locale } = usePublicLocale();
+
   return useQuery({
-    queryKey: cmsQueryKeys.aboutPage(),
-    queryFn: fetchAboutPage,
+    queryKey: cmsQueryKeys.aboutPage(locale),
+    queryFn: () => fetchAboutPage(locale),
     staleTime: CMS_STALE_TIME_MS,
     retry: cmsQueryRetry,
   });
 }
 
 export function useServices() {
+  const { locale } = usePublicLocale();
+
   return useQuery({
-    queryKey: cmsQueryKeys.services(),
-    queryFn: fetchServices,
+    queryKey: cmsQueryKeys.services(locale),
+    queryFn: () => fetchServices(locale),
     staleTime: CMS_STALE_TIME_MS,
     retry: cmsQueryRetry,
   });
 }
 
 export function useService(slug: string) {
+  const { locale } = usePublicLocale();
+
   return useQuery({
-    queryKey: cmsQueryKeys.service(slug),
-    queryFn: () => fetchService(slug),
+    queryKey: cmsQueryKeys.service(locale, slug),
+    queryFn: () => fetchService(locale, slug),
     staleTime: CMS_STALE_TIME_MS,
     retry: cmsQueryRetry,
     enabled: Boolean(slug),
@@ -73,18 +84,22 @@ export function useService(slug: string) {
 }
 
 export function useNewsArticles() {
+  const { locale } = usePublicLocale();
+
   return useQuery({
-    queryKey: cmsQueryKeys.news(),
-    queryFn: fetchNewsArticles,
+    queryKey: cmsQueryKeys.news(locale),
+    queryFn: () => fetchNewsArticles(locale),
     staleTime: CMS_STALE_TIME_MS,
     retry: cmsQueryRetry,
   });
 }
 
 export function useNewsArticle(slug: string) {
+  const { locale } = usePublicLocale();
+
   return useQuery({
-    queryKey: cmsQueryKeys.newsArticle(slug),
-    queryFn: () => fetchNewsArticle(slug),
+    queryKey: cmsQueryKeys.newsArticle(locale, slug),
+    queryFn: () => fetchNewsArticle(locale, slug),
     staleTime: CMS_STALE_TIME_MS,
     retry: cmsQueryRetry,
     enabled: Boolean(slug),
@@ -92,18 +107,22 @@ export function useNewsArticle(slug: string) {
 }
 
 export function useEvents() {
+  const { locale } = usePublicLocale();
+
   return useQuery({
-    queryKey: cmsQueryKeys.events(),
-    queryFn: fetchEvents,
+    queryKey: cmsQueryKeys.events(locale),
+    queryFn: () => fetchEvents(locale),
     staleTime: CMS_STALE_TIME_MS,
     retry: cmsQueryRetry,
   });
 }
 
 export function useEvent(slug: string) {
+  const { locale } = usePublicLocale();
+
   return useQuery({
-    queryKey: cmsQueryKeys.event(slug),
-    queryFn: () => fetchEvent(slug),
+    queryKey: cmsQueryKeys.event(locale, slug),
+    queryFn: () => fetchEvent(locale, slug),
     staleTime: CMS_STALE_TIME_MS,
     retry: cmsQueryRetry,
     enabled: Boolean(slug),
@@ -111,18 +130,22 @@ export function useEvent(slug: string) {
 }
 
 export function usePartners() {
+  const { locale } = usePublicLocale();
+
   return useQuery({
-    queryKey: cmsQueryKeys.partners(),
-    queryFn: fetchPartners,
+    queryKey: cmsQueryKeys.partners(locale),
+    queryFn: () => fetchPartners(locale),
     staleTime: CMS_STALE_TIME_MS,
     retry: cmsQueryRetry,
   });
 }
 
 export function useContactPage(slug: string) {
+  const { locale } = usePublicLocale();
+
   return useQuery({
-    queryKey: cmsQueryKeys.contactPage(slug),
-    queryFn: () => fetchContactPage(slug),
+    queryKey: cmsQueryKeys.contactPage(locale, slug),
+    queryFn: () => fetchContactPage(locale, slug),
     staleTime: CMS_STALE_TIME_MS,
     retry: cmsQueryRetry,
     enabled: Boolean(slug),

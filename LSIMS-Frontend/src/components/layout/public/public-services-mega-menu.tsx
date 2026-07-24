@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { resolveCmsIcon } from "@/features/cms/icon-map";
 import type { ServiceItem } from "@/features/cms/types";
 import { ROUTES } from "@/lib/routing";
+import { usePublicLocale } from "@/providers/locale-provider";
 
 export function PublicServicesMegaMenu({
   services,
@@ -19,6 +20,8 @@ export function PublicServicesMegaMenu({
   description: string;
   onNavigate?: () => void;
 }) {
+  const { localizePath } = usePublicLocale();
+
   return (
     <div className="mx-auto max-w-7xl px-4 py-6">
       <div className="grid grid-cols-1 gap-4 md:grid-cols-[280px_1fr] md:gap-6">
@@ -38,7 +41,7 @@ export function PublicServicesMegaMenu({
               </p>
             </div>
             <Button asChild variant="secondary" size="sm" className="w-fit">
-              <Link to={ROUTES.services.root} onClick={onNavigate}>
+              <Link to={localizePath(ROUTES.services.root)} onClick={onNavigate}>
                 View all services
                 <ArrowRight className="size-4" aria-hidden />
               </Link>

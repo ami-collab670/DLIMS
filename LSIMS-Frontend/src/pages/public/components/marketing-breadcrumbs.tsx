@@ -9,6 +9,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { ROUTES } from "@/lib/routing";
+import { usePublicLocale } from "@/providers/locale-provider";
 
 export type BreadcrumbEntry = {
   label: string;
@@ -16,12 +17,14 @@ export type BreadcrumbEntry = {
 };
 
 export function MarketingBreadcrumbs({ items }: { items: BreadcrumbEntry[] }) {
+  const { localizePath } = usePublicLocale();
+
   return (
     <Breadcrumb className="mb-6">
       <BreadcrumbList>
         <BreadcrumbItem>
           <BreadcrumbLink asChild>
-            <Link to={ROUTES.home}>Home</Link>
+            <Link to={localizePath(ROUTES.home)}>Home</Link>
           </BreadcrumbLink>
         </BreadcrumbItem>
         {items.map((item, index) => {

@@ -1,9 +1,36 @@
 {
   "collectionName": "components_marketing_accreditation_items",
-  "info": { "displayName": "Accreditation Item", "icon": "shield" },
+  "info": {
+    "displayName": "Accreditation Item",
+    "icon": "shield"
+  },
   "attributes": {
-    "title": { "type": "string", "required": true },
-    "description": { "type": "text", "required": true },
-    "iconKey": { "type": "string", "required": true }
+    "title": {
+      "type": "string",
+      "required": true,
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
+    },
+    "description": {
+      "type": "text",
+      "required": true,
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
+    },
+    "iconKey": {
+      "type": "string",
+      "required": true,
+      "pluginOptions": {
+        "i18n": {
+          "localized": false
+        }
+      }
+    }
   }
 }

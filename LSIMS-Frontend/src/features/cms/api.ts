@@ -3,6 +3,7 @@ import axios from "axios";
 import { cmsClient } from "@/features/cms/client";
 import { CmsUnavailableError } from "@/features/cms/cms-errors";
 import { mapAboutPage } from "@/features/cms/mappers/about-page";
+import { mapAuthPage } from "@/features/cms/mappers/auth-page";
 import { mapContactPage } from "@/features/cms/mappers/contact-page";
 import { mapEvent, mapEvents } from "@/features/cms/mappers/event";
 import { mapHomePage } from "@/features/cms/mappers/home-page";
@@ -11,9 +12,11 @@ import { mapPartners } from "@/features/cms/mappers/partner";
 import { mapService, mapServices } from "@/features/cms/mappers/service";
 import { mapSiteSettings } from "@/features/cms/mappers/site-settings";
 import { getCmsPublicationStatus } from "@/features/cms/preview";
-import { resolvePublicNavLinks } from "@/features/cms/resolve-public-nav-links";
+import { resolvePublicFooterLinks, resolvePublicNavLinks } from "@/features/cms/resolve-public-nav-links";
+import type { SupportedLocale } from "@/lib/i18n/locales";
 import type {
   AboutPageContent,
+  AuthPageContent,
   ContactPageContent,
   EventItem,
   HomePageContent,
@@ -22,6 +25,7 @@ import type {
   ServiceItem,
   SiteSettings,
   StrapiAboutPage,
+  StrapiAuthPage,
   StrapiCollectionResponse,
   StrapiContactPage,
   StrapiEvent,
@@ -72,6 +76,12 @@ const ABOUT_PAGE_POPULATE = {
     accreditationHeader: true,
     accreditation: true,
     partnersHeader: true,
+  },
+};
+
+const AUTH_PAGE_POPULATE = {
+  populate: {
+    trustBullets: true,
   },
 };
 
@@ -134,14 +144,45 @@ function assertCmsData<T>(data: T | null | undefined, label: string): T {
   return data;
 }
 
-export async function fetchSiteSettings(): Promise<SiteSettings> {
+function assertResponseLocale(
+  raw: object,
+  requestedLocale: SupportedLocale,
+  label: string,
+): void {
+  const responseLocale = (raw as { locale?: string | null }).locale;
+  if (responseLocale && responseLocale !== requestedLocale) {
+    throw new CmsUnavailableError(
+      `CMS locale mismatch for ${label}: requested "${requestedLocale}", received "${responseLocale}"`,
+    );
+  }
+}
+
+function assertCollectionLocales(
+  items: object[],
+  requestedLocale: SupportedLocale,
+  label: string,
+): void {
+  for (const item of items) {
+    assertResponseLocale(item, requestedLocale, label);
+  }
+}
+
+function withLocale(
+  locale: SupportedLocale,
+  params: Record<string, unknown> = {},
+): Record<string, unknown> {
+  return { locale, ...params };
+}
+
+export async function fetchSiteSettings(locale: SupportedLocale): Promise<SiteSettings> {
   return withCmsRetry(async () => {
     const { data } = await cmsClient.get<StrapiSingleResponse<StrapiSiteSettings>>(
       "/site-setting",
-      { params: SITE_SETTING_POPULATE },
+      { params: withLocale(locale, SITE_SETTING_POPULATE) },
     );
 
     const raw = assertCmsData(data.data, "site-setting");
+    assertResponseLocale(raw, locale, "site-setting");
     const mapped = mapSiteSettings(raw);
 
     if (!mapped.siteName || !mapped.navLinks.length) {
@@ -150,19 +191,24 @@ export async function fetchSiteSettings(): Promise<SiteSettings> {
 
     return {
       ...mapped,
-      navLinks: resolvePublicNavLinks(mapped.navLinks),
+      navLinks: resolvePublicNavLinks(mapped.navLinks, locale),
+      footerLinkGroups: mapped.footerLinkGroups.map((group) => ({
+        ...group,
+        links: resolvePublicFooterLinks(group.links, locale),
+      })),
     };
   });
 }
 
-export async function fetchHomePage(): Promise<HomePageContent> {
+export async function fetchHomePage(locale: SupportedLocale): Promise<HomePageContent> {
   return withCmsRetry(async () => {
     const { data } = await cmsClient.get<StrapiSingleResponse<StrapiHomePage>>(
       "/home-page",
-      { params: HOME_PAGE_POPULATE },
+      { params: withLocale(locale, HOME_PAGE_POPULATE) },
     );
 
     const raw = assertCmsData(data.data, "home-page");
+    assertResponseLocale(raw, locale, "home-page");
     const mapped = mapHomePage(raw);
 
     if (!mapped.heroSlides.length) {
@@ -173,27 +219,29 @@ export async function fetchHomePage(): Promise<HomePageContent> {
   });
 }
 
-export async function fetchAboutPage(): Promise<AboutPageContent> {
+export async function fetchAboutPage(locale: SupportedLocale): Promise<AboutPageContent> {
   return withCmsRetry(async () => {
     const { data } = await cmsClient.get<StrapiSingleResponse<StrapiAboutPage>>(
       "/about-page",
-      { params: ABOUT_PAGE_POPULATE },
+      { params: withLocale(locale, ABOUT_PAGE_POPULATE) },
     );
 
-    return mapAboutPage(assertCmsData(data.data, "about-page"));
+    const raw = assertCmsData(data.data, "about-page");
+    assertResponseLocale(raw, locale, "about-page");
+    return mapAboutPage(raw);
   });
 }
 
-export async function fetchServices(): Promise<ServiceItem[]> {
+export async function fetchServices(locale: SupportedLocale): Promise<ServiceItem[]> {
   return withCmsRetry(async () => {
     const { data } = await cmsClient.get<StrapiCollectionResponse<StrapiService>>(
       "/services",
       {
-        params: {
+        params: withLocale(locale, {
           status: getCmsPublicationStatus(),
           sort: "sortOrder:asc",
           "pagination[pageSize]": 100,
-        },
+        }),
       },
     );
 
@@ -201,24 +249,31 @@ export async function fetchServices(): Promise<ServiceItem[]> {
       throw new CmsUnavailableError("CMS services are missing");
     }
 
-    return mapServices(data.data);
+    assertCollectionLocales(data.data, locale, "services");
+    return mapServices(data.data, locale);
   });
 }
 
-export async function fetchService(slug: string): Promise<ServiceItem | null> {
+export async function fetchService(
+  locale: SupportedLocale,
+  slug: string,
+): Promise<ServiceItem | null> {
   try {
     const { data } = await withCmsRetry(async () =>
       cmsClient.get<StrapiCollectionResponse<StrapiService>>("/services", {
-        params: {
+        params: withLocale(locale, {
           status: getCmsPublicationStatus(),
           "filters[slug][$eq]": slug,
           "pagination[pageSize]": 1,
-        },
+        }),
       }),
     );
 
     const item = data.data[0];
-    return item ? mapService(item) : null;
+    if (item) {
+      assertResponseLocale(item, locale, "service");
+    }
+    return item ? mapService(item, locale) : null;
   } catch (error) {
     if (axios.isAxiosError(error) && error.response?.status === 404) {
       return null;
@@ -228,43 +283,50 @@ export async function fetchService(slug: string): Promise<ServiceItem | null> {
   }
 }
 
-export async function fetchNewsArticles(): Promise<NewsArticle[]> {
+export async function fetchNewsArticles(locale: SupportedLocale): Promise<NewsArticle[]> {
   return withCmsRetry(async () => {
     const { data } = await cmsClient.get<
       StrapiCollectionResponse<StrapiNewsArticle>
     >("/news-articles", {
-      params: {
+      params: withLocale(locale, {
         status: getCmsPublicationStatus(),
         sort: "publishedDate:desc",
         "pagination[pageSize]": 100,
-      },
+      }),
     });
 
     if (!data.data.length) {
       throw new CmsUnavailableError("CMS news articles are missing");
     }
 
-    return mapNewsArticles(data.data);
+    assertCollectionLocales(data.data, locale, "news-articles");
+    return mapNewsArticles(data.data, locale);
   });
 }
 
-export async function fetchNewsArticle(slug: string): Promise<NewsArticle | null> {
+export async function fetchNewsArticle(
+  locale: SupportedLocale,
+  slug: string,
+): Promise<NewsArticle | null> {
   try {
     const { data } = await withCmsRetry(async () =>
       cmsClient.get<StrapiCollectionResponse<StrapiNewsArticle>>(
         "/news-articles",
         {
-          params: {
+          params: withLocale(locale, {
             status: getCmsPublicationStatus(),
             "filters[slug][$eq]": slug,
             "pagination[pageSize]": 1,
-          },
+          }),
         },
       ),
     );
 
     const item = data.data[0];
-    return item ? mapNewsArticle(item) : null;
+    if (item) {
+      assertResponseLocale(item, locale, "news-article");
+    }
+    return item ? mapNewsArticle(item, locale) : null;
   } catch (error) {
     if (axios.isAxiosError(error) && error.response?.status === 404) {
       return null;
@@ -274,16 +336,16 @@ export async function fetchNewsArticle(slug: string): Promise<NewsArticle | null
   }
 }
 
-export async function fetchEvents(): Promise<EventItem[]> {
+export async function fetchEvents(locale: SupportedLocale): Promise<EventItem[]> {
   return withCmsRetry(async () => {
     const { data } = await cmsClient.get<StrapiCollectionResponse<StrapiEvent>>(
       "/events",
       {
-        params: {
+        params: withLocale(locale, {
           status: getCmsPublicationStatus(),
           sort: "date:desc",
           "pagination[pageSize]": 100,
-        },
+        }),
       },
     );
 
@@ -291,23 +353,30 @@ export async function fetchEvents(): Promise<EventItem[]> {
       throw new CmsUnavailableError("CMS events are missing");
     }
 
+    assertCollectionLocales(data.data, locale, "events");
     return mapEvents(data.data);
   });
 }
 
-export async function fetchEvent(slug: string): Promise<EventItem | null> {
+export async function fetchEvent(
+  locale: SupportedLocale,
+  slug: string,
+): Promise<EventItem | null> {
   try {
     const { data } = await withCmsRetry(async () =>
       cmsClient.get<StrapiCollectionResponse<StrapiEvent>>("/events", {
-        params: {
+        params: withLocale(locale, {
           status: getCmsPublicationStatus(),
           "filters[slug][$eq]": slug,
           "pagination[pageSize]": 1,
-        },
+        }),
       }),
     );
 
     const item = data.data[0];
+    if (item) {
+      assertResponseLocale(item, locale, "event");
+    }
     return item ? mapEvent(item) : null;
   } catch (error) {
     if (axios.isAxiosError(error) && error.response?.status === 404) {
@@ -318,15 +387,15 @@ export async function fetchEvent(slug: string): Promise<EventItem | null> {
   }
 }
 
-export async function fetchPartners(): Promise<PartnerItem[]> {
+export async function fetchPartners(locale: SupportedLocale): Promise<PartnerItem[]> {
   return withCmsRetry(async () => {
     const { data } = await cmsClient.get<StrapiCollectionResponse<StrapiPartner>>(
       "/partners",
       {
-        params: {
+        params: withLocale(locale, {
           sort: "sortOrder:asc",
           "pagination[pageSize]": 100,
-        },
+        }),
       },
     );
 
@@ -334,11 +403,13 @@ export async function fetchPartners(): Promise<PartnerItem[]> {
       throw new CmsUnavailableError("CMS partners are missing");
     }
 
+    assertCollectionLocales(data.data, locale, "partners");
     return mapPartners(data.data);
   });
 }
 
 export async function fetchContactPage(
+  locale: SupportedLocale,
   slug: string,
 ): Promise<ContactPageContent | null> {
   try {
@@ -346,16 +417,19 @@ export async function fetchContactPage(
       cmsClient.get<StrapiCollectionResponse<StrapiContactPage>>(
         "/contact-pages",
         {
-          params: {
+          params: withLocale(locale, {
             "filters[slug][$eq]": slug,
             "pagination[pageSize]": 1,
             populate: { details: true },
-          },
+          }),
         },
       ),
     );
 
     const item = data.data[0];
+    if (item) {
+      assertResponseLocale(item, locale, "contact-page");
+    }
     return item ? mapContactPage(item) : null;
   } catch (error) {
     if (axios.isAxiosError(error) && error.response?.status === 404) {
@@ -364,4 +438,17 @@ export async function fetchContactPage(
 
     throw toCmsUnavailableError(error);
   }
+}
+
+export async function fetchAuthPage(locale: SupportedLocale): Promise<AuthPageContent> {
+  return withCmsRetry(async () => {
+    const { data } = await cmsClient.get<StrapiSingleResponse<StrapiAuthPage>>(
+      "/auth-page",
+      { params: withLocale(locale, AUTH_PAGE_POPULATE) },
+    );
+
+    const raw = assertCmsData(data.data, "auth-page");
+    assertResponseLocale(raw, locale, "auth-page");
+    return mapAuthPage(raw);
+  });
 }

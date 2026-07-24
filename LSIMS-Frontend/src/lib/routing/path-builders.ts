@@ -1,5 +1,8 @@
 import type { AuthUser } from "@/types/auth";
 
+import type { SupportedLocale } from "@/lib/i18n/locales";
+import { localizePath } from "@/lib/i18n/localize-path";
+
 import { ROUTES, type ClientPathKey } from "./app-routes";
 import { withQuery } from "./with-query";
 
@@ -40,14 +43,14 @@ export function getNotificationsPath(
     : ROUTES.client.notifications;
 }
 
-export function servicePath(slug: string): string {
-  return `${ROUTES.services.root}/${slug}`;
+export function servicePath(slug: string, locale: SupportedLocale): string {
+  return localizePath(`${ROUTES.services.root}/${slug}`, locale);
 }
 
-export function newsPath(slug: string): string {
-  return `${ROUTES.news}/${slug}`;
+export function newsPath(slug: string, locale: SupportedLocale): string {
+  return localizePath(`${ROUTES.news}/${slug}`, locale);
 }
 
-export function eventPath(slug: string): string {
-  return `${ROUTES.events}/${slug}`;
+export function eventPath(slug: string, locale: SupportedLocale): string {
+  return localizePath(`${ROUTES.events}/${slug}`, locale);
 }

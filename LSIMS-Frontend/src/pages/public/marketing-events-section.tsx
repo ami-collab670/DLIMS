@@ -11,6 +11,7 @@ import {
 import { useEvents, useHomePage } from "@/features/cms/hooks";
 import { ROUTES } from "@/lib/routing";
 import { eventPath } from "@/lib/routing/path-builders";
+import { usePublicLocale } from "@/providers/locale-provider";
 import { cn } from "@/lib/ui";
 
 import {
@@ -23,6 +24,7 @@ import { MarketingSectionHeader } from "./marketing-section-header";
 
 export function MarketingEventsSection() {
   const [activeIndex, setActiveIndex] = useState(0);
+  const { locale, localizePath } = usePublicLocale();
   const homePage = useHomePage();
   const events = useEvents();
   const prefersReducedMotion = usePrefersReducedMotion();
@@ -69,7 +71,7 @@ export function MarketingEventsSection() {
           title={homePage.data.eventsHeader.title}
           titleId="marketing-events-heading"
           actionLabel="View all events"
-          actionHref={ROUTES.events}
+          actionHref={localizePath(ROUTES.events)}
         />
 
         <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
@@ -99,7 +101,7 @@ export function MarketingEventsSection() {
                   {featured.description}
                 </p>
                 <Button asChild variant="default" size="sm" className="mt-2 w-fit">
-                  <Link to={eventPath(featured.slug)}>
+                  <Link to={eventPath(featured.slug, locale)}>
                     View details
                     <ArrowRight className="size-4" aria-hidden />
                   </Link>

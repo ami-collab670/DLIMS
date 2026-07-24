@@ -1,8 +1,27 @@
 {
   "collectionName": "components_marketing_section_headers",
-  "info": { "displayName": "Section Header", "icon": "heading" },
+  "info": {
+    "displayName": "Section Header",
+    "icon": "heading"
+  },
   "attributes": {
-    "eyebrow": { "type": "string", "required": true },
-    "title": { "type": "string", "required": true }
+    "eyebrow": {
+      "type": "string",
+      "required": true,
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
+    },
+    "title": {
+      "type": "string",
+      "required": true,
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
+    }
   }
 }

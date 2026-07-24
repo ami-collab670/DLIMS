@@ -9,6 +9,7 @@ import {
 import { resolveCmsIcon } from "@/features/cms/icon-map";
 import { useHomePage, useServices } from "@/features/cms/hooks";
 import { ROUTES } from "@/lib/routing";
+import { usePublicLocale } from "@/providers/locale-provider";
 import { useAuthStore } from "@/stores/auth-store";
 
 import { MarketingPageHero } from "./components/marketing-page-hero";
@@ -19,6 +20,7 @@ import { MarketingFadeInView, MarketingGlowCard } from "./components/motion";
 import { MarketingSectionHeader } from "./marketing-section-header";
 
 export function ServicesIndexPage() {
+  const { localizePath } = usePublicLocale();
   const { user, ready } = useAuthStore();
   const homePage = useHomePage();
   const services = useServices();
@@ -125,7 +127,7 @@ export function ServicesIndexPage() {
 
         <div className="mt-12 flex justify-center">
           <Button asChild size="lg">
-            <Link to={ROUTES.contact.root}>
+            <Link to={localizePath(ROUTES.contact.root)}>
               Contact the laboratory
               <ArrowRight className="size-4" aria-hidden />
             </Link>

@@ -32,7 +32,7 @@ export function MarketingServicesSection() {
     );
   }
 
-  const header = homePage.data.servicesHeader;
+  const { servicesHeader } = homePage.data;
 
   return (
     <section
@@ -41,8 +41,8 @@ export function MarketingServicesSection() {
     >
       <MarketingFadeInView className="mx-auto max-w-7xl px-4">
         <MarketingSectionHeader
-          eyebrow={header.eyebrow}
-          title={header.title}
+          eyebrow={servicesHeader.eyebrow}
+          title={servicesHeader.title}
           titleId="marketing-services-heading"
         />
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

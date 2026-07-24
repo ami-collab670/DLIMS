@@ -13,6 +13,9 @@ import { ProtectedRoute } from "@/components/auth/protected-route";
 import { ClientDashboardLayout } from "@/components/layout/dashboard/client-dashboard-layout";
 import { StaffDashboardLayout } from "@/components/layout/dashboard/staff-dashboard-layout";
 import { RootLayout } from "@/components/layout/root-layout";
+import { DEFAULT_LOCALE } from "@/lib/i18n/locales";
+import { LocaleLayout } from "@/providers/locale-provider";
+import { LegacyPublicRedirect } from "@/routes/legacy-public-redirect";
 
 const LoginPage = lazy(() => import("@/pages/auth/LoginPage"));
 const SignupPage = lazy(() => import("@/pages/auth/SignupPage"));
@@ -74,21 +77,8 @@ export const appRoutes: RouteObject[] = [
   {
     element: <RootLayout />,
     children: [
-      // ── Public zone ──
-      { path: ROUTES.home, element: <Home /> },
-      { path: ROUTES.about, element: <AboutPage /> },
-      { path: ROUTES.services.root, element: <ServicesIndexPage /> },
-      { path: `${ROUTES.services.root}/:slug`, element: <ServiceDetailPage /> },
-      { path: ROUTES.news, element: <NewsIndexPage /> },
-      { path: `${ROUTES.news}/:slug`, element: <NewsDetailPage /> },
-      { path: ROUTES.events, element: <EventsIndexPage /> },
-      { path: `${ROUTES.events}/:slug`, element: <EventDetailPage /> },
-      { path: ROUTES.contact.root, element: <ContactMainPage /> },
-      {
-        path: ROUTES.contact.collectionPoints,
-        element: <ContactCollectionPointsPage />,
-      },
-      { path: ROUTES.contact.careers, element: <ContactCareersPage /> },
+      // ── Public zone (locale-prefixed) ──
+      { index: true, element: <Navigate to={`/${DEFAULT_LOCALE}`} replace /> },
       { path: ROUTES.preview, element: <CmsPreviewPage /> },
 
       // ── Auth zone (lazy-loaded so auth bundle errors cannot block public routes) ──
@@ -105,7 +95,28 @@ export const appRoutes: RouteObject[] = [
         element: withAuthSuspense(<ForgotPasswordPage />),
       },
 
-      // ── Staff zone ──
+      // Legacy unprefixed public URLs (must stay before `:locale`)
+      { path: ROUTES.about, element: <LegacyPublicRedirect to={ROUTES.about} /> },
+      {
+        path: ROUTES.services.root,
+        element: <LegacyPublicRedirect to={ROUTES.services.root} />,
+      },
+      { path: ROUTES.news, element: <LegacyPublicRedirect to={ROUTES.news} /> },
+      { path: ROUTES.events, element: <LegacyPublicRedirect to={ROUTES.events} /> },
+      {
+        path: ROUTES.contact.root,
+        element: <LegacyPublicRedirect to={ROUTES.contact.root} />,
+      },
+      {
+        path: ROUTES.contact.collectionPoints,
+        element: <LegacyPublicRedirect to={ROUTES.contact.collectionPoints} />,
+      },
+      {
+        path: ROUTES.contact.careers,
+        element: <LegacyPublicRedirect to={ROUTES.contact.careers} />,
+      },
+
+      // ── Staff zone (before `:locale` so `/staff` is not captured as a locale) ──
       {
         path: ROUTES.staff.root,
         element: (
@@ -271,7 +282,7 @@ export const appRoutes: RouteObject[] = [
         ],
       },
 
-      // ── Client zone ──
+      // ── Client zone (before `:locale` so `/client` is not captured as a locale) ──
       {
         path: ROUTES.client.root,
         element: (
@@ -297,6 +308,28 @@ export const appRoutes: RouteObject[] = [
             ),
           },
           { path: "*", element: <ClientNotFoundPage /> },
+        ],
+      },
+
+      {
+        path: ":locale",
+        element: <LocaleLayout />,
+        children: [
+          { index: true, element: <Home /> },
+          { path: "about", element: <AboutPage /> },
+          { path: "services", element: <ServicesIndexPage /> },
+          { path: "services/:slug", element: <ServiceDetailPage /> },
+          { path: "news", element: <NewsIndexPage /> },
+          { path: "news/:slug", element: <NewsDetailPage /> },
+          { path: "events", element: <EventsIndexPage /> },
+          { path: "events/:slug", element: <EventDetailPage /> },
+          { path: "contact", element: <ContactMainPage /> },
+          {
+            path: "contact/collection-points",
+            element: <ContactCollectionPointsPage />,
+          },
+          { path: "contact/careers", element: <ContactCareersPage /> },
+          { path: "*", element: <PublicNotFoundPage /> },
         ],
       },
 

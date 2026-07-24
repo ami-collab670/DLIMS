@@ -390,6 +390,68 @@ export type ContactPageContent = {
   details: ContactDetailBlock[];
 };
 
+export type AuthTrustBullet = {
+  title: string;
+  description: string;
+  iconKey: string;
+};
+
+export type StrapiAuthPage = {
+  loginTitle: string;
+  loginDescription: string;
+  loginEmailLabel: string;
+  loginPasswordLabel: string;
+  loginForgotPasswordLabel: string;
+  loginSubmitLabel: string;
+  loginSubmittingLabel: string;
+  loginFooterPrompt: string;
+  loginFooterLinkLabel: string;
+  loginEmailPlaceholder: string;
+  signupTitle: string;
+  signupDescription: string;
+  signupAccountSectionTitle: string;
+  signupDetailsSectionTitle: string;
+  signupEmailLabel: string;
+  signupPasswordLabel: string;
+  signupPasswordConfirmLabel: string;
+  signupFirstNameLabel: string;
+  signupLastNameLabel: string;
+  signupOrganizationLabel: string;
+  signupPhoneLabel: string;
+  signupSubmitLabel: string;
+  signupSubmittingLabel: string;
+  signupFooterPrompt: string;
+  signupFooterLinkLabel: string;
+  signupEmailPlaceholder: string;
+  signupPasswordsMismatchLabel: string;
+  forgotTitle: string;
+  forgotRequestDescription: string;
+  forgotConfirmDescription: string;
+  forgotEmailLabel: string;
+  forgotOtpLabel: string;
+  forgotNewPasswordLabel: string;
+  forgotConfirmPasswordLabel: string;
+  forgotSendCodeLabel: string;
+  forgotSendingLabel: string;
+  forgotResetLabel: string;
+  forgotUpdatingLabel: string;
+  forgotBackToSignInLabel: string;
+  forgotDifferentEmailLabel: string;
+  forgotEmailPlaceholder: string;
+  forgotOtpPlaceholder: string;
+  loginBrandEyebrow: string;
+  loginBrandTagline: string;
+  signupBrandEyebrow: string;
+  signupBrandTagline: string;
+  forgotBrandEyebrow: string;
+  forgotBrandTagline: string;
+  trustBullets?: StrapiValueProp[] | null;
+};
+
+export type AuthPageContent = Omit<StrapiAuthPage, "trustBullets"> & {
+  trustBullets: AuthTrustBullet[];
+};
+
 type StrapiSingleResponse<T> = {
   data: T | null;
 };

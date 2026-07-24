@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { PasswordInput } from "@/components/ui/password-input";
 import { PasswordStrengthIndicator } from "@/components/ui/password-strength-indicator";
 import { PhoneInputField } from "@/components/ui/phone-input";
+import { useAuthPageContent } from "@/features/cms/hooks/use-auth-page";
 
 import type { SignupValues } from "@/lib/validation/auth/signup-schema";
 
@@ -36,6 +37,7 @@ function FormSection({
 }
 
 export function SignupForm({ form, onSubmit, submitting }: Props) {
+  const authPage = useAuthPageContent();
   const {
     register,
     control,
@@ -51,15 +53,15 @@ export function SignupForm({ form, onSubmit, submitting }: Props) {
 
   return (
     <form className="space-y-6" onSubmit={handleSubmit(onSubmit)} noValidate>
-      <FormSection title="Account">
+      <FormSection title={authPage.signupAccountSectionTitle}>
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="email">{authPage.signupEmailLabel}</Label>
             <Input
               id="email"
               type="email"
               autoComplete="email"
-              placeholder="you@organization.com"
+              placeholder={authPage.signupEmailPlaceholder}
               aria-invalid={!!errors.email}
               {...register("email")}
             />
@@ -69,7 +71,7 @@ export function SignupForm({ form, onSubmit, submitting }: Props) {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
+            <Label htmlFor="password">{authPage.signupPasswordLabel}</Label>
             <PasswordInput
               id="password"
               autoComplete="new-password"
@@ -85,7 +87,9 @@ export function SignupForm({ form, onSubmit, submitting }: Props) {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="passwordConfirm">Confirm password</Label>
+            <Label htmlFor="passwordConfirm">
+              {authPage.signupPasswordConfirmLabel}
+            </Label>
             <PasswordInput
               id="passwordConfirm"
               autoComplete="new-password"
@@ -93,7 +97,9 @@ export function SignupForm({ form, onSubmit, submitting }: Props) {
               {...register("passwordConfirm")}
             />
             {passwordsMismatch ? (
-              <p className="text-xs text-destructive">Passwords do not match</p>
+              <p className="text-xs text-destructive">
+                {authPage.signupPasswordsMismatchLabel}
+              </p>
             ) : null}
             {errors.passwordConfirm && !passwordsMismatch ? (
               <p className="text-xs text-destructive">
@@ -104,10 +110,10 @@ export function SignupForm({ form, onSubmit, submitting }: Props) {
         </div>
       </FormSection>
 
-      <FormSection title="Your details">
+      <FormSection title={authPage.signupDetailsSectionTitle}>
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
-            <Label htmlFor="first_name">First name</Label>
+            <Label htmlFor="first_name">{authPage.signupFirstNameLabel}</Label>
             <Input
               id="first_name"
               autoComplete="given-name"
@@ -115,7 +121,7 @@ export function SignupForm({ form, onSubmit, submitting }: Props) {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="last_name">Last name</Label>
+            <Label htmlFor="last_name">{authPage.signupLastNameLabel}</Label>
             <Input
               id="last_name"
               autoComplete="family-name"
@@ -124,12 +130,14 @@ export function SignupForm({ form, onSubmit, submitting }: Props) {
           </div>
 
           <div className="space-y-2 sm:col-span-2">
-            <Label htmlFor="organization_name">Organization (optional)</Label>
+            <Label htmlFor="organization_name">
+              {authPage.signupOrganizationLabel}
+            </Label>
             <Input id="organization_name" {...register("organization_name")} />
           </div>
 
           <div className="space-y-2 sm:col-span-2">
-            <Label htmlFor="phone">Phone (optional)</Label>
+            <Label htmlFor="phone">{authPage.signupPhoneLabel}</Label>
             <PhoneInputField control={control} name="phone" id="phone" />
             {errors.phone ? (
               <p className="text-xs text-destructive">{errors.phone.message}</p>
@@ -139,16 +147,18 @@ export function SignupForm({ form, onSubmit, submitting }: Props) {
       </FormSection>
 
       <Button type="submit" size="lg" className="w-full" disabled={submitting}>
-        {submitting ? "Creating account…" : "Create account"}
+        {submitting
+          ? authPage.signupSubmittingLabel
+          : authPage.signupSubmitLabel}
       </Button>
 
       <p className="border-t border-border pt-4 text-center text-sm text-muted-foreground">
-        Already have an account?{" "}
+        {authPage.signupFooterPrompt}{" "}
         <Link
           to={ROUTES.login}
           className="font-medium text-primary underline-offset-4 hover:underline"
         >
-          Sign in
+          {authPage.signupFooterLinkLabel}
         </Link>
       </p>
     </form>

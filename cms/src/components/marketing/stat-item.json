@@ -1,9 +1,36 @@
 {
   "collectionName": "components_marketing_stat_items",
-  "info": { "displayName": "Stat Item", "icon": "chartPie" },
+  "info": {
+    "displayName": "Stat Item",
+    "icon": "chartPie"
+  },
   "attributes": {
-    "label": { "type": "string", "required": true },
-    "value": { "type": "string", "required": true },
-    "context": { "type": "string", "required": true }
+    "label": {
+      "type": "string",
+      "required": true,
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
+    },
+    "value": {
+      "type": "string",
+      "required": true,
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
+    },
+    "context": {
+      "type": "string",
+      "required": true,
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
+    }
   }
 }

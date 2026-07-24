@@ -1,9 +1,36 @@
 {
   "collectionName": "components_marketing_value_props",
-  "info": { "displayName": "Value Prop", "icon": "star" },
+  "info": {
+    "displayName": "Value Prop",
+    "icon": "star"
+  },
   "attributes": {
-    "title": { "type": "string", "required": true },
-    "description": { "type": "text", "required": true },
-    "iconKey": { "type": "string", "required": true }
+    "title": {
+      "type": "string",
+      "required": true,
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
+    },
+    "description": {
+      "type": "text",
+      "required": true,
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
+    },
+    "iconKey": {
+      "type": "string",
+      "required": true,
+      "pluginOptions": {
+        "i18n": {
+          "localized": false
+        }
+      }
+    }
   }
 }

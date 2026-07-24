@@ -1,3 +1,4 @@
+const { ensureLocales } = require('./bootstrap/ensure-locales');
 const {
   enablePublicPermissions,
   seedContent,
@@ -10,6 +11,7 @@ module.exports = {
   async bootstrap({ strapi }) {
     strapi.log.info('[cms-bootstrap] Starting CMS bootstrap');
 
+    await ensureLocales(strapi);
     await enablePublicPermissions(strapi);
     await seedContent(strapi);
     await verifyPublicContent(strapi);

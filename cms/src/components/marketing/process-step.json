@@ -1,8 +1,27 @@
 {
   "collectionName": "components_marketing_process_steps",
-  "info": { "displayName": "Process Step", "icon": "bulletList" },
+  "info": {
+    "displayName": "Process Step",
+    "icon": "bulletList"
+  },
   "attributes": {
-    "title": { "type": "string", "required": true },
-    "description": { "type": "text", "required": true }
+    "title": {
+      "type": "string",
+      "required": true,
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
+    },
+    "description": {
+      "type": "text",
+      "required": true,
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
+    }
   }
 }

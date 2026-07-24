@@ -10,6 +10,7 @@ import {
 } from "@/features/cms/components/cms-page-states";
 import { useHomePage, useNewsArticles } from "@/features/cms/hooks";
 import { ROUTES, newsPath } from "@/lib/routing";
+import { usePublicLocale } from "@/providers/locale-provider";
 import { cn } from "@/lib/ui";
 
 import {
@@ -22,6 +23,7 @@ import { MarketingSectionHeader } from "./marketing-section-header";
 
 export function MarketingNewsSection() {
   const [activeIndex, setActiveIndex] = useState(0);
+  const { locale, localizePath } = usePublicLocale();
   const homePage = useHomePage();
   const news = useNewsArticles();
   const prefersReducedMotion = usePrefersReducedMotion();
@@ -69,7 +71,7 @@ export function MarketingNewsSection() {
           title={homePage.data.newsHeader.title}
           titleId="marketing-news-heading"
           actionLabel="View all news"
-          actionHref={ROUTES.news}
+          actionHref={localizePath(ROUTES.news)}
         />
 
         <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
@@ -95,7 +97,7 @@ export function MarketingNewsSection() {
                   {featured.description}
                 </p>
                 <Button asChild variant="default" size="sm" className="mt-2 w-fit">
-                  <Link to={newsPath(featured.slug)}>
+                  <Link to={newsPath(featured.slug, locale)}>
                     Read more
                     <ArrowRight className="size-4" aria-hidden />
                   </Link>

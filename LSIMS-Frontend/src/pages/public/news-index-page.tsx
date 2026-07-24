@@ -6,6 +6,7 @@ import {
 } from "@/features/cms/components/cms-page-states";
 import { useHomePage, useNewsArticles } from "@/features/cms/hooks";
 import { newsPath } from "@/lib/routing";
+import { usePublicLocale } from "@/providers/locale-provider";
 
 import { MarketingPageHero } from "./components/marketing-page-hero";
 import { MarketingPageShell } from "./components/marketing-page-shell";
@@ -13,6 +14,7 @@ import { MarketingGlowCard } from "./components/motion";
 import { MarketingSectionHeader } from "./marketing-section-header";
 
 export function NewsIndexPage() {
+  const { locale } = usePublicLocale();
   const homePage = useHomePage();
   const news = useNewsArticles();
 
@@ -56,7 +58,7 @@ export function NewsIndexPage() {
           {news.data!.map((item) => (
             <MarketingGlowCard
               key={item.slug}
-              to={newsPath(item.slug)}
+              to={newsPath(item.slug, locale)}
               className="flex flex-col p-6"
             >
               <span className="text-xs font-medium text-muted-foreground">

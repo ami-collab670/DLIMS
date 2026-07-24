@@ -1,8 +1,27 @@
 {
   "collectionName": "components_navigation_footer_links",
-  "info": { "displayName": "Footer Link", "icon": "link" },
+  "info": {
+    "displayName": "Footer Link",
+    "icon": "link"
+  },
   "attributes": {
-    "label": { "type": "string", "required": true },
-    "href": { "type": "string", "required": true }
+    "label": {
+      "type": "string",
+      "required": true,
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
+    },
+    "href": {
+      "type": "string",
+      "required": true,
+      "pluginOptions": {
+        "i18n": {
+          "localized": false
+        }
+      }
+    }
   }
 }

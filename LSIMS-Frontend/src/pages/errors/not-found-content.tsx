@@ -3,6 +3,8 @@ import { Link } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
 import { getDashboardPath, ROUTES } from "@/lib/routing";
+import { DEFAULT_LOCALE } from "@/lib/i18n/locales";
+import { localizePath } from "@/lib/i18n/localize-path";
 import { cn } from "@/lib/ui";
 import { useAuthStore } from "@/stores/auth-store";
 
@@ -75,7 +77,7 @@ export function NotFoundContent({ variant }: NotFoundContentProps) {
         {isPublic ? (
           <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:justify-center">
             <Button type="button" className="gap-2" asChild>
-              <Link to="/">
+              <Link to={localizePath("/", DEFAULT_LOCALE)}>
                 <Home className="size-4" aria-hidden />
                 Return to home
               </Link>

@@ -14,6 +14,7 @@ import {
   useConfirmPasswordReset,
   useRequestPasswordReset,
 } from "@/features/auth/hooks";
+import { useAuthPageContent } from "@/features/cms/hooks/use-auth-page";
 import {
   forgotPasswordConfirmSchema,
   type ForgotPasswordConfirmValues,
@@ -28,8 +29,8 @@ import { AuthStepIndicator } from "../components/auth-step-indicator";
 
 export default function ForgotPasswordPage() {
   const navigate = useNavigate();
+  const authPage = useAuthPageContent();
   const [step, setStep] = useState<"request" | "confirm">("request");
-  const [emailForReset, setEmailForReset] = useState("");
 
   const requestMut = useRequestPasswordReset();
   const confirmMut = useConfirmPasswordReset();
@@ -61,7 +62,6 @@ export default function ForgotPasswordPage() {
     const email = values.email.trim().toLowerCase();
     requestMut.mutate(email, {
       onSuccess: () => {
-        setEmailForReset(email);
         confirmForm.setValue("email", email);
         setStep("confirm");
         toast.success(
@@ -92,11 +92,11 @@ export default function ForgotPasswordPage() {
   return (
     <AuthPageLayout
       variant="forgot-password"
-      title="Forgot password"
+      title={authPage.forgotTitle}
       description={
         step === "request"
-          ? "Enter your account email to receive a one-time reset code."
-          : `Enter the 6-digit code sent to ${emailForReset || "your email"}.`
+          ? authPage.forgotRequestDescription
+          : authPage.forgotConfirmDescription
       }
       headerExtra={<AuthStepIndicator activeStep={step} />}
     >
@@ -107,12 +107,12 @@ export default function ForgotPasswordPage() {
           noValidate
         >
           <div className="space-y-2">
-            <Label htmlFor="reset-email">Email</Label>
+            <Label htmlFor="reset-email">{authPage.forgotEmailLabel}</Label>
             <Input
               id="reset-email"
               type="email"
               autoComplete="email"
-              placeholder="you@organization.com"
+              placeholder={authPage.forgotEmailPlaceholder}
               {...requestForm.register("email")}
             />
             {requestForm.formState.errors.email ? (
@@ -122,14 +122,14 @@ export default function ForgotPasswordPage() {
             ) : null}
           </div>
           <Button type="submit" size="lg" className="w-full" disabled={submitting}>
-            {submitting ? "Sending…" : "Send reset code"}
+            {submitting ? authPage.forgotSendingLabel : authPage.forgotSendCodeLabel}
           </Button>
           <p className="border-t border-border pt-4 text-center text-sm text-muted-foreground">
             <Link
               to={ROUTES.login}
               className="font-medium text-primary underline-offset-4 hover:underline"
             >
-              Back to sign in
+              {authPage.forgotBackToSignInLabel}
             </Link>
           </p>
         </form>
@@ -140,7 +140,7 @@ export default function ForgotPasswordPage() {
           noValidate
         >
           <div className="space-y-2">
-            <Label htmlFor="confirm-email">Email</Label>
+            <Label htmlFor="confirm-email">{authPage.forgotEmailLabel}</Label>
             <Input
               id="confirm-email"
               type="email"
@@ -149,13 +149,13 @@ export default function ForgotPasswordPage() {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="confirm-otp">One-time code</Label>
+            <Label htmlFor="confirm-otp">{authPage.forgotOtpLabel}</Label>
             <Input
               id="confirm-otp"
               inputMode="numeric"
               autoComplete="one-time-code"
               maxLength={6}
-              placeholder="000000"
+              placeholder={authPage.forgotOtpPlaceholder}
               className="tracking-widest"
               {...confirmForm.register("otp")}
             />
@@ -166,7 +166,7 @@ export default function ForgotPasswordPage() {
             ) : null}
           </div>
           <div className="space-y-2">
-            <Label htmlFor="confirm-new">New password</Label>
+            <Label htmlFor="confirm-new">{authPage.forgotNewPasswordLabel}</Label>
             <PasswordInput
               id="confirm-new"
               autoComplete="new-password"
@@ -182,7 +182,9 @@ export default function ForgotPasswordPage() {
             ) : null}
           </div>
           <div className="space-y-2">
-            <Label htmlFor="confirm-repeat">Confirm new password</Label>
+            <Label htmlFor="confirm-repeat">
+              {authPage.forgotConfirmPasswordLabel}
+            </Label>
             <PasswordInput
               id="confirm-repeat"
               autoComplete="new-password"
@@ -192,7 +194,9 @@ export default function ForgotPasswordPage() {
               {...confirmForm.register("confirm_password")}
             />
             {passwordsMismatch ? (
-              <p className="text-xs text-destructive">Passwords do not match</p>
+              <p className="text-xs text-destructive">
+                {authPage.signupPasswordsMismatchLabel}
+              </p>
             ) : null}
             {confirmForm.formState.errors.confirm_password && !passwordsMismatch ? (
               <p className="text-xs text-destructive">
@@ -201,7 +205,7 @@ export default function ForgotPasswordPage() {
             ) : null}
           </div>
           <Button type="submit" size="lg" className="w-full" disabled={submitting}>
-            {submitting ? "Updating…" : "Reset password"}
+            {submitting ? authPage.forgotUpdatingLabel : authPage.forgotResetLabel}
           </Button>
           <div className="flex flex-col gap-2 border-t border-border pt-4 text-center text-sm text-muted-foreground">
             <button
@@ -212,13 +216,13 @@ export default function ForgotPasswordPage() {
                 confirmForm.reset();
               }}
             >
-              Use a different email
+              {authPage.forgotDifferentEmailLabel}
             </button>
             <Link
               to={ROUTES.login}
               className="font-medium text-primary underline-offset-4 hover:underline"
             >
-              Back to sign in
+              {authPage.forgotBackToSignInLabel}
             </Link>
           </div>
         </form>

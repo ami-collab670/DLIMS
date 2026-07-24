@@ -9,6 +9,7 @@ import {
 import { resolveCmsIcon } from "@/features/cms/icon-map";
 import { useService } from "@/features/cms/hooks";
 import { ROUTES } from "@/lib/routing";
+import { usePublicLocale } from "@/providers/locale-provider";
 
 import { MarketingArticleBody } from "./components/marketing-article-body";
 import { MarketingBreadcrumbs } from "./components/marketing-breadcrumbs";
@@ -18,6 +19,7 @@ import { MarketingFadeInView } from "./components/motion";
 
 export function ServiceDetailPage() {
   const { slug = "" } = useParams();
+  const { localizePath } = usePublicLocale();
   const { data: service, isLoading, isError, refetch } = useService(slug);
 
   if (isLoading) {
@@ -36,7 +38,7 @@ export function ServiceDetailPage() {
           The requested service page does not exist.
         </p>
         <Button asChild className="mt-6" variant="outline">
-          <Link to={ROUTES.services.root}>Back to services</Link>
+          <Link to={localizePath(ROUTES.services.root)}>Back to services</Link>
         </Button>
       </MarketingPageShell>
     );
@@ -54,7 +56,7 @@ export function ServiceDetailPage() {
       <MarketingPageShell>
         <MarketingBreadcrumbs
           items={[
-            { label: "Services", href: ROUTES.services.root },
+            { label: "Services", href: localizePath(ROUTES.services.root) },
             { label: service.title },
           ]}
         />
@@ -79,7 +81,7 @@ export function ServiceDetailPage() {
               </Link>
             </Button>
             <Button asChild variant="outline">
-              <Link to={ROUTES.contact.root}>Contact us</Link>
+              <Link to={localizePath(ROUTES.contact.root)}>Contact us</Link>
             </Button>
           </div>
         </MarketingFadeInView>
