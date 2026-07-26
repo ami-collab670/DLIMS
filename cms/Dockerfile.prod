@@ -11,6 +11,8 @@ RUN npm ci
 
 COPY . .
 
+RUN npm run build
+
 RUN chmod +x /opt/app/docker-entrypoint.prod.sh
 
 EXPOSE 1337

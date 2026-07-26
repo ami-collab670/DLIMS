@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Runtime bootstrap for Render — runs before gunicorn when DATABASE_URL is live.
+# Runtime bootstrap for Render — runs when DATABASE_URL is live.
 set -o errexit
 
 echo ">>> Running database migrations..."

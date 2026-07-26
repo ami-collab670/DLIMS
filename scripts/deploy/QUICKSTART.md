@@ -1,58 +1,61 @@
-# Render deploy — do this now
+# Quick start — Render + Vercel (after git push)
 
-Your Vercel app was pointing at **wrong API URLs** (`lsims-api.onrender.com` does not exist).
-The live API is **`https://lsims-api-staging.onrender.com`**. CMS is not deployed yet.
+## 1. Render Blueprint
 
-## A. Fix API (Manual Deploy — 2 min)
+Open: **https://dashboard.render.com/blueprints**
 
-1. Open **https://dashboard.render.com**
-2. Open service **`lsims-api-staging`**
-3. Click **Manual Deploy → Deploy latest commit** (branch `master`)
-4. Wait until **Live** (runs latest [`build.sh`](../LSIMS-Backend/LSIMS-main/build.sh): migrate, roles, `admin@gie.com`)
-5. Test: **https://lsims-api-staging.onrender.com/api/docs/**
+- Select blueprint `ami-collab670/dlmis` → **Manual Sync** (or create new from `master`)
+- Confirm **3 resources**: `lsims-db`, `lsims-api-staging`, `lsims-cms`
+- **Manual Deploy** both web services on latest commit
 
-## B. Deploy CMS + database (Blueprint — 10 min)
-
-If you have **no `lsims-cms` service** yet:
-
-1. **https://dashboard.render.com/blueprints** → **New Blueprint Instance**
-2. Repo **`ami-collab670/DLIMS`**, branch **`master`**
-3. When asked for variables:
+When prompted for CMS env vars:
 
 | Variable | Value |
 |---|---|
-| `APP_KEYS` | `wpsdWlCRcnrnTd5dK4Wfjg==,pPeiERnwZ9YZxQS9CcpAGg==` |
+| `APP_KEYS` | Run: `node -e "console.log(require('crypto').randomBytes(16).toString('base64')+','+require('crypto').randomBytes(16).toString('base64'))"` |
 | `PUBLIC_URL` | `https://lsims-cms.onrender.com` |
 | `CLIENT_URL` | `https://dlims-wheat.vercel.app` |
 
-4. Apply → wait for **lsims-cms** (and **lsims-db** if missing) to go **Live**
+Wait until **lsims-api-staging** and **lsims-cms** are Live (CMS first deploy may take 5–10 min).
 
-If Blueprint conflicts with existing `lsims-api-staging`, add **lsims-cms** manually:
-- New **Web Service** → Docker → root `cms` → Dockerfile `Dockerfile.prod`
-- Link same Postgres env vars as in [`render.yaml`](../../render.yaml)
+Copy CMS `PREVIEW_SECRET` from Render env → update Vercel `VITE_PREVIEW_SECRET` → redeploy Vercel.
 
-## C. Vercel (already updated by Agent)
+## 2. Vercel frontend
 
-Production env should use:
+- **Production URL:** https://dlims-wheat.vercel.app
+- **Dashboard:** https://vercel.com/tempotest26-ctrls-projects/dlims
 
-- `VITE_API_BASE_URL` = `https://lsims-api-staging.onrender.com`
-- `VITE_CMS_API_BASE_URL` = `https://lsims-cms.onrender.com/api`
-- `VITE_PREVIEW_SECRET` = copy from Render **lsims-cms** env `PREVIEW_SECRET`
+Env vars (Production):
 
-Frontend URL: **https://dlims-wheat.vercel.app**
+| Variable | Value |
+|---|---|
+| `VITE_API_BASE_URL` | `https://lsims-api-staging.onrender.com` |
+| `VITE_CMS_API_BASE_URL` | `https://lsims-cms.onrender.com/api` |
+| `VITE_PREVIEW_SECRET` | match CMS `PREVIEW_SECRET` |
 
-## D. After both API and CMS are Live
+Redeploy after Render is live:
 
 ```powershell
-.\scripts\deploy\bootstrap-production.ps1 `
-  -ApiUrl "https://lsims-api-staging.onrender.com" `
-  -CmsUrl "https://lsims-cms.onrender.com" `
-  -FrontendUrl "https://dlims-wheat.vercel.app"
+npx vercel deploy --cwd LSIMS-Frontend --prod --yes
+```
+
+## 3. Seed demo data (after Render is Live)
+
+```powershell
+copy .env.deploy.example .env.deploy
+
+.\scripts\deploy\bootstrap-production.ps1
 ```
 
 ## Logins
 
 | System | Email | Password |
 |---|---|---|
-| Frontend | `admin@gie.com` | `seedpass!` |
-| Strapi | `cms@gie.com` | `seedpass!` |
+| Django / frontend | admin@gie.com | seedpass! |
+| Strapi CMS | cms@gie.com | seedpass! |
+
+## Troubleshooting
+
+- **Network Error on login** → Vercel `VITE_API_BASE_URL` must be `https://lsims-api-staging.onrender.com` (not `lsims-api`)
+- **CMS missing** → Blueprint Manual Sync, or create Docker web service manually from `cms/Dockerfile.prod`
+- **Slow first load** → Render free tier cold start (30–60s); wake API before seeding

@@ -1,21 +1,13 @@
 #!/usr/bin/env bash
 # build.sh — Render.com Build Script for LSIMS
-# This runs automatically on every deploy.
-# Render Build Command: ./build.sh
+# Build phase only — no DB calls (Postgres may not be ready during build).
 
-set -o errexit  # Exit on any error
+set -o errexit
 
 echo ">>> Installing dependencies..."
 pip install -r requirements.txt
 
 echo ">>> Collecting static files (Swagger UI CSS, admin assets)..."
 python manage.py collectstatic --no-input
-
-# Migrations and admin bootstrap run at container start via start.sh (Render runtime).
-# Requires: CREATE_SUPERUSER=1, DJANGO_SUPERUSER_EMAIL, DJANGO_SUPERUSER_USERNAME, DJANGO_SUPERUSER_PASSWORD
-if [ "$CREATE_SUPERUSER" ]; then
-  echo ">>> Creating superuser..."
-  python manage.py createsuperuser --no-input || true
-fi
 
 echo ">>> Build complete!"

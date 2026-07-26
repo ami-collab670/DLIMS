@@ -61,7 +61,7 @@ Ensure `master` includes [`render.yaml`](../render.yaml) and all deploy files, t
 
 5. Wait for all three resources to deploy. CMS is the slowest.
 6. Copy public URLs:
-   - API: `https://lsims-api.onrender.com` (name may vary)
+   - API: `https://lsims-api-staging.onrender.com`
    - CMS: `https://lsims-cms.onrender.com`
 
 If CMS fails on first build (timeout), click **Manual Deploy → Deploy latest commit**.
@@ -83,7 +83,7 @@ Copy `PREVIEW_SECRET` from CMS env (auto-generated) — needed for Vercel.
 
 | Variable | Example |
 |---|---|
-| `VITE_API_BASE_URL` | `https://lsims-api.onrender.com` |
+| `VITE_API_BASE_URL` | `https://lsims-api-staging.onrender.com` |
 | `VITE_CMS_API_BASE_URL` | `https://lsims-cms.onrender.com/api` |
 | `VITE_PREVIEW_SECRET` | Same as CMS `PREVIEW_SECRET` in Render |
 
@@ -109,13 +109,13 @@ Or manually:
 
 ```powershell
 .\scripts\seed-demo-remote.ps1 `
-  -ApiUrl "https://lsims-api.onrender.com" `
+  -ApiUrl "https://lsims-api-staging.onrender.com" `
   -CmsUrl "https://lsims-cms.onrender.com" `
   -AdminEmail "admin@gie.com" `
   -AdminPassword "seedpass!"
 
 .\scripts\deploy\verify-deployment.ps1 `
-  -ApiUrl "https://lsims-api.onrender.com" `
+  -ApiUrl "https://lsims-api-staging.onrender.com" `
   -CmsUrl "https://lsims-cms.onrender.com" `
   -FrontendUrl "https://YOUR-APP.vercel.app"
 ```

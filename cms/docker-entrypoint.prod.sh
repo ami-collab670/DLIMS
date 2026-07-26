@@ -24,13 +24,6 @@ if [ "$DB_EXISTS" != "1" ]; then
     -c "CREATE DATABASE \"${DATABASE_NAME}\";"
 fi
 
-if [ -f dist/config/database.js ] && head -n 5 dist/config/database.js | grep -q '^#'; then
-  rm -rf dist
-fi
-
-echo "[cms] Building Strapi..."
-npm run build
-
 echo "[cms] Ensuring Strapi admin user..."
 npm run strapi -- admin:create-user \
   --firstname=CMS \
