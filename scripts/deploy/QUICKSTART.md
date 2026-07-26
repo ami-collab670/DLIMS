@@ -8,13 +8,7 @@ Open: **https://dashboard.render.com/blueprints**
 - Confirm **3 resources**: `lsims-db`, `lsims-api-staging`, `lsims-cms`
 - **Manual Deploy** both web services on latest commit
 
-When prompted for CMS env vars:
-
-| Variable | Value |
-|---|---|
-| `APP_KEYS` | Run: `node -e "console.log(require('crypto').randomBytes(16).toString('base64')+','+require('crypto').randomBytes(16).toString('base64'))"` |
-| `PUBLIC_URL` | `https://lsims-cms.onrender.com` |
-| `CLIENT_URL` | `https://dlims-wheat.vercel.app` |
+`APP_KEYS`, `PUBLIC_URL`, and `CLIENT_URL` are pre-set in [`render.yaml`](../../render.yaml) — no manual CMS env entry needed.
 
 Wait until **lsims-api-staging** and **lsims-cms** are Live (CMS first deploy may take 5–10 min).
 

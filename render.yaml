@@ -65,7 +65,7 @@ services:
       - key: DATABASE_SSL_REJECT_UNAUTHORIZED
         value: "false"
       - key: APP_KEYS
-        sync: false
+        value: Ra5mwrmLCcDpF4fGDLPaVA==,2he6+T1y5InwzKnZWqWYCA==
       - key: API_TOKEN_SALT
         generateValue: true
       - key: ADMIN_JWT_SECRET
@@ -75,7 +75,7 @@ services:
       - key: TRANSFER_TOKEN_SALT
         generateValue: true
       - key: ENCRYPTION_KEY
-        generateValue: true
+        value: cfOlAhYSRwH9j3CZiN3lpaDWqIZzdoaMhp0Nyj0q0MA=
       - key: CMS_ADMIN_EMAIL
         value: cms@gie.com
       - key: CMS_ADMIN_PASSWORD
@@ -83,9 +83,9 @@ services:
       - key: PREVIEW_SECRET
         generateValue: true
       - key: PUBLIC_URL
-        sync: false
+        value: https://lsims-cms.onrender.com
       - key: CLIENT_URL
-        sync: false
+        value: https://dlims-wheat.vercel.app
       - key: BEHIND_PROXY
         value: "true"
       - key: HOST

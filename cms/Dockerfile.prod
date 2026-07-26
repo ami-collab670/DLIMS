@@ -6,6 +6,8 @@ RUN apt-get update \
 
 WORKDIR /opt/app
 
+ENV NODE_OPTIONS=--max-old-space-size=2048
+
 COPY package.json package-lock.json ./
 RUN npm ci
 
