@@ -61,15 +61,6 @@ if ($ApiUrl -eq 'batch') {
     exit 1
 }
 
-#region agent log
-Write-SeedDebugLog -HypothesisId 'A' -Location 'seed-api.ps1:param-normalize' -Message 'Normalized CLI parameters' -Data @{
-    apiUrl = $ApiUrl
-    batch  = $Batch
-    skipExisting = $SkipExisting
-    dryRun = $DryRun.IsPresent
-}
-#endregion
-
 function Initialize-SeedPhases {
     param(
         [int]$WorkflowCount,
@@ -470,14 +461,6 @@ function Invoke-SeedPaidWorkflow {
         if ($sampleTests.Count -eq 0) {
             $sampleTests = @(Get-LsimsPaginated -Path "/api/laboratory/sample-tests/?sample=$sampleId" -Token $receptionistToken)
         }
-
-        #region agent log
-        Write-SeedDebugLog -HypothesisId 'B' -Location 'seed-api.ps1:Invoke-SeedPaidWorkflow' -Message 'Resolved sample tests for preparation' -Data @{
-            sampleId        = $sampleId
-            sampleTestCount = $sampleTests.Count
-            dryRun          = $script:SeedConfig.DryRun
-        }
-        #endregion
 
         if ($sampleTests.Count -eq 0) {
             throw "No sample tests found for sample $sampleId."

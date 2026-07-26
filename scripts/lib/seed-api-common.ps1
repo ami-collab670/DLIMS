@@ -19,31 +19,6 @@ $script:TokenCache = @{}
 $script:SeedStepCounter = 0
 $script:SeedStepTotal = 0
 
-#region agent log
-function Write-SeedDebugLog {
-    param(
-        [string]$HypothesisId,
-        [string]$Location,
-        [string]$Message,
-        [object]$Data
-    )
-
-    $logPath = Join-Path (Split-Path (Split-Path $PSScriptRoot -Parent) -Parent) 'debug-33b1fc.log'
-    if (-not (Test-Path (Split-Path $logPath -Parent))) {
-        $logPath = Join-Path (Get-Location) 'debug-33b1fc.log'
-    }
-    $entry = @{
-        sessionId    = '33b1fc'
-        hypothesisId = $HypothesisId
-        location     = $Location
-        message      = $Message
-        data         = $Data
-        timestamp    = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
-    } | ConvertTo-Json -Compress -Depth 6
-    Add-Content -Path $logPath -Value $entry -Encoding UTF8
-}
-#endregion
-
 function Initialize-SeedConfig {
     param(
         [string]$ApiUrl,
@@ -69,14 +44,6 @@ function Initialize-SeedConfig {
         ReplaceCatalog = $ReplaceCatalog
         DryRun         = $DryRun
     }
-
-    #region agent log
-    Write-SeedDebugLog -HypothesisId 'A' -Location 'seed-api-common.ps1:Initialize-SeedConfig' -Message 'Resolved seed config' -Data @{
-        apiBaseUrl   = $script:SeedConfig.ApiBaseUrl
-        skipExisting = $script:SeedConfig.SkipExisting
-        dryRun       = $script:SeedConfig.DryRun
-    }
-    #endregion
 }
 
 function Get-DemoSeedFixturePath {
@@ -604,13 +571,6 @@ function Find-ExistingEntity {
     $items = Get-LsimsPaginated -Path $searchPath -Token $Token
     foreach ($item in $items) {
         if ($item.$FieldName -eq $FieldValue) {
-            #region agent log
-            Write-SeedDebugLog -HypothesisId 'C' -Location 'seed-api-common.ps1:Find-ExistingEntity' -Message 'Found existing entity' -Data @{
-                listPath   = $ListPath
-                fieldName  = $FieldName
-                fieldValue = $FieldValue
-            }
-            #endregion
             return $item
         }
     }
