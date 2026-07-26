@@ -1,0 +1,17 @@
+# One-off Railway seed job — runs full demo seed against deployed API/CMS URLs.
+# Build context: repository root (docker build -f scripts/deploy/Dockerfile.seed .)
+FROM mcr.microsoft.com/powershell:lts-debian12
+
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends curl ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY scripts/ /app/scripts/
+
+ENV LSIMS_ADMIN_EMAIL=admin@gie.com
+ENV LSIMS_ADMIN_PASSWORD=seedpass!
+
+# Required at runtime: LSIMS_API_URL, LSIMS_CMS_URL
+CMD ["pwsh", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "/app/scripts/seed-demo-remote.ps1", "-SkipCmsSeed"]

@@ -1,0 +1,6 @@
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "scripts/deploy/Dockerfile.seed"
+
+[deploy]
+restartPolicyType = "NEVER"

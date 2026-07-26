@@ -1,0 +1,11 @@
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+preDeployCommand = "sh scripts/railway-release.sh"
+startCommand = "sh -c 'gunicorn lsims_project.wsgi:application --bind 0.0.0.0:${PORT:-8000}'"
+healthcheckPath = "/api/docs/"
+healthcheckTimeout = 120
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3

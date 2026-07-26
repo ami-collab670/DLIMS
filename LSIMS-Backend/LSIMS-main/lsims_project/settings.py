@@ -33,22 +33,23 @@ if not SECRET_KEY:
             "DJANGO_SECRET_KEY environment variable is required in production."
         )
 
-# ALLOWED_HOSTS: In production, includes the Render hostname plus any extras.
+# ALLOWED_HOSTS: In production, set DJANGO_ALLOWED_HOSTS and/or platform hostname env vars.
 # In dev, allows everything.
 if DEBUG:
     ALLOWED_HOSTS = ["*"]
 else:
-    ALLOWED_HOSTS = [
-        "lsims-api-staging.onrender.com",  # Render staging (always allowed)
-    ]
-    # Add any extra hosts from env var (e.g. custom domain)
+    ALLOWED_HOSTS = []
     extra_hosts = os.environ.get("DJANGO_ALLOWED_HOSTS", "")
     if extra_hosts:
         ALLOWED_HOSTS += [h.strip() for h in extra_hosts.split(",") if h.strip()]
-    # Render also auto-injects this (belt and suspenders)
-    render_hostname = os.environ.get("RENDER_EXTERNAL_HOSTNAME")
-    if render_hostname and render_hostname not in ALLOWED_HOSTS:
-        ALLOWED_HOSTS.append(render_hostname)
+    for env_key in ("RAILWAY_PUBLIC_DOMAIN", "RENDER_EXTERNAL_HOSTNAME"):
+        platform_hostname = os.environ.get(env_key)
+        if platform_hostname and platform_hostname not in ALLOWED_HOSTS:
+            ALLOWED_HOSTS.append(platform_hostname)
+    if not ALLOWED_HOSTS:
+        raise RuntimeError(
+            "Set DJANGO_ALLOWED_HOSTS and/or deploy on Railway/Render with a public domain."
+        )
 
 # ---------------------------------------------------------------------------
 # Application definition
