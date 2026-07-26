@@ -11,7 +11,7 @@
       "headers": [
         {
           "key": "Content-Security-Policy",
-          "value": "frame-ancestors 'self' https://*.up.railway.app http://localhost:1337 http://127.0.0.1:1337"
+          "value": "frame-ancestors 'self' https://*.onrender.com https://*.up.railway.app http://localhost:1337 http://127.0.0.1:1337"
         }
       ]
     }

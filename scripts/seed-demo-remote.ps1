@@ -1,16 +1,16 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-  Seed full LSIMS demo data against deployed Railway/Vercel URLs (no local Docker).
+  Seed full LSIMS demo data against deployed Render/Vercel URLs (no local Docker).
 
 .DESCRIPTION
-  Waits for remote backend and CMS health, optionally re-runs CMS seed via railway CLI,
-  then invokes seed-api.ps1 with demo fixtures.
+  Waits for remote backend and CMS health, then invokes seed-api.ps1 with demo fixtures.
+  CMS marketing content is seeded automatically on Strapi startup (cms/src/index.js bootstrap).
 
 .EXAMPLE
   .\scripts\seed-demo-remote.ps1 `
-    -ApiUrl "https://lsims-backend-production.up.railway.app" `
-    -CmsUrl "https://lsims-cms-production.up.railway.app"
+    -ApiUrl "https://lsims-api.onrender.com" `
+    -CmsUrl "https://lsims-cms.onrender.com"
 
 .EXAMPLE
   $env:LSIMS_API_URL = "https://..."
@@ -61,10 +61,10 @@ function Wait-ForRemoteBackend {
     param(
         [Parameter(Mandatory)]
         [string]$BaseUrl,
-        [int]$TimeoutSeconds = 180
+        [int]$TimeoutSeconds = 300
     )
 
-    Write-Host "Waiting for backend at $BaseUrl (timeout ${TimeoutSeconds}s)..."
+    Write-Host "Waiting for backend at $BaseUrl (timeout ${TimeoutSeconds}s; Render free tier may cold-start)..."
     $elapsed = 0
     while ($true) {
         try {
@@ -124,21 +124,11 @@ function Invoke-RemoteCmsSeed {
     param([string]$CmsBaseUrl)
 
     if ($DryRun) {
-        Write-Host "[dry-run] Skipping CMS seed command." -ForegroundColor Yellow
+        Write-Host "[dry-run] Skipping CMS content check." -ForegroundColor Yellow
         return
     }
 
-    if (Get-Command railway -ErrorAction SilentlyContinue) {
-        Write-Host ">>> Running CMS seed via Railway CLI (npm run seed:cms)..."
-        railway run --service lsims-cms npm run seed:cms
-        if ($LASTEXITCODE -ne 0) {
-            Write-Host "Railway CMS seed failed (non-fatal if bootstrap already ran)." -ForegroundColor Yellow
-        }
-        return
-    }
-
-    Write-Host "CMS bootstrap runs on Strapi startup; skipping explicit seed (install Railway CLI to re-run npm run seed:cms)." -ForegroundColor Yellow
-    Write-Host "CMS URL checked: $CmsBaseUrl/api/home-page"
+    Write-Host "CMS content is seeded on Strapi bootstrap; verified at $CmsBaseUrl/api/home-page" -ForegroundColor Cyan
 }
 
 $apiBase = Resolve-RemoteUrl -Value $ApiUrl -EnvName 'LSIMS_API_URL' -Label 'ApiUrl'

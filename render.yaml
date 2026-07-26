@@ -1,5 +1,5 @@
-# render.yaml — Render.com Blueprint for LSIMS Staging
-# Deploy via: https://render.com/deploy → connect your GitHub repo
+# render.yaml — Render.com Blueprint for LSIMS (free tier)
+# Deploy: https://dashboard.render.com/blueprints → connect GitHub repo (branch: master)
 
 databases:
   - name: lsims-db
@@ -9,11 +9,13 @@ databases:
 
 services:
   - type: web
-    name: lsims-api-staging
-    env: python
+    name: lsims-api
+    runtime: python
     plan: free
-    buildCommand: "./build.sh"
-    startCommand: "gunicorn lsims_project.wsgi:application --bind 0.0.0.0:$PORT"
+    rootDir: LSIMS-Backend/LSIMS-main
+    buildCommand: ./build.sh
+    startCommand: gunicorn lsims_project.wsgi:application --bind 0.0.0.0:$PORT
+    healthCheckPath: /api/docs/
     envVars:
       - key: DATABASE_URL
         fromDatabase:
@@ -24,4 +26,67 @@ services:
       - key: DJANGO_DEBUG
         value: "False"
       - key: PYTHON_VERSION
-        value: "3.13.2"
+        value: "3.12.12"
+      - key: LSIMS_ADMIN_EMAIL
+        value: admin@gie.com
+      - key: LSIMS_ADMIN_PASSWORD
+        value: seedpass!
+
+  - type: web
+    name: lsims-cms
+    runtime: docker
+    plan: free
+    rootDir: cms
+    dockerfilePath: ./Dockerfile.prod
+    healthCheckPath: /api/home-page
+    envVars:
+      - key: DATABASE_CLIENT
+        value: postgres
+      - key: DATABASE_HOST
+        fromDatabase:
+          name: lsims-db
+          property: host
+      - key: DATABASE_PORT
+        fromDatabase:
+          name: lsims-db
+          property: port
+      - key: DATABASE_NAME
+        value: cms
+      - key: DATABASE_USERNAME
+        fromDatabase:
+          name: lsims-db
+          property: user
+      - key: DATABASE_PASSWORD
+        fromDatabase:
+          name: lsims-db
+          property: password
+      - key: DATABASE_SSL
+        value: "true"
+      - key: DATABASE_SSL_REJECT_UNAUTHORIZED
+        value: "false"
+      - key: APP_KEYS
+        sync: false
+      - key: API_TOKEN_SALT
+        generateValue: true
+      - key: ADMIN_JWT_SECRET
+        generateValue: true
+      - key: JWT_SECRET
+        generateValue: true
+      - key: TRANSFER_TOKEN_SALT
+        generateValue: true
+      - key: ENCRYPTION_KEY
+        generateValue: true
+      - key: CMS_ADMIN_EMAIL
+        value: cms@gie.com
+      - key: CMS_ADMIN_PASSWORD
+        value: seedpass!
+      - key: PREVIEW_SECRET
+        generateValue: true
+      - key: PUBLIC_URL
+        sync: false
+      - key: CLIENT_URL
+        sync: false
+      - key: BEHIND_PROXY
+        value: "true"
+      - key: HOST
+        value: 0.0.0.0

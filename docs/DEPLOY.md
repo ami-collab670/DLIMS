@@ -1,12 +1,15 @@
-# Deploy LSIMS: Vercel + Railway
+# Deploy LSIMS: Render + Vercel (free tier)
 
-Production-style client demo deployment:
+Client demo deployment using Render for backend/CMS/database and Vercel for the frontend.
 
-- **Frontend** → [Vercel](https://vercel.com) (`LSIMS-Frontend/`)
-- **Django API** → [Railway](https://railway.com) (`LSIMS-Backend/LSIMS-main/`)
-- **Strapi CMS** → Railway (`cms/`)
-- **Postgres** → Railway plugin (shared; two databases: default + `cms`)
-- **Demo seed** → Railway one-off job or local script
+| Service | Platform | Source |
+|---|---|---|
+| Frontend | Vercel | [`LSIMS-Frontend/`](../LSIMS-Frontend/) |
+| Django API | Render web (Python) | [`LSIMS-Backend/LSIMS-main/`](../LSIMS-Backend/LSIMS-main/) |
+| Strapi CMS | Render web (Docker) | [`cms/Dockerfile.prod`](../cms/Dockerfile.prod) |
+| Postgres | Render database (free) | shared; CMS creates `cms` DB on boot |
+
+Blueprint: [`render.yaml`](../render.yaml) at repo root.
 
 ## Credentials (client demo)
 
@@ -20,227 +23,150 @@ Production-style client demo deployment:
 
 ```
 Browser → Vercel (SPA)
-            ├─ VITE_API_BASE_URL → Railway Django API → Postgres (lsims)
-            └─ VITE_CMS_API_BASE_URL → Railway Strapi CMS → Postgres (cms)
+            ├─ VITE_API_BASE_URL → Render Django API → Postgres (lsims)
+            └─ VITE_CMS_API_BASE_URL → Render Strapi CMS → Postgres (cms)
 Strapi preview iframe → Vercel /preview
 ```
 
-## Prerequisites
+## Free-tier expectations
 
-- GitHub repo pushed and accessible
-- Railway account + Vercel account
-- Optional: [Railway CLI](https://docs.railway.com/guides/cli), [Vercel CLI](https://vercel.com/docs/cli)
+- Render web services **sleep after ~15 min idle** (30–60s cold start on first visit)
+- First CMS deploy may take **5–10 minutes** (Strapi build)
+- Free Postgres may **expire after ~30 days** unless upgraded
+- CMS uploads are **not persisted** on free tier (bootstrap re-seeds text content)
 
-## 1. Generate secrets (once)
+---
 
-Run locally and save outputs in a password manager:
+## Step 1 — Push code to GitHub
 
-```powershell
-# Django
-python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"
+Ensure `master` includes [`render.yaml`](../render.yaml) and all deploy files, then push to `github.com:ami-collab670/DLIMS`.
 
-# Strapi — run each line and save
-node -e "console.log(require('crypto').randomBytes(16).toString('base64'))"  # APP_KEY 1
-node -e "console.log(require('crypto').randomBytes(16).toString('base64'))"  # APP_KEY 2
-node -e "console.log(require('crypto').randomBytes(16).toString('base64'))"  # API_TOKEN_SALT
-node -e "console.log(require('crypto').randomBytes(16).toString('base64'))"  # ADMIN_JWT_SECRET
-node -e "console.log(require('crypto').randomBytes(16).toString('base64'))"  # JWT_SECRET
-node -e "console.log(require('crypto').randomBytes(16).toString('base64'))"  # TRANSFER_TOKEN_SALT
-node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"  # ENCRYPTION_KEY
+---
 
-# Shared preview secret (same on Strapi + Vercel)
-node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"
-```
+## Step 2 — Render Blueprint
 
-Pick one preview secret and use it for both `PREVIEW_SECRET` (CMS) and `VITE_PREVIEW_SECRET` (Vercel).
+1. Go to [dashboard.render.com/blueprints](https://dashboard.render.com/blueprints)
+2. **New Blueprint Instance** → connect GitHub repo `ami-collab670/DLIMS`, branch `master`
+3. Render creates:
+   - `lsims-db` (Postgres)
+   - `lsims-api` (Python/Django)
+   - `lsims-cms` (Docker/Strapi)
+4. When prompted during Blueprint setup, fill in **sync: false** variables:
 
-## 2. Railway project
+| Variable | Service | Value |
+|---|---|---|
+| `APP_KEYS` | lsims-cms | Two random keys comma-separated (generate with `node -e "console.log(require('crypto').randomBytes(16).toString('base64')+','+require('crypto').randomBytes(16).toString('base64'))"`) |
+| `PUBLIC_URL` | lsims-cms | `https://<your-cms-service>.onrender.com` (set after first deploy if unknown) |
+| `CLIENT_URL` | lsims-cms | Vercel frontend URL (set after Step 3) |
 
-Create one Railway project connected to your GitHub repo.
+5. Wait for all three resources to deploy. CMS is the slowest.
+6. Copy public URLs:
+   - API: `https://lsims-api.onrender.com` (name may vary)
+   - CMS: `https://lsims-cms.onrender.com`
 
-### 2.1 Postgres
+If CMS fails on first build (timeout), click **Manual Deploy → Deploy latest commit**.
 
-1. **New → Database → PostgreSQL**
-2. Note the connection variables (`PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `PGDATABASE`, `DATABASE_URL`)
+Update CMS env in Render dashboard:
+- `PUBLIC_URL` = full CMS URL (no trailing slash)
+- `CLIENT_URL` = Vercel URL (after Step 3)
 
-The CMS service creates a second database named `cms` on first boot.
+Copy `PREVIEW_SECRET` from CMS env (auto-generated) — needed for Vercel.
 
-### 2.2 Service: `lsims-backend`
+---
 
-| Setting | Value |
-|---|---|
-| Root directory | `LSIMS-Backend/LSIMS-main` |
-| Builder | Dockerfile ([`Dockerfile`](../LSIMS-Backend/LSIMS-main/Dockerfile)) |
-| Config | [`railway.toml`](../LSIMS-Backend/LSIMS-main/railway.toml) |
+## Step 3 — Vercel frontend
 
-**Environment variables:**
-
-| Variable | Value |
-|---|---|
-| `DATABASE_URL` | Reference from Postgres plugin |
-| `DJANGO_DEBUG` | `False` |
-| `DJANGO_SECRET_KEY` | Generated secret |
-| `DJANGO_ALLOWED_HOSTS` | Railway public hostname (e.g. `lsims-backend-production.up.railway.app`) |
-| `LSIMS_ADMIN_EMAIL` | `admin@gie.com` |
-| `LSIMS_ADMIN_PASSWORD` | `seedpass!` |
-
-**Networking:** Generate a public domain. Copy the URL — needed for Vercel.
-
-Pre-deploy runs [`scripts/railway-release.sh`](../LSIMS-Backend/LSIMS-main/scripts/railway-release.sh): migrate, seed roles, create admin.
-
-### 2.3 Service: `lsims-cms`
-
-| Setting | Value |
-|---|---|
-| Root directory | `cms` |
-| Builder | Dockerfile ([`Dockerfile.prod`](../cms/Dockerfile.prod)) |
-| Config | [`railway.toml`](../cms/railway.toml) |
-
-**Environment variables:**
-
-| Variable | Value |
-|---|---|
-| `DATABASE_CLIENT` | `postgres` |
-| `DATABASE_HOST` | From Postgres (`PGHOST`) |
-| `DATABASE_PORT` | From Postgres (`PGPORT`) |
-| `DATABASE_NAME` | `cms` |
-| `DATABASE_USERNAME` | From Postgres (`PGUSER`) |
-| `DATABASE_PASSWORD` | From Postgres (`PGPASSWORD`) |
-| `DATABASE_SSL` | `true` |
-| `DATABASE_SSL_REJECT_UNAUTHORIZED` | `false` (Railway managed Postgres) |
-| `APP_KEYS` | Two keys comma-separated |
-| `API_TOKEN_SALT` | Generated |
-| `ADMIN_JWT_SECRET` | Generated |
-| `JWT_SECRET` | Generated |
-| `TRANSFER_TOKEN_SALT` | Generated |
-| `ENCRYPTION_KEY` | Generated (32-byte base64) |
-| `CMS_ADMIN_EMAIL` | `cms@gie.com` |
-| `CMS_ADMIN_PASSWORD` | `seedpass!` |
-| `CLIENT_URL` | Vercel frontend URL (set after Vercel deploy, then redeploy CMS) |
-| `PUBLIC_URL` | This service's Railway public URL |
-| `PREVIEW_SECRET` | Shared preview secret |
-| `BEHIND_PROXY` | `true` |
-| `HOST` | `0.0.0.0` |
-
-**Volume (required for uploads):**
-
-- Mount path: `/opt/app/public/uploads`
-- Without this, CMS images are lost on redeploy.
-
-**Networking:** Generate a public domain. Copy the URL — needed for Vercel.
-
-First boot builds Strapi, creates admin user, and auto-seeds CMS content via [`cms/src/index.js`](../cms/src/index.js).
-
-### 2.4 Deploy order (Railway)
-
-1. Postgres
-2. `lsims-backend` — wait until healthy (`/api/docs/`)
-3. `lsims-cms` — wait until healthy (`/api/home-page` returns data); may take 2–3 minutes
-
-## 3. Vercel frontend
-
-1. **Add New Project** → import GitHub repo
+1. [vercel.com/new](https://vercel.com/new) → import `ami-collab670/DLIMS`
 2. **Root Directory:** `LSIMS-Frontend`
-3. **Framework Preset:** Vite
-4. **Build Command:** `npm run build`
-5. **Output Directory:** `dist`
-
-**Environment variables (Production):**
+3. **Framework:** Vite
+4. **Environment variables (Production):**
 
 | Variable | Example |
 |---|---|
-| `VITE_API_BASE_URL` | `https://lsims-backend-production.up.railway.app` |
-| `VITE_CMS_API_BASE_URL` | `https://lsims-cms-production.up.railway.app/api` |
-| `VITE_PREVIEW_SECRET` | Same as CMS `PREVIEW_SECRET` |
+| `VITE_API_BASE_URL` | `https://lsims-api.onrender.com` |
+| `VITE_CMS_API_BASE_URL` | `https://lsims-cms.onrender.com/api` |
+| `VITE_PREVIEW_SECRET` | Same as CMS `PREVIEW_SECRET` in Render |
 
-Deploy. Copy the Vercel URL, then **update CMS `CLIENT_URL`** to that URL and redeploy CMS.
+5. Deploy → copy Vercel URL (e.g. `https://dlims.vercel.app`)
+6. Update Render CMS `CLIENT_URL` to Vercel URL → **Redeploy CMS**
 
-If API or CMS URLs change, **redeploy Vercel** (env vars are baked at build time).
+Config: [`LSIMS-Frontend/vercel.json`](../LSIMS-Frontend/vercel.json) (SPA rewrites + Strapi preview CSP for `*.onrender.com`).
 
-Config files: [`vercel.json`](../LSIMS-Frontend/vercel.json) (SPA rewrites + Strapi preview CSP).
+---
 
-## 4. Full demo data seed
+## Step 4 — Full demo seed
 
-After backend and CMS are healthy, use the bootstrap helper (requires `railway login` and `vercel login`):
+Services may be sleeping — first request wakes them (wait 30–60s).
 
 ```powershell
-# 1. Copy and fill deployment URLs
 copy .env.deploy.example .env.deploy
+# Edit .env.deploy with your Render + Vercel URLs
 
-# 2. Seed + verify (after services are live)
 .\scripts\deploy\bootstrap-production.ps1
 ```
 
-Or run steps manually:
-
-### Option A — From your machine (recommended)
+Or manually:
 
 ```powershell
 .\scripts\seed-demo-remote.ps1 `
-  -ApiUrl "https://YOUR-BACKEND.up.railway.app" `
-  -CmsUrl "https://YOUR-CMS.up.railway.app" `
+  -ApiUrl "https://lsims-api.onrender.com" `
+  -CmsUrl "https://lsims-cms.onrender.com" `
   -AdminEmail "admin@gie.com" `
   -AdminPassword "seedpass!"
+
+.\scripts\deploy\verify-deployment.ps1 `
+  -ApiUrl "https://lsims-api.onrender.com" `
+  -CmsUrl "https://lsims-cms.onrender.com" `
+  -FrontendUrl "https://YOUR-APP.vercel.app"
 ```
 
-### Option B — Railway one-off seed service
+Backend bootstrap (`seed_roles`, admin user) runs automatically via [`build.sh`](../LSIMS-Backend/LSIMS-main/build.sh) on each Render deploy.
 
-| Setting | Value |
-|---|---|
-| Root directory | repository root |
-| Dockerfile | `scripts/deploy/Dockerfile.seed` |
-| Config | [`scripts/deploy/railway.toml`](../scripts/deploy/railway.toml) |
+---
 
-**Environment variables:**
+## Verification checklist
 
-| Variable | Value |
-|---|---|
-| `LSIMS_API_URL` | Backend public URL |
-| `LSIMS_CMS_URL` | CMS public URL |
-| `LSIMS_ADMIN_EMAIL` | `admin@gie.com` |
-| `LSIMS_ADMIN_PASSWORD` | `seedpass!` |
-
-Deploy once, verify logs, then remove or disable the service.
-
-### What gets seeded
-
-- CMS marketing content (also on Strapi bootstrap)
-- 4 departments, 74-test catalog, demo staff, 2 clients
-- 2 end-to-end workflow jobs, complaints, discounts, notifications
-
-See [DEMO.md](../DEMO.md) for sample staff logins.
-
-## 5. Verification checklist
-
-- [ ] Public marketing pages load on Vercel URL
-- [ ] Login as `admin@gie.com` / `seedpass!` on frontend
-- [ ] Strapi admin at `https://<cms>/admin` with `cms@gie.com` / `seedpass!`
-- [ ] API docs at `https://<backend>/api/docs/`
-- [ ] Test catalog shows 74 entries (staff → catalog)
+- [ ] Public marketing pages load on Vercel
+- [ ] Login `admin@gie.com` / `seedpass!` on frontend
+- [ ] Strapi admin `cms@gie.com` / `seedpass!` at `https://<cms>/admin`
+- [ ] API docs at `https://<api>/api/docs/`
+- [ ] Test catalog shows 74 entries after seed
 - [ ] Client login `seed-client1@minerals.com` / `SeedPass123!`
-- [ ] Strapi Content Manager → Preview opens Vercel `/preview` route
 
-## 6. Troubleshooting
+---
+
+## Troubleshooting
 
 | Issue | Fix |
 |---|---|
-| Backend 400 / DisallowedHost | Set `DJANGO_ALLOWED_HOSTS` to exact Railway hostname |
-| CMS build timeout | Increase Railway healthcheck timeout; first build is slow |
-| Frontend API 404 / CORS | Check `VITE_API_BASE_URL` and redeploy Vercel |
-| Empty public pages | CMS not ready or wrong `VITE_CMS_API_BASE_URL`; redeploy Vercel |
-| CMS images missing after redeploy | Attach volume at `/opt/app/public/uploads` |
-| Seed auth fails | Run backend pre-deploy or `create_user` manually |
-| Preview iframe blocked | CSP in `vercel.json` allows `https://*.up.railway.app` |
+| Backend 400 DisallowedHost | Render sets `RENDER_EXTERNAL_HOSTNAME` automatically; redeploy if needed |
+| CMS build timeout | Retry manual deploy; free tier builds are slow |
+| Empty public pages | Wake CMS (visit `/api/home-page`); check `VITE_CMS_API_BASE_URL`; redeploy Vercel |
+| Frontend API errors | Check `VITE_API_BASE_URL`; redeploy Vercel after env change |
+| Seed auth fails | Confirm API is awake; admin created by `build.sh` |
+| Preview iframe blocked | CSP in `vercel.json` allows `https://*.onrender.com` |
+| Slow first load | Normal on Render free (cold start) |
 
-## 7. Redeployments
+---
 
-| Change | Redeploy |
+## Redeployments
+
+| Change | Action |
 |---|---|
-| Backend code/env | Railway backend |
-| CMS code/env | Railway CMS |
-| Frontend code | Vercel |
-| API/CMS URL change | Vercel (rebuild) + update CMS `CLIENT_URL` |
+| Backend code | Render redeploys `lsims-api` on git push |
+| CMS code | Render redeploys `lsims-cms` on git push |
+| Frontend code | Vercel redeploys on git push |
+| API/CMS URL change | Update Vercel env vars and redeploy frontend |
+| CMS preview URL | Update CMS `CLIENT_URL` and redeploy CMS |
+
+---
+
+## Optional: Railway files
+
+Railway configs ([`railway.toml`](../LSIMS-Backend/LSIMS-main/railway.toml), etc.) remain in the repo but are **not used** for this free Render deploy.
+
+---
 
 ## Security note
 
-This configuration uses demo passwords and open CORS for client presentations. Do not use for real production without hardening.
+Demo passwords and open CORS are intentional for client presentations. Do not use for real production.

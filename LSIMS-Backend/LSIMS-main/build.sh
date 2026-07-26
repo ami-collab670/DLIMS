@@ -14,6 +14,16 @@ python manage.py collectstatic --no-input
 echo ">>> Running database migrations..."
 python manage.py migrate --no-input
 
+echo ">>> Seeding roles..."
+python manage.py seed_roles
+
+echo ">>> Ensuring default admin user..."
+python manage.py create_user \
+  --email "${LSIMS_ADMIN_EMAIL:-admin@gie.com}" \
+  --password "${LSIMS_ADMIN_PASSWORD:-seedpass!}" \
+  --role admin \
+  --update || true
+
 # Create admin superuser automatically if env vars are set
 # Requires: CREATE_SUPERUSER=1, DJANGO_SUPERUSER_EMAIL, DJANGO_SUPERUSER_USERNAME, DJANGO_SUPERUSER_PASSWORD
 if [ "$CREATE_SUPERUSER" ]; then

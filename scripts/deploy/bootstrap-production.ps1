@@ -1,13 +1,9 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-  Post-login helper to deploy LSIMS to Railway + Vercel and run demo seed.
+  Seed and verify LSIMS after Render + Vercel deploy.
 
 .DESCRIPTION
-  Requires Railway CLI and Vercel CLI (npx works). Run after:
-    npx @railway/cli login
-    npx vercel login
-
   Set deployment URLs in .env.deploy (copy from .env.deploy.example) or pass parameters.
 
 .EXAMPLE
@@ -26,39 +22,6 @@ $ErrorActionPreference = 'Stop'
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $RepoRoot = (Resolve-Path (Join-Path $ScriptDir '..\..')).Path
 
-function Get-CliCommand {
-    param([string]$Name)
-
-    if (Get-Command $Name -ErrorAction SilentlyContinue) {
-        return $Name
-    }
-    return "npx"
-}
-
-function Invoke-Railway {
-    param([string[]]$Args)
-
-    $railway = Get-CliCommand 'railway'
-    if ($railway -eq 'npx') {
-        & npx @('@railway/cli') @Args
-    } else {
-        & railway @Args
-    }
-    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-}
-
-function Invoke-Vercel {
-    param([string[]]$Args)
-
-    $vercel = Get-CliCommand 'vercel'
-    if ($vercel -eq 'npx') {
-        & npx vercel @Args
-    } else {
-        & vercel @Args
-    }
-    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-}
-
 function Read-DeployEnv {
     param([string]$Key)
 
@@ -73,27 +36,9 @@ function Read-DeployEnv {
     return $null
 }
 
-Write-Host 'LSIMS production bootstrap' -ForegroundColor Green
-Write-Host '=========================='
+Write-Host 'LSIMS production bootstrap (Render + Vercel)' -ForegroundColor Green
+Write-Host '============================================'
 Write-Host ''
-Write-Host 'Step 1: Connect services in Railway and Vercel dashboards using docs/DEPLOY.md'
-Write-Host 'Step 2: Set .env.deploy from .env.deploy.example with your public URLs'
-Write-Host 'Step 3: Re-run this script to seed and verify'
-Write-Host ''
-
-try {
-    Invoke-Railway @('whoami') | Out-Null
-} catch {
-    Write-Host 'Railway CLI not authenticated. Run: npx @railway/cli login' -ForegroundColor Red
-    exit 1
-}
-
-try {
-    Invoke-Vercel @('whoami') | Out-Null
-} catch {
-    Write-Host 'Vercel CLI not authenticated. Run: npx vercel login' -ForegroundColor Red
-    exit 1
-}
 
 $apiBase = if ($ApiUrl) { $ApiUrl.TrimEnd('/') } else { Read-DeployEnv 'LSIMS_API_URL' }
 $cmsBase = if ($CmsUrl) { $CmsUrl.TrimEnd('/') } else { Read-DeployEnv 'LSIMS_CMS_URL' }
@@ -101,7 +46,7 @@ $frontendBase = if ($FrontendUrl) { $FrontendUrl.TrimEnd('/') } else { Read-Depl
 
 if (-not $apiBase -or -not $cmsBase) {
     Write-Host 'Missing LSIMS_API_URL or LSIMS_CMS_URL. Set .env.deploy or pass -ApiUrl / -CmsUrl.' -ForegroundColor Yellow
-    Write-Host 'Complete Railway + Vercel dashboard setup first (see docs/DEPLOY.md).' -ForegroundColor Yellow
+    Write-Host 'Complete Render Blueprint + Vercel setup first (see docs/DEPLOY.md).' -ForegroundColor Yellow
     exit 0
 }
 
