@@ -6,6 +6,15 @@ Open: **https://dashboard.render.com/blueprints**
 
 - Select blueprint `ami-collab670/dlmis` → **Manual Sync** (or create new from `master`)
 - Confirm **3 resources**: `lsims-db`, `lsims-api-staging`, `lsims-cms`
+
+### lsims-api-staging (must use current master)
+
+If API deploy fails with `requirements.txt not found`, follow **[RENDER-API-FIX.md](RENDER-API-FIX.md)**:
+
+- **Root Directory:** `LSIMS-Backend/LSIMS-main`
+- **Start Command:** `bash start.sh` (or repo root: `bash start-api.sh`)
+- **PYTHON_VERSION:** `3.12.12`
+
 - **Manual Deploy** both web services on latest commit
 
 `APP_KEYS`, `PUBLIC_URL`, and `CLIENT_URL` are pre-set in [`render.yaml`](../../render.yaml) — no manual CMS env entry needed.
