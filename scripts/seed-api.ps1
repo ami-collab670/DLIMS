@@ -40,6 +40,8 @@ param(
     [int]$Notifications = 2,
 
     [bool]$SkipExisting = $true,
+    [switch]$UseDemoFixtures,
+    [switch]$ReplaceCatalog,
     [switch]$DryRun
 )
 
@@ -74,10 +76,14 @@ function Initialize-SeedPhases {
         [int]$ComplaintCount,
         [int]$DiscountCount,
         [int]$NotificationCount,
+        [bool]$ReplaceCatalog,
         [object]$Fixtures
     )
 
     $referenceSteps = $Fixtures.Departments.Count + $Fixtures.Staff.Count + $Fixtures.Clients.Count + $Fixtures.Tests.Count
+    if ($ReplaceCatalog) {
+        $referenceSteps += $Fixtures.Tests.Count
+    }
     $workflowStepsPerJob = 8 + ($SamplesPerJob * 7)
     $workflowSteps = $WorkflowCount * $workflowStepsPerJob
     $discountSteps = $DiscountCount * 6
@@ -260,12 +266,83 @@ function Invoke-SeedClientsPhase {
     }
 }
 
-function Invoke-SeedTestsPhase {
+function Invoke-ReplaceTestCatalogPhase {
     param(
         [Parameter(Mandatory)]
         [string]$AdminToken,
         [object]$Fixtures
     )
+
+    $script:SeedState.Tests = @()
+    $existingTests = Get-LsimsPaginated -Path '/api/laboratory/tests/' -Token $AdminToken
+    foreach ($existing in $existingTests) {
+        try {
+            Invoke-LsimsApi -Method DELETE -Path "/api/laboratory/tests/$($existing.id)/" -Token $AdminToken
+            Add-SeedStat -Entity 'tests_deleted'
+            Write-SeedProgress -Message "Deleted test $($existing.test_code)." -Level Success
+        } catch {
+            Invoke-LsimsApi -Method PATCH -Path "/api/laboratory/tests/$($existing.id)/" -Token $AdminToken -Body @{
+                is_active = $false
+            } | Out-Null
+            Add-SeedStat -Entity 'tests_deactivated'
+            Write-SeedProgress -Message "Deactivated referenced test $($existing.test_code)." -Level Warn
+        }
+    }
+
+    foreach ($template in $Fixtures.Tests) {
+        $existing = Find-ExistingEntity -ListPath '/api/laboratory/tests/' -Token $AdminToken -FieldName 'test_code' -FieldValue $template.test_code
+        $dept = $script:SeedState.Departments[$template.dept_index]
+        $body = @{
+            test_name   = $template.test_name
+            test_code   = $template.test_code
+            description = $template.description
+            unit        = $template.unit
+            price       = $template.price
+            department  = $dept.Id
+            is_active   = $template.is_active
+        }
+
+        if ($existing) {
+            $updated = Invoke-LsimsApi -Method PATCH -Path "/api/laboratory/tests/$($existing.id)/" -Token $AdminToken -Body $body
+            $script:SeedState.Tests += @{
+                Id         = $existing.id
+                TestCode   = $template.test_code
+                Department = $dept.Id
+                IsActive   = [bool]$template.is_active
+                Unit       = $template.unit
+                Price      = $template.price
+            }
+            Add-SeedStat -Entity 'tests_updated'
+            Write-SeedProgress -Message "Updated test $($template.test_code) for department $($dept.Name)." -Level Success
+            continue
+        }
+
+        $created = Invoke-LsimsApi -Method POST -Path '/api/laboratory/tests/' -Token $AdminToken -Body $body
+        $script:SeedState.Tests += @{
+            Id         = if ($created) { $created.id } else { [guid]::NewGuid().ToString() }
+            TestCode   = $template.test_code
+            Department = $dept.Id
+            IsActive   = [bool]$template.is_active
+            Unit       = $template.unit
+            Price      = $template.price
+        }
+        Add-SeedStat -Entity 'tests'
+        Write-SeedProgress -Message "Created test $($template.test_code) for department $($dept.Name)." -Level Success
+    }
+}
+
+function Invoke-SeedTestsPhase {
+    param(
+        [Parameter(Mandatory)]
+        [string]$AdminToken,
+        [object]$Fixtures,
+        [bool]$ReplaceCatalog = $false
+    )
+
+    if ($ReplaceCatalog) {
+        Invoke-ReplaceTestCatalogPhase -AdminToken $AdminToken -Fixtures $Fixtures
+        return
+    }
 
     foreach ($template in $Fixtures.Tests) {
         $existing = Find-ExistingEntity -ListPath '/api/laboratory/tests/' -Token $AdminToken -FieldName 'test_code' -FieldValue $template.test_code
@@ -595,11 +672,11 @@ Write-Host ''
 Write-Host 'LSIMS API database seed' -ForegroundColor Green
 Write-Host '======================='
 
-Initialize-SeedConfig -ApiUrl $ApiUrl -AdminEmail $AdminEmail -AdminPassword $AdminPassword -StaffPassword $StaffPassword -SkipExisting $SkipExisting -DryRun:$DryRun.IsPresent
-$fixtures = Get-SeedFixtureDefinitions -Departments $Departments -Clients $Clients -Tests $Tests -StaffPerRole $StaffPerRole
+Initialize-SeedConfig -ApiUrl $ApiUrl -AdminEmail $AdminEmail -AdminPassword $AdminPassword -StaffPassword $StaffPassword -SkipExisting $SkipExisting -ReplaceCatalog:$ReplaceCatalog.IsPresent -DryRun:$DryRun.IsPresent
+$fixtures = Get-SeedFixtureDefinitions -ScriptDir $ScriptDir -UseDemoFixtures:$UseDemoFixtures.IsPresent -Departments $Departments -Clients $Clients -Tests $Tests -StaffPerRole $StaffPerRole
 
 $workflowCount = if ($Batch -gt 0) { $Batch } else { $Jobs }
-Initialize-SeedPhases -WorkflowCount $workflowCount -ComplaintCount $Complaints -DiscountCount $Discounts -NotificationCount $Notifications -Fixtures $fixtures
+Initialize-SeedPhases -WorkflowCount $workflowCount -ComplaintCount $Complaints -DiscountCount $Discounts -NotificationCount $Notifications -ReplaceCatalog:$ReplaceCatalog.IsPresent -Fixtures $fixtures
 
 Test-BackendReachable
 Invoke-OptionalSeedRoles -ScriptDir $ScriptDir
@@ -612,7 +689,7 @@ Invoke-SeedRolesPhase -AdminToken $adminToken -Fixtures $fixtures
 Invoke-SeedDepartmentsPhase -AdminToken $adminToken -Fixtures $fixtures
 Invoke-SeedStaffPhase -AdminToken $adminToken -Fixtures $fixtures
 Invoke-SeedClientsPhase -AdminToken $adminToken -Fixtures $fixtures
-Invoke-SeedTestsPhase -AdminToken $adminToken -Fixtures $fixtures
+Invoke-SeedTestsPhase -AdminToken $adminToken -Fixtures $fixtures -ReplaceCatalog:$ReplaceCatalog.IsPresent
 
 Write-Host ''
 Write-Host "Phase 2 - laboratory workflows ($workflowCount jobs)" -ForegroundColor Yellow

@@ -29,6 +29,9 @@ seed_roles
 echo ">>> Creating default admin user..."
 create_default_admin
 
+echo ">>> Seeding CMS and demo data..."
+"$SCRIPT_DIR/seed-demo.sh"
+
 print_dev_urls
 echo ""
 echo "Setup complete. Run ./scripts/start.sh for daily development (foreground logs)."

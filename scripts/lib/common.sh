@@ -73,6 +73,32 @@ wait_for_backend() {
   echo "Backend is ready."
 }
 
+wait_for_cms() {
+  local timeout="${1:-300}"
+  local elapsed=0
+
+  echo "Waiting for CMS to be ready (timeout ${timeout}s)..."
+  while true; do
+    if curl -sf "http://localhost:1337/api/home-page" | grep -q '"data"'; then
+      echo "CMS is ready."
+      return 0
+    fi
+
+    if (( elapsed >= timeout )); then
+      echo "error: CMS did not become ready within ${timeout}s." >&2
+      echo "Check logs: ./scripts/logs.sh cms" >&2
+      exit 1
+    fi
+
+    sleep 3
+    elapsed=$((elapsed + 3))
+  done
+}
+
+seed_cms() {
+  compose exec -T cms npm run seed:cms
+}
+
 print_dev_urls() {
   cat <<EOF
 
@@ -82,9 +108,17 @@ LSIMS is running:
   API:       http://localhost:8000
   pgAdmin:   http://localhost:5050
 
-Default login:
+Default admin login:
   Email:     ${LSIMS_DEFAULT_ADMIN_EMAIL}
   Password:  ${LSIMS_DEFAULT_ADMIN_PASSWORD}
+
+Demo staff password (after seed-demo): SeedPass123!
+Sample staff logins:
+  Receptionist:  seed-receptionist@ministry.gov
+  Finance:       seed-finance@ministry.gov
+  Lab director:  seed-lab-director@ministry.gov
+  Analyst (GEO): seed-geochemical-analyst@ministry.gov
+  Client:        seed-client1@minerals.com
 
 Note: First frontend/cms start runs npm ci inside Docker and may take several minutes.
 On first CMS visit, create a Strapi admin account at http://localhost:1337/admin

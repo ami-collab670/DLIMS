@@ -224,6 +224,10 @@ export {
 
   filterMyAssignedSamples,
 
+  findResultForSampleTest,
+
+  isEditableResultState,
+
   sortAssignedSamplesOldest,
 
   type AnalystDeskKpis,

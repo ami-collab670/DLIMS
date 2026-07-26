@@ -26,6 +26,9 @@ Invoke-SeedRoles
 Write-Host ">>> Creating default admin user..."
 Invoke-CreateDefaultAdmin
 
+Write-Host ">>> Seeding CMS and demo data..."
+& (Join-Path $scriptDir "seed-demo.ps1")
+
 Show-DevUrls
 Write-Host ""
 Write-Host "Setup complete. Run .\scripts\start.ps1 for daily development (foreground logs)."

@@ -91,6 +91,40 @@ function Wait-ForBackend {
     }
 }
 
+function Wait-ForCms {
+    param([int]$TimeoutSeconds = 300)
+
+    Write-Host "Waiting for CMS to be ready (timeout ${TimeoutSeconds}s)..."
+    $elapsed = 0
+    while ($true) {
+        try {
+            $response = Invoke-WebRequest -Uri 'http://localhost:1337/api/home-page' -Method GET -UseBasicParsing -TimeoutSec 10
+            if ($response.StatusCode -eq 200) {
+                $body = $response.Content | ConvertFrom-Json
+                if ($null -ne $body.data) {
+                    Write-Host "CMS is ready."
+                    return
+                }
+            }
+        } catch {
+            # CMS still starting
+        }
+
+        if ($elapsed -ge $TimeoutSeconds) {
+            Write-Host "CMS did not become ready within ${TimeoutSeconds}s. Check logs: .\scripts\logs.ps1 cms" -ForegroundColor Red
+            exit 1
+        }
+
+        Start-Sleep -Seconds 3
+        $elapsed += 3
+    }
+}
+
+function Invoke-SeedCms {
+    docker compose exec -T cms npm run seed:cms
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+}
+
 function Show-DevUrls {
     Write-Host @"
 
@@ -100,9 +134,17 @@ LSIMS is running:
   API:       http://localhost:8000
   pgAdmin:   http://localhost:5050
 
-Default login:
+Default admin login:
   Email:     $($script:LSIMS_DEFAULT_ADMIN_EMAIL)
   Password:  $($script:LSIMS_DEFAULT_ADMIN_PASSWORD)
+
+Demo staff password (after seed-demo): SeedPass123!
+Sample staff logins:
+  Receptionist:  seed-receptionist@ministry.gov
+  Finance:       seed-finance@ministry.gov
+  Lab director:  seed-lab-director@ministry.gov
+  Analyst (GEO): seed-geochemical-analyst@ministry.gov
+  Client:        seed-client1@minerals.com
 
 Note: First frontend/cms start runs npm ci inside Docker and may take several minutes.
 On first CMS visit, create a Strapi admin account at http://localhost:1337/admin

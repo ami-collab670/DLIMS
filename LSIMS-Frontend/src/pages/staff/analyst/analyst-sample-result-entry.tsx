@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import type { SampleRecord } from "@/types/laboratory";
+import type { AnalysisResultState, SampleRecord } from "@/types/laboratory";
 
 import { AnalystCalibrationSection } from "./analyst-calibration-section";
 
@@ -14,12 +14,20 @@ type AnalystSampleResultEntryProps = {
   resultUnit: string;
   onResultUnitChange: (value: string) => void;
   activeDraftId: string | null;
+  resultState: AnalysisResultState | null;
+  readOnly: boolean;
   isRejectedDraft: boolean;
   saveDraftPending: boolean;
   submitPending: boolean;
   onSaveDraft: () => void;
   onSubmitResult: () => void;
 };
+
+function readOnlyResultMessage(state: AnalysisResultState): string {
+  if (state === "submitted") return "Submitted to QC — awaiting department manager review.";
+  if (state === "approved") return "Approved — no further edits.";
+  return "This result cannot be edited.";
+}
 
 export function AnalystSampleResultEntry({
   sampleTests,
@@ -30,6 +38,8 @@ export function AnalystSampleResultEntry({
   resultUnit,
   onResultUnitChange,
   activeDraftId,
+  resultState,
+  readOnly,
   isRejectedDraft,
   saveDraftPending,
   submitPending,
@@ -40,7 +50,9 @@ export function AnalystSampleResultEntry({
     <div className="mt-4 space-y-3 border-t pt-4">
       <p className="text-sm font-medium">Enter analysis result</p>
       <p className="text-xs text-muted-foreground">
-        Save a draft, add calibrations below, then submit to your department QC manager.
+        {readOnly && resultState
+          ? readOnlyResultMessage(resultState)
+          : "Save a draft, add calibrations below, then submit to your department QC manager."}
       </p>
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="space-y-1 sm:col-span-2">
@@ -59,41 +71,53 @@ export function AnalystSampleResultEntry({
         </div>
         <div className="space-y-1">
           <Label>Value</Label>
-          <Input value={resultValue} onChange={(e) => onResultValueChange(e.target.value)} />
+          <Input
+            value={resultValue}
+            readOnly={readOnly}
+            disabled={readOnly}
+            onChange={(e) => onResultValueChange(e.target.value)}
+          />
         </div>
         <div className="space-y-1">
           <Label>Unit</Label>
-          <Input value={resultUnit} onChange={(e) => onResultUnitChange(e.target.value)} />
+          <Input
+            value={resultUnit}
+            readOnly={readOnly}
+            disabled={readOnly}
+            onChange={(e) => onResultUnitChange(e.target.value)}
+          />
         </div>
       </div>
-      {activeDraftId ? (
+      {activeDraftId && !readOnly ? (
         <p className="text-xs text-muted-foreground">
           Draft saved
           {isRejectedDraft ? " (rejected — revise and resubmit)" : ""}.
         </p>
       ) : null}
-      <div className="flex flex-wrap gap-2">
-        <Button
-          type="button"
-          size="sm"
-          variant="secondary"
-          disabled={!resultSampleTest || !resultValue.trim() || saveDraftPending}
-          onClick={onSaveDraft}
-        >
-          Save draft
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          disabled={
-            !resultSampleTest || !resultValue.trim() || submitPending || saveDraftPending
-          }
-          onClick={onSubmitResult}
-        >
-          Submit for QC
-        </Button>
-      </div>
-      {activeDraftId ? (
+      {readOnly ? null : (
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type="button"
+            size="sm"
+            variant="secondary"
+            disabled={!resultSampleTest || !resultValue.trim() || saveDraftPending}
+            onClick={onSaveDraft}
+          >
+            Save draft
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            disabled={
+              !resultSampleTest || !resultValue.trim() || submitPending || saveDraftPending
+            }
+            onClick={onSubmitResult}
+          >
+            Submit for QC
+          </Button>
+        </div>
+      )}
+      {activeDraftId && !readOnly ? (
         <AnalystCalibrationSection analysisResultId={activeDraftId} />
       ) : null}
     </div>

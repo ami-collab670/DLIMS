@@ -51,6 +51,7 @@ function Initialize-SeedConfig {
         [string]$AdminPassword,
         [string]$StaffPassword,
         [bool]$SkipExisting,
+        [bool]$ReplaceCatalog,
         [bool]$DryRun
     )
 
@@ -65,6 +66,7 @@ function Initialize-SeedConfig {
         StaffPassword  = if ($StaffPassword) { $StaffPassword } else { 'SeedPass123!' }
         ClientPassword = 'SeedPass123!'
         SkipExisting   = $SkipExisting
+        ReplaceCatalog = $ReplaceCatalog
         DryRun         = $DryRun
     }
 
@@ -77,13 +79,189 @@ function Initialize-SeedConfig {
     #endregion
 }
 
+function Get-DemoSeedFixturePath {
+    param([string]$ScriptDir)
+
+    return Join-Path $ScriptDir 'fixtures\demo-seed.json'
+}
+
+function Get-CategoryAbbrev {
+    param([string]$Category)
+
+    $words = @($Category -split '\s+' | Where-Object { $_ })
+    if ($words.Count -eq 0) { return 'GEN' }
+
+    $abbr = ($words | ForEach-Object { $_.Substring(0, 1) }) -join ''
+    if ($abbr.Length -gt 4) {
+        $abbr = $abbr.Substring(0, 4)
+    }
+    return $abbr.ToUpper()
+}
+
+function Expand-DemoCatalogTests {
+    param(
+        [object]$DemoData,
+        [hashtable]$DepartmentKeyToIndex
+    )
+
+    $defaultUnit = if ($DemoData.defaults.test_unit) { $DemoData.defaults.test_unit } else { 'per sample' }
+    $testTemplates = @()
+    $categoryCounters = @{}
+
+    foreach ($dept in @($DemoData.departments)) {
+        $deptKey = $dept.key
+        $prefix = $dept.code_prefix
+        $deptIndex = $DepartmentKeyToIndex[$deptKey]
+        $categories = @($DemoData.client_service_catalog.$deptKey)
+
+        foreach ($category in $categories) {
+            $catAbbrev = Get-CategoryAbbrev -Category $category.category
+            $counterKey = "$prefix-$catAbbrev"
+            if (-not $categoryCounters.ContainsKey($counterKey)) {
+                $categoryCounters[$counterKey] = 0
+            }
+
+            foreach ($item in @($category.items)) {
+                $categoryCounters[$counterKey]++
+                $seq = $categoryCounters[$counterKey]
+                $testCode = '{0}-{1}-{2:D2}' -f $prefix, $catAbbrev, $seq
+                if ($testCode.Length -gt 20) {
+                    $testCode = $testCode.Substring(0, 20)
+                }
+
+                $testTemplates += @{
+                    test_name   = $item.name
+                    test_code   = $testCode
+                    description = $category.category
+                    unit        = $defaultUnit
+                    price       = '{0:F2}' -f [decimal]$item.price
+                    dept_index  = $deptIndex
+                    is_active   = $true
+                }
+            }
+        }
+    }
+
+    return $testTemplates
+}
+
+function Get-DemoSeedFixtures {
+    param(
+        [string]$ScriptDir,
+        [int]$Clients = 2,
+        [int]$StaffPerRole = 1
+    )
+
+    $fixturePath = Get-DemoSeedFixturePath -ScriptDir $ScriptDir
+    if (-not (Test-Path $fixturePath)) {
+        throw "Demo fixture not found: $fixturePath"
+    }
+
+    $demoData = Get-Content -Path $fixturePath -Raw -Encoding UTF8 | ConvertFrom-Json
+
+    $departmentTemplates = @()
+    $departmentKeyToIndex = @{}
+    for ($i = 0; $i -lt @($demoData.departments).Count; $i++) {
+        $dept = $demoData.departments[$i]
+        $departmentKeyToIndex[$dept.key] = $i
+        $departmentTemplates += @{
+            Name        = $dept.name
+            Description = $dept.description
+            Key         = $dept.key
+            Slug        = $dept.slug
+        }
+    }
+
+    $testTemplates = Expand-DemoCatalogTests -DemoData $demoData -DepartmentKeyToIndex $departmentKeyToIndex
+
+    $staffTemplates = @()
+    $roleSlugMap = @{
+        lab_director         = 'lab-director'
+        ministry_coordinator = 'ministry-coordinator'
+        lab_technician       = 'lab-technician'
+        qc_manager           = 'qc-manager'
+    }
+
+    foreach ($role in @($demoData.global_staff_roles)) {
+        for ($n = 1; $n -le $StaffPerRole; $n++) {
+            $suffix = if ($StaffPerRole -gt 1) { "-$n" } else { '' }
+            $roleSlug = if ($roleSlugMap.ContainsKey($role)) { $roleSlugMap[$role] } else { $role -replace '_', '-' }
+            $localPart = "seed-$roleSlug$suffix"
+            $staffTemplates += @{
+                Role            = $role
+                Email           = "$localPart@ministry.gov"
+                Username        = $localPart
+                FirstName       = ($role -replace '_', ' ')
+                NeedsDepartment = $false
+                DeptIndex       = 0
+            }
+        }
+    }
+
+    foreach ($role in @($demoData.department_staff_roles)) {
+        for ($d = 0; $d -lt $departmentTemplates.Count; $d++) {
+            $dept = $departmentTemplates[$d]
+            $deptSlug = $dept.Slug
+            $roleSlug = if ($roleSlugMap.ContainsKey($role)) { $roleSlugMap[$role] } else { $role -replace '_', '-' }
+            for ($n = 1; $n -le $StaffPerRole; $n++) {
+                $suffix = if ($StaffPerRole -gt 1) { "-$n" } else { '' }
+                $localPart = "seed-$deptSlug-$roleSlug$suffix"
+                $staffTemplates += @{
+                    Role            = $role
+                    Email           = "$localPart@ministry.gov"
+                    Username        = $localPart
+                    FirstName       = "$($role -replace '_', ' ') $($dept.Name)"
+                    NeedsDepartment = $true
+                    DeptIndex       = $d
+                }
+            }
+        }
+    }
+
+    $clientTemplates = @()
+    $sourceClients = @($demoData.clients)
+    $clientCount = [Math]::Min($Clients, [Math]::Max($sourceClients.Count, $Clients))
+    for ($i = 0; $i -lt $clientCount; $i++) {
+        if ($i -lt $sourceClients.Count) {
+            $client = $sourceClients[$i]
+            $clientTemplates += @{
+                Email            = $client.email
+                FirstName        = $client.first_name
+                OrganizationName = $client.organization_name
+                OrganizationType = $client.organization_type
+            }
+        } else {
+            $num = $i + 1
+            $clientTemplates += @{
+                Email            = "seed-client$num@minerals.com"
+                FirstName        = "Seed Client $num"
+                OrganizationName = "Seed Minerals Co $num"
+                OrganizationType = if ($num % 2 -eq 0) { 'private' } else { 'university' }
+            }
+        }
+    }
+
+    return @{
+        Departments = $departmentTemplates
+        Tests       = $testTemplates
+        Staff       = $staffTemplates
+        Clients     = $clientTemplates
+    }
+}
+
 function Get-SeedFixtureDefinitions {
     param(
+        [string]$ScriptDir,
+        [switch]$UseDemoFixtures,
         [int]$Departments = 2,
         [int]$Clients = 2,
         [int]$Tests = 3,
         [int]$StaffPerRole = 1
     )
+
+    if ($UseDemoFixtures) {
+        return Get-DemoSeedFixtures -ScriptDir $ScriptDir -Clients $Clients -StaffPerRole $StaffPerRole
+    }
 
     $departmentTemplates = @(
         @{ Name = 'Water'; Description = 'Water and environmental analysis section.' }
@@ -147,6 +325,8 @@ function Get-SeedFixtureDefinitions {
         @{ Role = 'lab_technician'; EmailPrefix = 'seed-lab-tech'; NeedsDepartment = $true; PerDepartment = $true }
         @{ Role = 'qc_manager'; EmailPrefix = 'seed-qc'; NeedsDepartment = $true; PerDepartment = $true }
         @{ Role = 'lab_director'; EmailPrefix = 'seed-director'; NeedsDepartment = $false; PerDepartment = $false }
+        @{ Role = 'procurement'; EmailPrefix = 'seed-procurement'; NeedsDepartment = $false; PerDepartment = $false }
+        @{ Role = 'ministry_coordinator'; EmailPrefix = 'seed-coordinator'; NeedsDepartment = $false; PerDepartment = $false }
         @{ Role = 'auditor'; EmailPrefix = 'seed-auditor'; NeedsDepartment = $false; PerDepartment = $false }
     )
 

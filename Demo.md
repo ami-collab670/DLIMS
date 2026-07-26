@@ -2,32 +2,31 @@
 
 This document shows the minimal steps for a client to run a demo/test instance of LSIMS from the repository root using Docker Compose. This is intended for short demos or evaluations only (development-mode settings are used). Do NOT use this for production.
 
-Prerequisites
+## Prerequisites
+
 - Docker Engine (and Docker Compose plugin) installed and running on the demo machine.
 - Network access to Docker registries (for initial image pulls and npm/pip installs).
+- Windows: PowerShell 5.1+ (included with Windows).
+- Mac/Linux: PowerShell (`pwsh`) for API seed scripts when using bash helpers.
 
-Quick demo steps (copy/paste)
+## Quick demo (recommended)
 
-1) From the repository root, build and start the stack in the background:
+From the repository root, run the first-time bootstrap script. It builds and starts the stack, seeds roles, creates the admin user, populates CMS content, and loads full demo data (4 departments, 74-test catalog, staff, clients, and sample workflows):
 
-```bash
-docker compose up --build -d
+```powershell
+# Windows
+.\scripts\setup.ps1
 ```
 
-2) Wait ~30–90 seconds for the PostgreSQL container to become healthy and the backend to finish migrations. The backend image runs migrations at container start (docker-entrypoint runs `manage.py migrate`).
-
-3) Seed roles and create an admin user (run these after containers are healthy):
-
 ```bash
-docker compose exec backend python manage.py seed_roles
-# create an admin user (example):
-docker compose exec backend python manage.py create_user --email admin@demo.local --password 'AdminPass123!' --role admin
+# Mac/Linux
+./scripts/setup.sh
 ```
 
-(Alternatively use the provided helper scripts: `scripts/create-user.sh` or `scripts/create-user.ps1`.)
+Open in a browser:
 
-4) Open the UI and admin tools in a browser:
-- Frontend (Vite dev server): http://localhost:5173/login
+- Frontend: http://localhost:5173/login
+- CMS admin: http://localhost:1337/admin
 - Backend API: http://localhost:8000/
 - pgAdmin (optional): http://localhost:5050
 
@@ -37,60 +36,115 @@ Stop and remove the demo (including volumes):
 docker compose down -v
 ```
 
-Notes and clarifications
-- This demo runs the frontend in Vite "dev" mode (the docker-compose file uses `npm run dev`). The first run will perform `npm ci` inside the frontend container and may take several minutes depending on network speed.
-- The backend Dockerfile uses Django's development server (`manage.py runserver`) and is intended for demo/dev only.
-- The backend entrypoint runs `python manage.py migrate --noinput` automatically on container start. You do not normally need to run `migrate` manually.
-- If you prefer a static frontend build (to avoid `npm ci` in the demo), run locally and produce a build ahead of time:
+## What setup seeds automatically
 
-```bash
-cd LSIMS-Frontend && npm ci && npm run build
-# then serve the built files via an nginx container or copy them into Django static files and run collectstatic.
-```
+| Area | Content |
+|---|---|
+| **CMS** | Home page, services, news, events, partners, contact pages (from `cms/src/bootstrap/seed-data.js`) |
+| **Departments** | Geochemical Services, Mineralogy Services, Physical and Geotechnical Analysis, Mineral Processing Services |
+| **Test catalog** | 74 priced tests from `scripts/fixtures/demo-seed.json` (`CLIENT_SERVICE_CATALOG`) — replaces any existing catalog entries |
+| **Staff** | All demo roles except admin (created separately): receptionist, finance, lab director, procurement, ministry coordinator, auditor, plus per-department analyst, lab technician, and QC manager |
+| **Clients** | 2 registered external clients |
+| **Workflows** | 2 end-to-end jobs (samples, finance, prep, analysis, QC), plus complaints, discount approval, and notifications |
 
-Ports used by the demo (adjust if conflict):
-- Frontend: 5173
-- Backend API: 8000
-- pgAdmin: 5050
+Fixture source: [`scripts/fixtures/demo-seed.json`](scripts/fixtures/demo-seed.json)
 
-Troubleshooting (common issues)
-- "Ports already in use": stop the conflicting services or change ports in docker-compose.yml.
-- Slow first start: pip and npm downloads happen on the first build/run; give them time and ensure outbound network access.
-- If backend migrations fail due to DB not ready, try: `docker compose restart backend` after DB becomes healthy.
+## Manual re-seed commands
 
-Acceptance checklist for the demo
-- After following the steps above you can:
-  - Visit the frontend login page and load the UI.
-  - Log in with the created admin account.
-  - Open Admin flows (Users, Roles) and perform simple create/edit operations.
-
-Seed demo data via API
-
-After the stack is running and an admin account exists, populate the database with
-full demo workflows (departments, staff, clients, test catalog, jobs, samples,
-finance, preparation, analysis, QC, complaints, discounts, notifications):
+Re-run CMS content only:
 
 ```powershell
-# Full demo seed (default counts)
-.\scripts\seed-api.ps1
+.\scripts\seed-cms.ps1
+```
 
-# Create 10 complete end-to-end laboratory workflows
-.\scripts\seed-api.ps1 -Batch 10
+Re-run full LSIMS demo data (CMS + API reference data + workflows):
 
-# Custom entity counts
-.\scripts\seed-api.ps1 -Clients 5 -Jobs 20 -SamplesPerJob 2 -Tests 6
+```powershell
+.\scripts\seed-demo.ps1
 
-# Preview planned API calls without writing data
+# More workflow jobs
+.\scripts\seed-demo.ps1 -Batch 10
+
+# Preview API calls without writing
+.\scripts\seed-demo.ps1 -DryRun
+```
+
+Lower-level API seed (legacy/custom counts without demo catalog):
+
+```powershell
+.\scripts\seed-api.ps1 -UseDemoFixtures -ReplaceCatalog -Departments 4
+.\scripts\seed-api.ps1 -Clients 5 -Jobs 20 -SamplesPerJob 2
 .\scripts\seed-api.ps1 -DryRun
 ```
 
-Default seeded staff password: `SeedPass123!` (clients use the same).
-Override API URL or admin credentials with `-ApiUrl`, `-AdminEmail`, `-AdminPassword`.
+## Sample logins
 
-Sample logins after seeding:
-- Admin: `admin@ministry.gov` / `AdminPass123!` (or your setup credentials)
-- Receptionist: `seed-receptionist@ministry.gov` / `SeedPass123!`
-- Client: `seed-client1@minerals.com` / `SeedPass123!`
+Default passwords: staff and clients use `SeedPass123!` unless overridden.
 
-Security reminder
-- The demo runs with development settings (DEBUG=True by default in the provided .env.example and the Django runserver). These settings are NOT secure for production use. Do not expose this demo to public internet without proper hardening.
+| Role | Email | Password |
+|---|---|---|
+| Admin | `admin@ministry.gov` | `AdminPass123!` |
+| Receptionist | `seed-receptionist@ministry.gov` | `SeedPass123!` |
+| Finance | `seed-finance@ministry.gov` | `SeedPass123!` |
+| Lab director | `seed-lab-director@ministry.gov` | `SeedPass123!` |
+| Procurement | `seed-procurement@ministry.gov` | `SeedPass123!` |
+| Ministry coordinator | `seed-ministry-coordinator@ministry.gov` | `SeedPass123!` |
+| Auditor | `seed-auditor@ministry.gov` | `SeedPass123!` |
+| Analyst (Geochemical) | `seed-geochemical-analyst@ministry.gov` | `SeedPass123!` |
+| Analyst (Mineralogy) | `seed-mineralogy-analyst@ministry.gov` | `SeedPass123!` |
+| QC manager (Geochemical) | `seed-geochemical-qc-manager@ministry.gov` | `SeedPass123!` |
+| Lab technician (Geochemical) | `seed-geochemical-lab-technician@ministry.gov` | `SeedPass123!` |
+| Client | `seed-client1@minerals.com` | `SeedPass123!` |
+
+Per-department staff follows the pattern `seed-{department-slug}-{role}@ministry.gov` (e.g. `seed-physical-geotechnical-analyst@ministry.gov`).
+
+Override API URL or admin credentials with `-ApiUrl`, `-AdminEmail`, `-AdminPassword` on seed scripts.
+
+## Manual bootstrap (without setup script)
+
+If you prefer raw Docker Compose:
+
+```bash
+docker compose up --build -d
+docker compose exec backend python manage.py seed_roles
+docker compose exec backend python manage.py create_user --email admin@ministry.gov --password 'AdminPass123!' --role admin
+.\scripts\seed-demo.ps1
+```
+
+## Notes
+
+- The frontend runs in Vite dev mode; the first start may take several minutes while `npm ci` runs inside Docker.
+- The backend uses Django's development server and is not production-hardened.
+- Migrations run automatically on backend container start.
+- CMS content also auto-seeds on Strapi startup; `seed-cms.ps1` re-applies it idempotently.
+- Test catalog replace deletes unreferenced entries; tests linked to existing samples are deactivated instead of deleted.
+
+## Ports
+
+| Service | Port |
+|---|---|
+| Frontend | 5173 |
+| Backend API | 8000 |
+| CMS | 1337 |
+| pgAdmin | 5050 |
+
+## Troubleshooting
+
+- **Ports already in use**: stop conflicting services or change ports in `docker-compose.yml`.
+- **Slow first start**: allow time for pip/npm downloads.
+- **Backend migrations fail**: `docker compose restart backend` after DB is healthy.
+- **CMS not ready during setup**: wait for Strapi healthcheck; check `.\scripts\logs.ps1 cms`.
+- **Missing cms database**: create `cms` in Postgres or run `docker compose down -v` and setup again.
+
+## Acceptance checklist
+
+After setup you can:
+
+- Visit the public site and client login at http://localhost:5173
+- Log in as admin and browse staff flows (users, test catalog with 74 entries)
+- Log in as receptionist/finance/analyst and follow seeded job workflows
+- Submit a client job request using the live priced service catalog
+
+## Security reminder
+
+The demo runs with development settings (`DEBUG=True`). These settings are NOT secure for production. Do not expose this demo to the public internet without proper hardening.

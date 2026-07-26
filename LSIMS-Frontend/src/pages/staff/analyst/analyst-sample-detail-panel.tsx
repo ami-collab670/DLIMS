@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useQueries } from "@tanstack/react-query";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { useLabAnalysts } from "@/features/accounts/hooks";
+import { fetchAnalysisResults } from "@/features/laboratory/api";
 import {
-  useAnalysisResults,
   useAssignSampleAnalyst,
   useAssignTestToSample,
   useCreateAnalysisResult,
@@ -24,13 +25,17 @@ import {
 import { getApiErrorMessage } from "@/lib/api";
 import { isSampleAwaitingPayment } from "@/lib/laboratory";
 import { staffSampleDisplayCode } from "@/lib/laboratory";
+import {
+  findResultForSampleTest,
+  isEditableResultState,
+} from "@/lib/laboratory/analyst/desk-utils";
 import { canCreatePreparationRecord } from "@/lib/staff";
 import {
   isUserUuid,
   resolveInitialAnalystUserId,
 } from "@/lib/staff/qc-manager/analyst-directory";
 import { useAuthStore } from "@/stores/auth-store";
-import type { AnalysisResult, SampleRecord } from "@/types/laboratory";
+import type { AnalysisResultState, SampleRecord } from "@/types/laboratory";
 
 import { AnalystSampleAdminEdit } from "./analyst-sample-admin-edit";
 import { AnalystSampleAnalystAssign } from "./analyst-sample-analyst-assign";
@@ -70,17 +75,6 @@ function formatDisplayDateTime(iso: string | null | undefined): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
   return d.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
-}
-
-function findEditableResult(
-  results: AnalysisResult[],
-  sampleTestId: string,
-): AnalysisResult | undefined {
-  return results.find(
-    (r) =>
-      r.sample_test === sampleTestId &&
-      (r.state === "draft" || r.state === "rejected"),
-  );
 }
 
 export function AnalystSampleDetailPanel({
@@ -132,12 +126,43 @@ export function AnalystSampleDetailPanel({
   const [resultValue, setResultValue] = useState("");
   const [resultUnit, setResultUnit] = useState("");
   const [activeDraftId, setActiveDraftId] = useState<string | null>(null);
+  const [activeResultState, setActiveResultState] = useState<AnalysisResultState | null>(null);
+  /** Prevents query refetches from overwriting in-progress result entry. */
+  const hydratedResultTestRef = useRef<string | null>(null);
 
-  const { data: sampleResultsPage } = useAnalysisResults(
-    { page: 1, page_size: 50, sample: sample.id },
-    { enabled: showResultEntry },
+  const sampleTestIds = useMemo(
+    () => sample.sample_tests.map((t) => t.id),
+    [sample.sample_tests],
   );
-  const sampleResults = sampleResultsPage?.results ?? [];
+
+  const sampleResultQueries = useQueries({
+    queries: sampleTestIds.map((sampleTestId) => ({
+      queryKey: ["analysis-results", { sample_test: sampleTestId, page: 1 }],
+      queryFn: () =>
+        fetchAnalysisResults({ page: 1, page_size: 1, sample_test: sampleTestId }),
+      enabled: showResultEntry && Boolean(sampleTestId),
+      staleTime: 20_000,
+    })),
+  });
+
+  const sampleResults = useMemo(
+    () =>
+      sampleResultQueries.flatMap((query) => query.data?.results ?? []),
+    [sampleResultQueries],
+  );
+
+  const selectedResult = useMemo(
+    () =>
+      resultSampleTest
+        ? findResultForSampleTest(sampleResults, resultSampleTest)
+        : undefined,
+    [resultSampleTest, sampleResults],
+  );
+
+  const resultReadOnly = Boolean(
+    (selectedResult && !isEditableResultState(selectedResult.state)) ||
+      (activeResultState != null && !isEditableResultState(activeResultState)),
+  );
 
   const { data: prepData, isLoading: prepLoading } = usePreparationRecords(
     { page: 1, sample: sample.id },
@@ -201,26 +226,40 @@ export function AnalystSampleDetailPanel({
     setResultValue("");
     setResultUnit("");
     setActiveDraftId(null);
+    setActiveResultState(null);
+    hydratedResultTestRef.current = null;
   }, [sample.id]);
 
   useEffect(() => {
     if (!resultSampleTest) {
+      hydratedResultTestRef.current = null;
       setActiveDraftId(null);
+      setActiveResultState(null);
       setResultValue("");
       setResultUnit("");
       return;
     }
-    const existing = findEditableResult(sampleResults, resultSampleTest);
+
+    if (hydratedResultTestRef.current === resultSampleTest) return;
+
+    const testIndex = sampleTestIds.indexOf(resultSampleTest);
+    const queryForTest = testIndex >= 0 ? sampleResultQueries[testIndex] : undefined;
+    if (queryForTest?.isLoading) return;
+
+    hydratedResultTestRef.current = resultSampleTest;
+    const existing = findResultForSampleTest(sampleResults, resultSampleTest);
     if (existing) {
-      setActiveDraftId(existing.id);
+      setActiveResultState(existing.state);
       setResultValue(existing.value ?? "");
       setResultUnit(existing.unit ?? "");
+      setActiveDraftId(isEditableResultState(existing.state) ? existing.id : null);
     } else {
       setActiveDraftId(null);
+      setActiveResultState(null);
       setResultValue("");
       setResultUnit("");
     }
-  }, [resultSampleTest, sampleResults]);
+  }, [resultSampleTest, sampleResults, sampleTestIds, sampleResultQueries]);
 
   useEffect(() => {
     if (analystSelectionTouched) return;
@@ -304,24 +343,43 @@ export function AnalystSampleDetailPanel({
     return body;
   }
 
-  async function handleSaveDraft() {
-    try {
-      if (activeDraftId) {
-        await patchResultMut.mutateAsync({
-          id: activeDraftId,
-          body: {
-            value: resultValue.trim(),
-            unit: resultUnit.trim() || undefined,
-          },
-        });
-      } else {
-        const result = await createResultMut.mutateAsync({
-          sample_test: resultSampleTest,
+  async function resolveEditableResultId(): Promise<string> {
+    const existing = findResultForSampleTest(sampleResults, resultSampleTest);
+    if (existing && isEditableResultState(existing.state)) {
+      await patchResultMut.mutateAsync({
+        id: existing.id,
+        body: {
           value: resultValue.trim(),
           unit: resultUnit.trim() || undefined,
-        });
-        setActiveDraftId(result.id);
-      }
+        },
+      });
+      return existing.id;
+    }
+    if (activeDraftId) {
+      await patchResultMut.mutateAsync({
+        id: activeDraftId,
+        body: {
+          value: resultValue.trim(),
+          unit: resultUnit.trim() || undefined,
+        },
+      });
+      return activeDraftId;
+    }
+    const created = await createResultMut.mutateAsync({
+      sample_test: resultSampleTest,
+      value: resultValue.trim(),
+      unit: resultUnit.trim() || undefined,
+    });
+    setActiveDraftId(created.id);
+    return created.id;
+  }
+
+  async function handleSaveDraft() {
+    if (resultReadOnly) return;
+    try {
+      const resultId = await resolveEditableResultId();
+      setActiveDraftId(resultId);
+      hydratedResultTestRef.current = resultSampleTest;
       toast.success("Draft saved.");
       onUpdated();
     } catch (e) {
@@ -330,30 +388,16 @@ export function AnalystSampleDetailPanel({
   }
 
   async function handleSubmitResult() {
+    if (resultReadOnly) return;
     try {
-      let draftId = activeDraftId;
-      if (!draftId) {
-        const created = await createResultMut.mutateAsync({
-          sample_test: resultSampleTest,
-          value: resultValue.trim(),
-          unit: resultUnit.trim() || undefined,
-        });
-        draftId = created.id;
-        setActiveDraftId(created.id);
-      } else if (resultValue.trim()) {
-        await patchResultMut.mutateAsync({
-          id: draftId,
-          body: {
-            value: resultValue.trim(),
-            unit: resultUnit.trim() || undefined,
-          },
-        });
-      }
-      await submitResultMut.mutateAsync(draftId!);
-      toast.success("Result submitted for QC.");
-      setResultValue("");
-      setResultUnit("");
+      const draftId = await resolveEditableResultId();
+      const submitted = await submitResultMut.mutateAsync(draftId);
+      setResultValue(submitted.value ?? "");
+      setResultUnit(submitted.unit ?? "");
       setActiveDraftId(null);
+      setActiveResultState(submitted.state);
+      hydratedResultTestRef.current = resultSampleTest;
+      toast.success("Result submitted for QC.");
       onUpdated();
     } catch (e) {
       toast.error(getApiErrorMessage(e));
@@ -374,8 +418,7 @@ export function AnalystSampleDetailPanel({
   const hasAssignedTests = sample.sample_tests.length > 0;
   const showRoutingPanel = showSampleRouting && canAssignAnalyst;
 
-  const isRejectedDraft =
-    findEditableResult(sampleResults, resultSampleTest)?.state === "rejected";
+  const isRejectedDraft = activeResultState === "rejected";
 
   function handleAssignAnalyst() {
     assignAnalystMut.mutate({
@@ -433,6 +476,8 @@ export function AnalystSampleDetailPanel({
           resultUnit={resultUnit}
           onResultUnitChange={setResultUnit}
           activeDraftId={activeDraftId}
+          resultState={activeResultState}
+          readOnly={resultReadOnly}
           isRejectedDraft={Boolean(isRejectedDraft)}
           saveDraftPending={saveDraftPending}
           submitPending={submitPending}
