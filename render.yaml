@@ -14,7 +14,7 @@ services:
     plan: free
     rootDir: LSIMS-Backend/LSIMS-main
     buildCommand: ./build.sh
-    startCommand: gunicorn lsims_project.wsgi:application --bind 0.0.0.0:$PORT
+    startCommand: bash start.sh
     healthCheckPath: /api/docs/
     envVars:
       - key: DATABASE_URL
