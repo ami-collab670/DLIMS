@@ -33,7 +33,7 @@ function Test-Endpoint {
         & $Assert $response
         Write-Host "[ok] $Name" -ForegroundColor Green
     } catch {
-        Write-Host "[fail] $Name — $($_.Exception.Message)" -ForegroundColor Red
+        Write-Host "[fail] $Name - $($_.Exception.Message)" -ForegroundColor Red
         $script:failures += $Name
     }
 }
@@ -75,7 +75,7 @@ try {
     if (-not $tokenResponse.access) { throw 'No access token' }
     Write-Host '[ok] Django admin login' -ForegroundColor Green
 } catch {
-    Write-Host "[fail] Django admin login — $($_.Exception.Message)" -ForegroundColor Red
+    Write-Host "[fail] Django admin login - $($_.Exception.Message)" -ForegroundColor Red
     $failures += 'Django admin login'
 }
 
