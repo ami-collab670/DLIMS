@@ -61,7 +61,7 @@ function RequestSummaryQr({ value }: { value: string }) {
     setLoadError(false);
     setDataUrl(null);
     void qrTextToDataUrl(value)
-      .then((url) => {
+      .then((url: string) => {
         if (!cancelled) setDataUrl(url);
       })
       .catch(() => {
